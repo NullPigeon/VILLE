@@ -26,6 +26,14 @@ export type ProposalRecord = {
   closesIn: string;
   district: string;
   createdAt: string;
+  eligibilitySnapshot?: {
+    wallet: string;
+    tokenBalance: string;
+    weight: number;
+    blockNumber: string;
+    capturedAt: string;
+  };
+  buildTier?: 'PENDING_REVIEW' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'MONUMENTAL';
 };
 
 export const initialWorldObjects: WorldObjectRecord[] = [

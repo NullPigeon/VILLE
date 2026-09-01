@@ -3,6 +3,8 @@ import './globals.css';
 import './vertical.css';
 import './product.css';
 import { LandvilleProvider } from '@/components/landville/provider';
+import { WalletProvider } from '@/components/landville/wallet-provider';
+import { MayorPresence } from '@/components/landville/mayor-presence';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
@@ -28,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body><LandvilleProvider>{children}</LandvilleProvider></body>
+      <body><WalletProvider><LandvilleProvider>{children}<MayorPresence /></LandvilleProvider></WalletProvider></body>
     </html>
   );
 }

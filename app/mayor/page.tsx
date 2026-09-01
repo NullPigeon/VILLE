@@ -34,6 +34,7 @@ export default function MayorPage() {
   const [created, setCreated] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [replySource, setReplySource] = useState<'openai' | 'local'>('local');
+  const [proposalMessage, setProposalMessage] = useState('');
 
   async function send(event: { preventDefault(): void }) {
     event.preventDefault();
@@ -79,15 +80,21 @@ export default function MayorPage() {
     }
   }
 
-  function publishConcept() {
+  async function publishConcept() {
     if (!concept) return;
-    const proposal = createProposal({
-      title: concept.title,
-      summary: concept.summary,
-      category: 'UTILITY',
-      district: 'THE DUMP',
-    });
-    setCreated(proposal.id);
+    setProposalMessage('SCRAPY IS CHECKING YOUR LAND HOLD…');
+    try {
+      const proposal = await createProposal({
+        title: concept.title,
+        summary: concept.summary,
+        category: 'UTILITY',
+        district: 'THE DUMP',
+      });
+      setCreated(proposal.id);
+      setProposalMessage(`ELIGIBLE · ×${proposal.eligibilitySnapshot?.weight || 0} POWER`);
+    } catch (error) {
+      setProposalMessage(error instanceof Error ? error.message.toUpperCase() : 'WALLET CHECK FAILED');
+    }
   }
 
   return (
@@ -133,6 +140,7 @@ export default function MayorPage() {
                 </small>
                 <h3>{concept.title}</h3>
                 <p>{concept.summary}</p>
+                {proposalMessage && <small className="snapshot-line">{proposalMessage}</small>}
                 {created ? (
                   <span className="status-tag LIVE">{created} LIVE</span>
                 ) : (
