@@ -1,0 +1,306 @@
+.hero,
+.chaos-section,
+.chaos-vote,
+.chaos-footer {
+  position: relative;
+}
+
+.hero-copy,
+.hero-art,
+.chaos-section > * {
+  position: relative;
+  z-index: 2;
+}
+
+.chaos-note,
+.chaos-arrow,
+.torn-caption,
+.section-stamp,
+.vote-scribble,
+.photo-sticker {
+  pointer-events: none;
+  font-family: monospace;
+}
+
+.chaos-note {
+  position: absolute;
+  z-index: 4;
+  padding: 10px 12px;
+  color: #17130d;
+  background: #c8ad77;
+  box-shadow: 5px 5px #050603;
+  clip-path: polygon(2% 5%, 96% 0, 100% 92%, 5% 100%, 0 42%);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.chaos-note b {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+.chaos-note-a {
+  top: 90px;
+  left: 45%;
+  transform: rotate(7deg);
+}
+
+.chaos-note-b {
+  right: -30px;
+  bottom: 96px;
+  color: #15170d;
+  background: var(--acid);
+  transform: rotate(-8deg);
+  animation: scrap-twitch 5s steps(1, end) infinite;
+}
+
+.chaos-arrow {
+  position: absolute;
+  z-index: 4;
+  left: 41%;
+  bottom: 56px;
+  color: var(--acid);
+  font-size: 9px;
+  font-weight: 900;
+  transform: rotate(-9deg);
+}
+
+.junk-nav a:nth-of-type(1) { transform: rotate(-1deg); }
+.junk-nav a:nth-of-type(2) { transform: rotate(1.2deg); }
+.junk-nav a:nth-of-type(3) { transform: rotate(-0.8deg); }
+.junk-nav a:nth-of-type(4) { transform: rotate(1deg); }
+
+.junk-nav a:hover,
+.junk-nav button:hover {
+  color: var(--acid);
+  text-shadow: 2px 2px #334500;
+  transform: translateY(-2px) rotate(-1deg);
+}
+
+.torn-caption {
+  position: absolute;
+  z-index: 4;
+  top: 55px;
+  right: -24px;
+  padding: 9px 12px;
+  background: #b88c45;
+  color: #17130d;
+  border: 2px solid #17130d;
+  font-size: 9px;
+  font-weight: 950;
+  transform: rotate(6deg);
+  box-shadow: 4px 4px #050603;
+}
+
+.how article:nth-child(1) { transform: translateY(4px) rotate(-0.8deg); }
+.how article:nth-child(2) { transform: translateY(-5px) rotate(0.7deg); }
+.how article:nth-child(3) { transform: translateY(7px) rotate(-0.4deg); }
+.how article:nth-child(4) { transform: translateY(-2px) rotate(0.9deg); }
+.how article:nth-child(5) { transform: translateY(5px) rotate(-0.7deg); }
+.how article:nth-child(6) { transform: translateY(-6px) rotate(0.6deg); }
+
+.how article:nth-child(odd)::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 17px;
+  width: 34px;
+  height: 9px;
+  background: #b5905688;
+  transform: rotate(4deg);
+}
+
+.how article {
+  position: relative;
+  box-shadow: 3px 4px #050603;
+}
+
+.section-stamp {
+  position: absolute;
+  z-index: 4;
+  top: 78px;
+  right: 18px;
+  padding: 8px 10px;
+  border: 2px solid var(--acid);
+  color: var(--acid);
+  background: #0b0c08e8;
+  font-size: 8px;
+  transform: rotate(5deg);
+  box-shadow: 4px 4px #050603;
+}
+
+.section-stamp b {
+  font-size: 10px;
+}
+
+.world-frame {
+  transform: rotate(-0.35deg);
+  box-shadow: 8px 9px #050603;
+}
+
+.projects article:nth-child(1) { transform: rotate(-0.8deg) translateY(4px); }
+.projects article:nth-child(2) { transform: rotate(0.9deg) translateY(-3px); }
+.projects article:nth-child(3) { transform: rotate(-0.5deg) translateY(6px); }
+
+.projects article:nth-child(2)::after {
+  content: 'SALVAGED';
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  right: -13px;
+  padding: 4px 15px;
+  color: #17130d;
+  background: #b98b42;
+  font: 8px monospace;
+  font-weight: 950;
+  transform: rotate(24deg);
+}
+
+.chaos-vote::before {
+  content: '';
+  position: absolute;
+  top: 22px;
+  left: -2%;
+  width: 25%;
+  height: 13px;
+  background: repeating-linear-gradient(-45deg, var(--acid) 0 7px, #17190f 7px 14px);
+  transform: rotate(-3deg);
+  box-shadow: 0 3px #050603;
+}
+
+.vote-scribble {
+  position: absolute;
+  z-index: 2;
+  right: 2.5%;
+  top: 28px;
+  color: #17130d;
+  background: var(--acid);
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 950;
+  transform: rotate(8deg);
+  box-shadow: 4px 4px #050603;
+}
+
+.vote-stack article:nth-child(1) { transform: translateX(-7px) rotate(-0.6deg); }
+.vote-stack article:nth-child(2) { transform: translateX(8px) rotate(0.7deg); }
+.vote-stack article:nth-child(3) { transform: translateX(-3px) rotate(-0.4deg); }
+
+.mayor-photo {
+  transform: rotate(-1.1deg);
+  box-shadow: 9px 9px #050603;
+}
+
+.photo-sticker {
+  position: absolute;
+  z-index: 4;
+  top: 25px;
+  right: -8px;
+  padding: 8px 10px;
+  background: #c9ad78;
+  color: #17130d;
+  border: 1px solid #17130d;
+  font-size: 8px;
+  font-weight: 950;
+  transform: rotate(7deg);
+  box-shadow: 4px 4px #050603;
+}
+
+.news .paper {
+  transform: rotate(-2.2deg) translateY(5px);
+  box-shadow: 7px 8px #050603;
+}
+
+.news .treasury {
+  transform: rotate(1.2deg) translateY(-5px);
+  box-shadow: 7px 8px #050603;
+}
+
+.chaos-footer > b {
+  padding: 6px 9px;
+  color: #17130d;
+  background: #b98a43;
+  font: 8px monospace;
+  transform: rotate(-5deg);
+  box-shadow: 3px 3px #050603;
+}
+
+.button,
+.label,
+.vote-stack footer button,
+.text-link {
+  transition: transform 120ms ease, box-shadow 120ms ease, color 120ms ease;
+}
+
+.button:hover,
+.label:hover,
+.vote-stack footer button:hover,
+.text-link:hover {
+  transform: translate(-2px, -2px) rotate(-0.8deg);
+  box-shadow: 5px 5px #050603;
+}
+
+@keyframes scrap-twitch {
+  0%, 91%, 100% { transform: rotate(-8deg) translate(0); }
+  92% { transform: rotate(-6deg) translate(2px, -1px); }
+  94% { transform: rotate(-9deg) translate(-1px, 1px); }
+}
+
+@media (max-width: 980px) {
+  .chaos-note-a,
+  .chaos-arrow,
+  .section-stamp,
+  .vote-scribble {
+    display: none;
+  }
+
+  .chaos-note-b {
+    right: 4px;
+    bottom: 32px;
+  }
+
+  .torn-caption {
+    right: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .chaos-note-b {
+    top: 47%;
+    right: -4px;
+    bottom: auto;
+  }
+
+  .torn-caption {
+    top: 30px;
+    font-size: 7px;
+  }
+
+  .how article,
+  .projects article,
+  .vote-stack article,
+  .mayor-photo,
+  .news .paper,
+  .news .treasury {
+    transform: none !important;
+  }
+
+  .chaos-vote::before {
+    width: 42%;
+  }
+
+  .photo-sticker {
+    right: 6px;
+  }
+
+  .chaos-footer > b {
+    order: 4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chaos-note-b {
+    animation: none;
+  }
+}
