@@ -1,7 +1,9 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Bot, Building2, CheckCircle2, ChevronRight, CircleDollarSign, Crown, Eye, Hammer, MapPin, Menu, MessageSquare, Plus, Send, Sparkles, User, Vote, X } from 'lucide-react';
+import { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { ArrowDownRight, ArrowUpRight, Bot, Building2, CheckCircle2, ChevronRight, CircleDollarSign, Crown, Hammer, MapPin, Menu, MessageSquare, Plus, Send, Sparkles, User, Vote, X } from 'lucide-react';
 
 const projects = [
   ['GIANT FROG CASINO', 'TOKEN ALLEY', '@degen69', 73],
@@ -30,7 +32,7 @@ export default function Home() {
   const [proposal, setProposal] = useState<'idle' | 'preview' | 'live' | 'built'>('idle');
   const [proposalVote, setProposalVote] = useState(false);
   const [messages, setMessages] = useState([{ who: 'SCRAPY', text: 'Landville is online. What are we irresponsibly building today?' }]);
-  const send = (event: FormEvent) => {
+  const send = (event: { preventDefault(): void }) => {
     event.preventDefault(); const text = input.trim(); if (!text) return;
     setMessages((m) => [...m, { who: 'YOU', text }, { who: 'SCRAPY', text: reply(text) }]); setInput('');
   };
@@ -39,13 +41,13 @@ export default function Home() {
     <div className="noise" aria-hidden="true" />
     <header className="site-header">
       <a className="logo" href="#top">LANDVILLE<span>™</span></a>
-      <nav className={menu ? 'nav open' : 'nav'}><a href="#world" onClick={() => setMenu(false)}>WORLD</a><a href="#votes" onClick={() => setMenu(false)}>VOTE</a><a href="#about" onClick={() => setMenu(false)}>ABOUT</a><button onClick={() => {setChat(true);setMenu(false)}}><Bot /> MAYOR</button></nav>
+      <nav className={menu ? 'nav open' : 'nav'}><Link href="/world" onClick={() => setMenu(false)}>WORLD</Link><Link href="/proposals" onClick={() => setMenu(false)}>VOTE</Link><a href="#about" onClick={() => setMenu(false)}>ABOUT</a><Link href="/treasury" onClick={() => setMenu(false)}>TREASURY</Link><button onClick={() => {setChat(true);setMenu(false)}}><Bot /> MAYOR</button></nav>
       <button className="menu" onClick={() => setMenu(!menu)} aria-label="Toggle navigation">{menu ? <X /> : <Menu />}</button>
     </header>
 
     <section id="top" className="hero shell">
-      <div><p className="eyebrow"><i /> RESIDENT #0001 IS ONLINE</p><h1>A DIGITAL TOWN<br />BUILT BY THE <em>INTERNET.</em></h1><p className="intro">You imagine. We vote. Landville builds.<br />No roadmap survives the junkyard.</p><div className="actions"><a href="#world" className="button acid">ENTER LANDVILLE <ArrowDownRight /></a><button className="button" onClick={() => setChat(true)}>TALK TO MAYOR <MessageSquare /></button></div><p className="pulse"><i /> 2,418 CITIZENS CAUSING PROBLEMS</p></div>
-      <div className="hero-art"><img src="/scrapy-sheet.png" alt="Mayor Scrapy character sheet" /><div className="mayor-title">MAYOR<br /><b>SCRAPY</b><Crown /></div><div className="bubble">ANOTHER IDEA?<br /><b>NICE.</b><small>Let’s see if it’s worth the mess.</small></div><div className="tag">BUILT FROM<br />TRASH + COFFEE</div></div>
+      <div><p className="eyebrow"><i /> RESIDENT #0001 IS ONLINE</p><h1>A DIGITAL TOWN<br />BUILT BY THE <em>INTERNET.</em></h1><p className="intro">You imagine. We vote. Landville builds.<br />No roadmap survives the junkyard.</p><div className="actions"><Link href="/world" className="button acid">ENTER LANDVILLE <ArrowDownRight /></Link><button className="button" onClick={() => setChat(true)}>TALK TO MAYOR <MessageSquare /></button></div><p className="pulse"><i /> 2,418 CITIZENS CAUSING PROBLEMS</p></div>
+      <div className="hero-art"><Image src="/scrapy-sheet.png" alt="Mayor Scrapy character sheet" width={1536} height={1024} priority /><div className="mayor-title">MAYOR<br /><b>SCRAPY</b><Crown /></div><div className="bubble">ANOTHER IDEA?<br /><b>NICE.</b><small>Let’s see if it’s worth the mess.</small></div><div className="tag">BUILT FROM<br />TRASH + COFFEE</div></div>
     </section>
     <div className="marquee">YOU IMAGINE <i>✦</i> WE VOTE <i>✦</i> LANDVILLE BUILDS <i>✦</i> YOU IMAGINE <i>✦</i> WE VOTE <i>✦</i> LANDVILLE BUILDS <i>✦</i></div>
 
@@ -59,7 +61,7 @@ export default function Home() {
     <section id="votes" className="vote-section"><div className="shell vote-layout"><div className="vote-intro"><p className="eyebrow"><i /> CITIZENS DECIDE</p><h2>MAKE THEM<br /><em>VOTE.</em></h2><p>Landville does not need another committee. It needs a giant green button and people with opinions.</p><button className="button acid" onClick={() => setChat(true)}>START A PROPOSAL <ArrowUpRight /></button></div><div className="vote-stack">{votes.map(([title,author,yes,time]) => <article key={title as string}><header><span>PROPOSAL LIVE</span><time>{time}</time></header><h3>{title}</h3><p>Proposed by {author}</p><div className="meter"><i style={{width:`${yes}%`}} /></div><footer><b><em>{yes}%</em> YES</b><span>{100-(yes as number)}% NO</span><button onClick={() => setVoted(title as string)}>{voted === title ? 'VOTED ✓' : 'VOTE'} <Vote /></button></footer></article>)}</div></div></section>
 
     <section id="about" className="shell mayor"><div className="mayor-photo"><img src="/scrapy-sheet.png" alt="Mayor Scrapy" /><b>HE RUNS ON<br /><strong>CHAOS + COFFEE</strong></b></div><div><p className="eyebrow"><i /> MEET THE MAYOR</p><h2>MAYOR SCRAPY<br />IS <em>LISTENING.</em></h2><p>He is an AI mayor, builder, engineer, town clerk and occasional obstacle. He loves weird ideas, hates boring ones, and quietly wants this town to work.</p><blockquote>“OF COURSE. CIVILIZATION LASTED ALMOST SIX MINUTES.”</blockquote><button className="text-link" onClick={() => setChat(true)}>BOTHER THE MAYOR <ChevronRight /></button></div></section>
-    <section className="shell news"><article className="paper"><p>THE LANDFILL TIMES</p><h2>TODAY IN LANDVILLE</h2><ul><li>Three buildings appeared.</li><li>Two were useful.</li><li>We’re investigating.</li></ul><a href="#world">READ THE FULL MESS <ArrowUpRight /></a></article><article className="treasury"><CircleDollarSign /><div><p>COMMUNITY TREASURY</p><h2>$1,250,420.69</h2><small>READ-ONLY. MAYOR DOES NOT GET THE KEYS.</small></div><a href="#votes"><ChevronRight /></a></article></section>
+    <section className="shell news"><article className="paper"><p>THE LANDFILL TIMES</p><h2>TODAY IN LANDVILLE</h2><ul><li>Three buildings appeared.</li><li>Two were useful.</li><li>We’re investigating.</li></ul><a href="/world">READ THE FULL MESS <ArrowUpRight /></a></article><article className="treasury"><CircleDollarSign /><div><p>COMMUNITY TREASURY</p><h2>$1,250,420.69</h2><small>READ-ONLY. MAYOR DOES NOT GET THE KEYS.</small></div><a href="/treasury"><ChevronRight /></a></article></section>
     <footer className="site-footer"><a className="logo" href="#top">LANDVILLE<span>™</span></a><p>THIS IS NOT JUST A WEBSITE. IT’S A TOWN.</p><span>© 2026 THE INTERNET</span></footer>
     {chat && <aside className="chat" aria-label="Mayor Scrapy chat"><header><div className="bot"><Bot /></div><div><b>MAYOR SCRAPY</b><small><i /> ONLINE / DOCKED</small></div><button onClick={() => setChat(false)} aria-label="Close mayor chat"><X /></button></header><div className="thread">{messages.map((m,i) => <div className={m.who === 'YOU' ? 'message you' : 'message'} key={i}><small>{m.who}</small><p>{m.text}</p></div>)}</div><button className="concept" onClick={showConcept}><Sparkles /><div><small>{messages.length>1?'CONCEPT READY':'TRY THE DEMO IDEA'}</small><b>MAKE A TOKEN SWAP, BUT PHYSICAL</b></div><ChevronRight /></button><form onSubmit={send}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Tell Mayor what Landville needs..." aria-label="Message Mayor Scrapy" /><button aria-label="Send"><Send /></button></form></aside>}
     {selectedObject&&<div className="modal-backdrop" onMouseDown={()=>setSelectedObject(null)}><section className="object-modal" onMouseDown={e=>e.stopPropagation()} aria-modal="true"><button className="modal-close" onClick={()=>setSelectedObject(null)}><X /></button><p className="eyebrow"><i /> WORLD OBJECT / BUILT</p><div className="object-icon"><Building2 /></div><small>{selectedObject.district}</small><h2>{selectedObject.title}</h2><p>It exists because somebody suggested it and the citizens failed to stop them.</p><dl><div><dt>BUILT BY</dt><dd><User /> {selectedObject.author}</dd></div><div><dt>FINAL VOTE</dt><dd>{selectedObject.yes}% YES</dd></div><div><dt>STATUS</dt><dd><CheckCircle2 /> PERMANENT</dd></div></dl><button className="button acid" onClick={()=>{setSelectedObject(null);setChat(true)}}>ASK MAYOR ABOUT IT <MessageSquare /></button></section></div>}

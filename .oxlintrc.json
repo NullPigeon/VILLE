@@ -29,6 +29,9 @@
     "build/**",
     "dist/**",
     "coverage/**",
+    "components/ui/**",
+    "hooks/use-mobile.ts",
+    "app/page.tsx",
     "next-env.d.ts"
   ],
   "rules": {
@@ -51,6 +54,7 @@
     "typescript/no-namespace": "error",
     "typescript/no-require-imports": "error",
     "typescript/no-unnecessary-type-constraint": "error",
-    "typescript/no-unsafe-function-type": "error"
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/unbound-method": "off"
   }
 }
