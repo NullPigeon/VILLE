@@ -6,7 +6,6 @@ import {
   Bot,
   Building2,
   CalendarDays,
-  MapPin,
   User,
   Vote,
   X,
@@ -32,7 +31,7 @@ export default function WorldPage() {
       immersive
     >
       <section className="world-canvas world-stage world-blank-canvas" aria-label="Interactive empty LANDVILLE world">
-        {objects.map((object, index) => (
+        {objects.map((object) => (
           <button
             key={object.id}
             className={selectedId === object.id ? 'world-beacon selected' : 'world-beacon'}
@@ -40,39 +39,30 @@ export default function WorldPage() {
             onClick={() => inspectObject(object.id)}
             aria-label={`Inspect ${object.title}`}
           >
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            <i />
+            <Building2 />
             <small>{object.title}</small>
           </button>
         ))}
 
         {drawerOpen && <button className="world-drawer-scrim" onClick={() => setDrawerOpen(false)} aria-label="Close object menu" />}
-        <aside id="world-object-drawer" className={drawerOpen ? 'world-drawer open' : 'world-drawer'} aria-hidden={!drawerOpen}>
+        {selected && <aside id="world-object-drawer" className={drawerOpen ? 'world-drawer open' : 'world-drawer'} aria-hidden={!drawerOpen}>
           <header className="world-drawer-head">
-            <div><small>LANDVILLE WORLD INDEX</small><h2>{selected ? 'OBJECT FILE' : 'BUILT OBJECTS'}</h2></div>
+            <div><small>BUILT OBJECT</small><h2>{selected.title}</h2></div>
             <button onClick={() => setDrawerOpen(false)} aria-label="Close object menu"><X /></button>
           </header>
 
-          {selected ? (
-            <div className="object-detail world-object-detail">
-              <div className="object-art"><Building2 /></div>
-              <small>{selected.kind.toUpperCase()} / {selected.district}</small>
-              <h2>{selected.title}</h2>
-              <p>{selected.description}</p>
-              <dl className="object-facts">
-                <div><dt><User /> BUILT BY</dt><dd>{selected.creator}</dd></div>
-                <div><dt><Vote /> FINAL POWER</dt><dd>{selected.yesPercent}% YES</dd></div>
-                <div><dt><CalendarDays /> BUILT</dt><dd>{selected.builtAt}</dd></div>
-              </dl>
-              <Link className="lv-button primary" href="/mayor">ASK MAYOR ABOUT IT <Bot /></Link>
-            </div>
-          ) : (
-            <div className="world-drawer-empty">
-              <MapPin />
-              <p>Pick a beacon. Inspect the citizen responsible.</p>
-            </div>
-          )}
-        </aside>
+          <div className="object-detail world-object-detail">
+            <div className="object-art"><Building2 /></div>
+            <small>{selected.kind.toUpperCase()} / {selected.district}</small>
+            <p>{selected.description}</p>
+            <dl className="object-facts">
+              <div><dt><User /> BUILT BY</dt><dd>{selected.creator}</dd></div>
+              <div><dt><Vote /> FINAL POWER</dt><dd>{selected.yesPercent}% YES</dd></div>
+              <div><dt><CalendarDays /> BUILT</dt><dd>{selected.builtAt}</dd></div>
+            </dl>
+            <Link className="lv-button primary" href="/mayor">ASK MAYOR ABOUT IT <Bot /></Link>
+          </div>
+        </aside>}
       </section>
     </ProductShell>
   );

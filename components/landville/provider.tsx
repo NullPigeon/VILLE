@@ -1,5 +1,5 @@
 'use client';
-/* oxlint-disable react/react-compiler -- localStorage demo hydration requires post-mount state */
+/* oxlint-disable react/react-compiler -- localStorage hydration requires post-mount state */
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { initialProposals, initialWorldObjects, type ProposalRecord, type ProposalStatus, type VoteChoice, type WorldObjectRecord } from '@/lib/landville-data';
@@ -14,11 +14,11 @@ type Store = {
   createProposal(input: NewProposal): Promise<ProposalRecord>;
   vote(id: string, choice: VoteChoice): Promise<VoteReceipt>;
   setProposalStatus(id: string, status: ProposalStatus): void;
-  resetDemo(): void;
 };
 
 const StoreContext = createContext<Store | null>(null);
-const STORAGE_KEY = 'landville-state-v3';
+const STORAGE_KEY = 'landville-state-v4';
+const LEGACY_MOCK_KEY = 'landville-state-v3';
 
 export function LandvilleProvider({ children }: { children: React.ReactNode }) {
   const wallet = useWallet();
@@ -30,12 +30,13 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
   // oxlint-disable-next-line react/react-compiler -- client storage is loaded only after hydration
   useEffect(() => {
     try {
+      localStorage.removeItem(LEGACY_MOCK_KEY);
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as { proposals: ProposalRecord[]; objects: WorldObjectRecord[]; voted: Record<string, VoteReceipt> };
         setProposals(parsed.proposals); setObjects(parsed.objects); setVoted(parsed.voted);
       }
-    } catch { /* fall back to safe mock state */ }
+    } catch { /* start with an empty local state */ }
     setHydrated(true);
   }, []);
 
@@ -50,7 +51,7 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
     async createProposal(input) {
       const power = wallet.address ? await wallet.refreshVotingPower() : await wallet.connectWallet();
       if (power.weight < 1) throw new Error('You need at least 250,000 LAND to request a build.');
-      const highestId = proposals.reduce((highest, item) => Math.max(highest, Number(item.id.replace('LV-', '')) || 0), 184);
+      const highestId = proposals.reduce((highest, item) => Math.max(highest, Number(item.id.replace('LV-', '')) || 0), 0);
       const record: ProposalRecord = { ...input, id: `LV-${highestId + 1}`, creator: `@${walletUsername(power.wallet)}`, yes: 0, no: 0, status: 'LIVE', closesIn: '2D LEFT', createdAt: new Date().toISOString().slice(0, 10), buildTier: 'PENDING_REVIEW', eligibilitySnapshot: { wallet: power.wallet, tokenBalance: power.tokenBalance, weight: power.weight, blockNumber: power.blockNumber, capturedAt: power.capturedAt } };
       setProposals((current) => [record, ...current]);
       return record;
@@ -71,7 +72,6 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
         if (proposal) setObjects((current) => current.some((item) => item.id === proposal.id) ? current : [...current, { id: proposal.id, title: proposal.title, district: proposal.district, creator: proposal.creator, description: proposal.summary, yesPercent: Math.round((proposal.yes / Math.max(1, proposal.yes + proposal.no)) * 100), builtAt: new Date().toISOString().slice(0, 10), kind: 'utility', x: 34 + (current.length * 11) % 45, y: 31 + (current.length * 9) % 43 }]);
       }
     },
-    resetDemo() { setProposals(initialProposals); setObjects(initialWorldObjects); setVoted({}); localStorage.removeItem(STORAGE_KEY); },
   }), [objects, proposals, voted, wallet]);
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;

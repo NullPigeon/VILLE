@@ -7,7 +7,7 @@ export type VotingPowerSnapshot = {
   weight: number;
   blockNumber: string;
   capturedAt: string;
-  source: 'chain' | 'demo';
+  source: 'chain';
 };
 
 export type VoteReceipt = VotingPowerSnapshot & {

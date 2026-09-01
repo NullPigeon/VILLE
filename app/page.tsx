@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowDownRight, ArrowUpRight, Bot, Building2, CheckCircle2, ChevronRight, CircleDollarSign, Crown, Hammer, MapPin, Menu, MessageSquare, Plus, Send, Sparkles, User, Vote, X } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Bot, Building2, CheckCircle2, ChevronRight, CircleDollarSign, Crown, Hammer, MapPin, Menu, MessageSquare, Plus, Radio, Send, Sparkles, TriangleAlert, User, Vote, Wrench, X } from 'lucide-react';
 
 const projects = [
   ['GIANT FROG CASINO', 'TOKEN ALLEY', '@degen69', 73],
@@ -39,15 +39,15 @@ export default function Home() {
   const showConcept = () => { setChat(false); setProposal('preview'); };
   return <main>
     <div className="noise" aria-hidden="true" />
-    <header className="site-header">
-      <a className="logo" href="#top">LANDVILLE<span>™</span></a>
-      <nav className={menu ? 'nav open' : 'nav'}><Link href="/world" onClick={() => setMenu(false)}>WORLD</Link><Link href="/proposals" onClick={() => setMenu(false)}>VOTE</Link><a href="#about" onClick={() => setMenu(false)}>ABOUT</a><Link href="/treasury" onClick={() => setMenu(false)}>TREASURY</Link><button onClick={() => {setChat(true);setMenu(false)}}><Bot /> MAYOR</button></nav>
+    <header className="site-header junk-header">
+      <div className="brand-stack"><a className="logo" href="#top">LANDVILLE<span>™</span></a><small><Wrench /> MUNICIPAL SALVAGE UNIT</small></div>
+      <nav className={menu ? 'nav open junk-nav' : 'nav junk-nav'}><span className="nav-warning"><TriangleAlert /> SCRAP ACCESS</span><Link href="/world" onClick={() => setMenu(false)}>01 / WORLD</Link><Link href="/proposals" onClick={() => setMenu(false)}>02 / VOTE</Link><a href="#about" onClick={() => setMenu(false)}>03 / ABOUT</a><Link href="/treasury" onClick={() => setMenu(false)}>04 / TREASURY</Link><button onClick={() => {setChat(true);setMenu(false)}}><Bot /> 05 / MAYOR</button></nav>
       <button className="menu" onClick={() => setMenu(!menu)} aria-label="Toggle navigation">{menu ? <X /> : <Menu />}</button>
     </header>
 
     <section id="top" className="hero shell">
-      <div><p className="eyebrow"><i /> RESIDENT #0001 IS ONLINE</p><h1>A DIGITAL TOWN<br />BUILT BY THE <em>INTERNET.</em></h1><p className="intro">You imagine. We vote. Landville builds.<br />No roadmap survives the junkyard.</p><div className="actions"><Link href="/world" className="button acid">ENTER LANDVILLE <ArrowDownRight /></Link><button className="button" onClick={() => setChat(true)}>TALK TO MAYOR <MessageSquare /></button></div><p className="pulse"><i /> 2,418 CITIZENS CAUSING PROBLEMS</p></div>
-      <div className="hero-art"><Image src="/scrapy-sheet.png" alt="Mayor Scrapy character sheet" width={1536} height={1024} priority /><div className="mayor-title">MAYOR<br /><b>SCRAPY</b><Crown /></div><div className="bubble">ANOTHER IDEA?<br /><b>NICE.</b><small>Let’s see if it’s worth the mess.</small></div><div className="tag">BUILT FROM<br />TRASH + COFFEE</div></div>
+      <div className="hero-copy"><div className="waste-badge"><TriangleAlert /><span>ZONE 01</span><b>CIVIC SCRAPYARD</b></div><p className="eyebrow"><i /> RESIDENT #0001 IS ONLINE</p><h1>A DIGITAL TOWN<br />BUILT BY THE <em>INTERNET.</em></h1><p className="intro">You imagine. We vote. Landville builds.<br />No roadmap survives the junkyard.</p><div className="actions"><Link href="/world" className="button acid">ENTER LANDVILLE <ArrowDownRight /></Link><button className="button" onClick={() => setChat(true)}>TALK TO MAYOR <MessageSquare /></button></div><p className="pulse"><i /> 2,418 CITIZENS CAUSING PROBLEMS</p><div className="salvage-frequency"><Radio /> MUNICIPAL FREQUENCY 46.630 // SIGNAL UNSTABLE</div></div>
+      <div className="hero-art junk-frame"><i className="rivet r1" /><i className="rivet r2" /><i className="rivet r3" /><i className="rivet r4" /><Image src="/scrapy-sheet.png" alt="Mayor Scrapy character sheet" width={1536} height={1024} priority /><div className="mayor-title">MAYOR<br /><b>SCRAPY</b><Crown /></div><div className="bubble">ANOTHER IDEA?<br /><b>NICE.</b><small>Let’s see if it’s worth the mess.</small></div><div className="tag">BUILT FROM<br />TRASH + COFFEE</div><div className="hazard-stamp"><TriangleAlert /> DO NOT FEED<br />BORING IDEAS</div></div>
     </section>
     <div className="marquee">YOU IMAGINE <i>✦</i> WE VOTE <i>✦</i> LANDVILLE BUILDS <i>✦</i> YOU IMAGINE <i>✦</i> WE VOTE <i>✦</i> LANDVILLE BUILDS <i>✦</i></div>
 

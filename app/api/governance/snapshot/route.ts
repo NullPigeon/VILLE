@@ -1,7 +1,7 @@
 import { createPublicClient, erc20Abi, formatUnits, http, isAddress } from 'viem';
 import { defineChain } from 'viem';
 import { NextRequest, NextResponse } from 'next/server';
-import { calculateVoteWeight, TOKENS_PER_VOTE } from '@/lib/governance';
+import { calculateVoteWeight } from '@/lib/governance';
 import { readWalletSession, SESSION_COOKIE } from '@/lib/wallet-session';
 
 const robinhoodTestnet = defineChain({
@@ -26,20 +26,7 @@ export async function GET(request: NextRequest) {
   const tokenAddress = process.env.LAND_TOKEN_ADDRESS || '';
 
   if (!isAddress(tokenAddress)) {
-    if (process.env.GOVERNANCE_DEMO_MODE === 'false') {
-      return NextResponse.json({ error: 'LAND token contract is not configured.' }, { status: 503 });
-    }
-
-    const demoBalance = 1_000_000;
-    return NextResponse.json({
-      wallet: session.address,
-      tokenBalance: String(BigInt(demoBalance) * 10n ** 18n),
-      tokenBalanceFormatted: demoBalance.toLocaleString('en-US'),
-      weight: Math.floor(demoBalance / TOKENS_PER_VOTE),
-      blockNumber: 'DEMO',
-      capturedAt: new Date().toISOString(),
-      source: 'demo',
-    });
+    return NextResponse.json({ error: 'LAND token contract is not configured.' }, { status: 503 });
   }
 
   try {
