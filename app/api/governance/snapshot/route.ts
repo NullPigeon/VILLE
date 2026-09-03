@@ -23,10 +23,10 @@ export async function GET(request: NextRequest) {
   const session = readWalletSession(request.cookies.get(SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: 'Connect and sign your wallet first.' }, { status: 401 });
 
-  const tokenAddress = process.env.LAND_TOKEN_ADDRESS || '';
+  const tokenAddress = process.env.SCRAPY_TOKEN_ADDRESS || '';
 
   if (!isAddress(tokenAddress)) {
-    return NextResponse.json({ error: 'LAND token contract is not configured.' }, { status: 503 });
+    return NextResponse.json({ error: 'SCRAPY token contract is not configured.' }, { status: 503 });
   }
 
   try {
@@ -61,6 +61,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Governance snapshot failed:', error);
-    return NextResponse.json({ error: 'Could not read LAND balance from Robinhood Chain.' }, { status: 502 });
+    return NextResponse.json({ error: 'Could not read SCRAPY balance from Robinhood Chain.' }, { status: 502 });
   }
 }

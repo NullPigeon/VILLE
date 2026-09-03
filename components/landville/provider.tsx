@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { initialProposals, initialWorldObjects, type ProposalRecord, type ProposalStatus, type VoteChoice, type WorldObjectRecord } from '@/lib/landville-data';
-import { type VoteReceipt, walletUsername } from '@/lib/governance';
+import { BASE_VOTE_WEIGHT, type VoteReceipt, walletUsername } from '@/lib/governance';
 import { useWallet } from '@/components/landville/wallet-provider';
 
 type NewProposal = Pick<ProposalRecord, 'title' | 'summary' | 'category' | 'district'>;
@@ -50,7 +50,8 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
     voted,
     async createProposal(input) {
       const power = wallet.address ? await wallet.refreshVotingPower() : await wallet.connectWallet();
-      if (power.weight < 1) throw new Error('You need at least 250,000 LAND to request a build.');
+      // Build eligibility still requires a token bonus; the free vote does not unlock builds.
+      if (power.weight <= BASE_VOTE_WEIGHT) throw new Error('You need at least 250,000 SCRAPY to request a build.');
       const highestId = proposals.reduce((highest, item) => Math.max(highest, Number(item.id.replace('LV-', '')) || 0), 0);
       const record: ProposalRecord = { ...input, id: `LV-${highestId + 1}`, creator: `@${walletUsername(power.wallet)}`, yes: 0, no: 0, status: 'LIVE', closesIn: '2D LEFT', createdAt: new Date().toISOString().slice(0, 10), buildTier: 'PENDING_REVIEW', eligibilitySnapshot: { wallet: power.wallet, tokenBalance: power.tokenBalance, weight: power.weight, blockNumber: power.blockNumber, capturedAt: power.capturedAt } };
       setProposals((current) => [record, ...current]);
@@ -59,7 +60,7 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
     async vote(id, choice) {
       if (voted[id]) return voted[id];
       const power = wallet.address ? await wallet.refreshVotingPower() : await wallet.connectWallet();
-      if (power.weight < 1) throw new Error('You need at least 250,000 LAND for one vote.');
+      if (power.weight < BASE_VOTE_WEIGHT) throw new Error('Voting power could not be verified. Please reconnect your wallet.');
       const receipt: VoteReceipt = { ...power, choice };
       setVoted((current) => ({ ...current, [id]: receipt }));
       setProposals((current) => current.map((item) => item.id === id ? { ...item, yes: item.yes + (choice === 'YES' ? power.weight : 0), no: item.no + (choice === 'NO' ? power.weight : 0) } : item));

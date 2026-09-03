@@ -82,7 +82,7 @@ export default function MayorPage() {
 
   async function publishConcept() {
     if (!concept) return;
-    setProposalMessage('SCRAPY IS CHECKING YOUR LAND HOLD…');
+    setProposalMessage('CHECKING YOUR SCRAPY TOKEN HOLD…');
     try {
       const proposal = await createProposal({
         title: concept.title,

@@ -5,7 +5,7 @@ import { Bot, Plus, Vote } from 'lucide-react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { useLandville } from '@/components/landville/provider';
 import { useWallet } from '@/components/landville/wallet-provider';
-import { shortWallet, TOKENS_PER_VOTE } from '@/lib/governance';
+import { BASE_VOTE_WEIGHT, shortWallet, TOKENS_PER_VOTE } from '@/lib/governance';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const filters = ['ALL', 'LIVE', 'PASSED', 'BUILDING', 'BUILT'] as const;
@@ -24,7 +24,7 @@ export default function ProposalsPage() {
   async function submit(event: { preventDefault(): void }) {
     event.preventDefault();
     if (form.title.trim().length < 4 || form.summary.trim().length < 10) return;
-    setActionMessage('CHECKING LAND HOLD AT THE CURRENT BLOCK…');
+    setActionMessage('CHECKING SCRAPY HOLD AT THE CURRENT BLOCK…');
     try {
       const record = await createProposal({ ...form, title: form.title.trim().toUpperCase(), summary: form.summary.trim() });
       setCreated(record.id); setOpen(false); setFilter('ALL'); setForm({ title: '', summary: '', category: 'UTILITY', district: 'THE DUMP' });
@@ -36,7 +36,7 @@ export default function ProposalsPage() {
 
   async function castVote(id: string, choice: 'YES' | 'NO') {
     setBusyId(id);
-    setActionMessage('SNAPSHOTTING LAND HOLD…');
+    setActionMessage('SNAPSHOTTING SCRAPY HOLD…');
     try {
       const receipt = await vote(id, choice);
       setActionMessage(`${receipt.weight} VOTE${receipt.weight === 1 ? '' : 'S'} CAST · BLOCK ${receipt.blockNumber} · ${shortWallet(receipt.wallet)}`);
@@ -48,7 +48,7 @@ export default function ProposalsPage() {
   }
 
   return <ProductShell title="PROPOSALS" eyebrow="IMAGINE / HOLD / VOTE" actions={<button className="lv-button primary" onClick={() => setOpen(true)}><Plus /> NEW PROPOSAL</button>}>
-    <section className="governance-rule"><div><small>VOTING RULE</small><strong>{TOKENS_PER_VOTE.toLocaleString()} LAND = 1 VOTE</strong><span>Balance is read from Robinhood Chain at the exact block when you vote.</span></div><div><small>YOUR CURRENT POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? `${shortWallet(wallet.address)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} LAND` : 'Connect and sign your wallet. No transaction.'}</span></div><button className="lv-button" onClick={() => wallet.address ? wallet.refreshVotingPower().catch(()=>undefined) : wallet.connectWallet().catch(()=>undefined)}>{wallet.address ? 'REFRESH HOLD' : 'CONNECT WALLET'}</button></section>
+    <section className="governance-rule"><div><small>VOTING RULE</small><strong>{BASE_VOTE_WEIGHT} BASE VOTE + 1 PER {TOKENS_PER_VOTE.toLocaleString('en-US')} SCRAPY</strong><span>No tokens required to vote. Each full 250,000 SCRAPY adds one vote. Your balance is checked at voting time.</span></div><div><small>YOUR CURRENT POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? `${shortWallet(wallet.address)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} SCRAPY` : 'Connect and sign your wallet. No transaction.'}</span></div><button className="lv-button" onClick={() => wallet.address ? wallet.refreshVotingPower().catch(()=>undefined) : wallet.connectWallet().catch(()=>undefined)}>{wallet.address ? 'REFRESH HOLD' : 'CONNECT WALLET'}</button></section>
     {actionMessage && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>{actionMessage}</div>}
     {created && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>PROPOSAL {created} IS LIVE. Democracy has been notified.</div>}
     <div className="filter-row">{filters.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>
@@ -62,6 +62,6 @@ export default function ProposalsPage() {
       </article>;
     })}{visible.length === 0 && <div className="empty-state"><Vote />No proposals in this pile.</div>}</section>
 
-    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="border-[#59682d] bg-[#11130d] text-[#d5bd8d] sm:max-w-lg"><DialogHeader><DialogTitle className="text-2xl font-black text-[#c7ff00]">MAKE THEM VOTE.</DialogTitle><DialogDescription className="font-mono text-[#9b8966]">Submitting checks your current LAND hold. Build-complexity tiers will be assigned during human review.</DialogDescription></DialogHeader><form className="proposal-form" onSubmit={submit}><label>THING NAME<input value={form.title} onChange={(e)=>setForm({...form,title:e.target.value})} placeholder="GIANT FROG LIBRARY" required minLength={4} /></label><label>WHAT IS IT?<textarea value={form.summary} onChange={(e)=>setForm({...form,summary:e.target.value})} placeholder="Explain the useful part. If one exists." required minLength={10} /></label><label>CATEGORY<select value={form.category} onChange={(e)=>setForm({...form,category:e.target.value})}><option>UTILITY</option><option>GAME</option><option>ART</option><option>MEME</option><option>TOKEN</option><option>OTHER</option></select></label><label>DISTRICT<select value={form.district} onChange={(e)=>setForm({...form,district:e.target.value})}><option>THE DUMP</option><option>TOKEN ALLEY</option><option>MARKET</option><option>MEME PIT</option><option>TOWNWIDE</option></select></label><DialogFooter className="border-[#3f3824] bg-[#0c0d09]"><button type="button" className="lv-button" onClick={()=>setOpen(false)}>CANCEL</button><button className="lv-button primary" type="submit">VERIFY HOLD + SUBMIT <Bot /></button></DialogFooter></form></DialogContent></Dialog>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="border-[#59682d] bg-[#11130d] text-[#d5bd8d] sm:max-w-lg"><DialogHeader><DialogTitle className="text-2xl font-black text-[#c7ff00]">MAKE THEM VOTE.</DialogTitle><DialogDescription className="font-mono text-[#9b8966]">Build requests require at least 250,000 SCRAPY, checked at submission. Build-complexity tiers will be assigned during human review.</DialogDescription></DialogHeader><form className="proposal-form" onSubmit={submit}><label>THING NAME<input value={form.title} onChange={(e)=>setForm({...form,title:e.target.value})} placeholder="GIANT FROG LIBRARY" required minLength={4} /></label><label>WHAT IS IT?<textarea value={form.summary} onChange={(e)=>setForm({...form,summary:e.target.value})} placeholder="Explain the useful part. If one exists." required minLength={10} /></label><label>CATEGORY<select value={form.category} onChange={(e)=>setForm({...form,category:e.target.value})}><option>UTILITY</option><option>GAME</option><option>ART</option><option>MEME</option><option>TOKEN</option><option>OTHER</option></select></label><label>DISTRICT<select value={form.district} onChange={(e)=>setForm({...form,district:e.target.value})}><option>THE DUMP</option><option>TOKEN ALLEY</option><option>MARKET</option><option>MEME PIT</option><option>TOWNWIDE</option></select></label><DialogFooter className="border-[#3f3824] bg-[#0c0d09]"><button type="button" className="lv-button" onClick={()=>setOpen(false)}>CANCEL</button><button className="lv-button primary" type="submit">VERIFY HOLD + SUBMIT <Bot /></button></DialogFooter></form></DialogContent></Dialog>
   </ProductShell>;
 }

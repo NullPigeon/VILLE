@@ -1,3 +1,4 @@
+export const BASE_VOTE_WEIGHT = 1;
 export const TOKENS_PER_VOTE = 250_000;
 
 export type VotingPowerSnapshot = {
@@ -16,7 +17,7 @@ export type VoteReceipt = VotingPowerSnapshot & {
 
 export function calculateVoteWeight(rawBalance: bigint, decimals: number) {
   const unit = BigInt(TOKENS_PER_VOTE) * 10n ** BigInt(decimals);
-  return Number(rawBalance / unit);
+  return BASE_VOTE_WEIGHT + Number(rawBalance / unit);
 }
 
 export function shortWallet(address: string) {
