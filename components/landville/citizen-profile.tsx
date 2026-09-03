@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Fingerprint, Hammer, LogOut, MessageCircle, ShieldCheck, Vote, Wallet } from 'lucide-react';
+import { ArrowUpRight, Fingerprint, Hammer, LogOut, MessageCircle, ShieldCheck, Vote, Wallet, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { ProductShell } from '@/components/landville/product-shell';
@@ -12,6 +12,7 @@ import { shortWallet, walletUsername } from '@/lib/governance';
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import type { CitizenRecord } from '@/lib/landville-data';
 import styles from './citizen-profile.module.css';
+import { SCRAPY_TOKEN, scrapyAccess, scrapyTokenExplorerUrl } from '@/lib/scrapy-token';
 
 export function CitizenProfile({ identity }: { identity?: string }) {
   const { voted } = useLandville();
@@ -25,6 +26,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
   const authored = citizen?.proposals || [];
   const built = citizen?.objects || [];
   const ownReceipts = isOwnWallet ? Object.entries(voted).filter(([, receipt]) => receipt.wallet.toLowerCase() === requestedWallet) : [];
+  const tokenAccess = wallet.snapshot ? scrapyAccess(wallet.snapshot.tokenBalance, wallet.snapshot.tokenDecimals) : null;
 
   useEffect(() => {
     let active = true;
@@ -88,8 +90,8 @@ export function CitizenProfile({ identity }: { identity?: string }) {
       </section>
 
       {isOwnWallet && <section className={styles.holdings} aria-label="Mainnet voting power">
-        <div><span className={styles.label}>SCRAPY / MAINNET HOLDINGS</span><h3>{wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY · ${wallet.snapshot.weight} votes` : 'Your balance hasn’t been checked yet.'}</h3><p>{wallet.snapshot ? `Snapshot at block ${wallet.snapshot.blockNumber}. Checked again for every vote or build request.` : 'Sign-in is complete. Checking holdings is separate; a failed check never means a zero balance.'}</p></div>
-        <Button className="lv-button" disabled={checking} onClick={checkHoldings}>{checking ? 'CHECKING…' : 'CHECK VOTING POWER'}</Button>
+        <div><span className={styles.label}>{SCRAPY_TOKEN.ticker} / MAINNET HOLDINGS</span><h3>{wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY · ${wallet.snapshot.weight} votes` : 'Your balance hasn’t been checked yet.'}</h3><p>{wallet.snapshot ? `${tokenAccess?.dailyMessageLimit} messages per UTC day · build request ${tokenAccess?.buildEligible ? 'unlocked' : 'requires 250,000 SCRAPY'}. Snapshot at block ${wallet.snapshot.blockNumber}.` : 'Sign-in is complete. Checking holdings is separate; a failed check never means a zero balance.'}</p><a className={styles.contract} href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">{SCRAPY_TOKEN.address} <ArrowUpRight /></a></div>
+        <div className={styles.actions}><Button className="lv-button" disabled={checking} onClick={checkHoldings}>{checking ? 'CHECKING…' : 'CHECK VOTING POWER'}</Button><Button className="lv-button" onClick={() => wallet.addScrapyToken().then(() => setNotice('$SCRAPY added to wallet.')).catch((error: Error) => setNotice(error.message))}><WalletCards /> ADD $SCRAPY TO WALLET</Button></div>
       </section>}
 
       {requestedWallet && <section className={styles.records}>

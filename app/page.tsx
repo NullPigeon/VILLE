@@ -6,9 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useWallet } from '@/components/landville/wallet-provider';
 import Image from 'next/image';
 import { ArrowDownRight, ArrowUpRight, Bot, Building2, Check, CheckCircle2, ChevronRight, CircleDollarSign, Copy, Hammer, MapPin, Menu, MessageSquare, Plus, Radio, Send, Sparkles, TriangleAlert, User, Vote, Wrench, X } from 'lucide-react';
-
-const SCRAPY_TOKEN_ADDRESS = '0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe';
-const SCRAPY_EXPLORER_URL = `https://robinhoodchain.blockscout.com/address/${SCRAPY_TOKEN_ADDRESS}`;
+import { activeRobinhoodChain } from '@/lib/robinhood-chain';
+import { SCRAPY_TOKEN, scrapyTokenExplorerUrl } from '@/lib/scrapy-token';
 
 const projects = [
   ['GIANT FROG CASINO', 'TOKEN ALLEY', '@degen69', 73],
@@ -57,7 +56,7 @@ export default function Home() {
   };
   const showConcept = () => { setChat(false); setProposal('preview'); };
   const copyContract = async () => {
-    await navigator.clipboard.writeText(SCRAPY_TOKEN_ADDRESS);
+    await navigator.clipboard.writeText(SCRAPY_TOKEN.address);
     setContractCopied(true);
     window.setTimeout(() => setContractCopied(false), 1800);
   };
@@ -70,7 +69,7 @@ export default function Home() {
     </header>
 
     <aside className="scrapy-token-strip" aria-label="$SCRAPY token contract">
-      <div className="shell"><span className="scrapy-token-name"><i /> OFFICIAL TOKEN <strong>$SCRAPY</strong></span><span className="scrapy-token-network">ROBINHOOD MAINNET / 4663</span><code>{SCRAPY_TOKEN_ADDRESS}</code><button type="button" onClick={() => void copyContract()}>{contractCopied ? <Check /> : <Copy />}{contractCopied ? 'COPIED' : 'COPY CA'}</button><a href={SCRAPY_EXPLORER_URL} target="_blank" rel="noreferrer">VIEW CONTRACT <ArrowUpRight /></a></div>
+      <div className="shell"><span className="scrapy-token-name"><i /> OFFICIAL TOKEN <strong>{SCRAPY_TOKEN.ticker}</strong></span><span className="scrapy-token-network">ROBINHOOD MAINNET / {SCRAPY_TOKEN.chainId}</span><code>{SCRAPY_TOKEN.address}</code><button type="button" onClick={() => void copyContract()}>{contractCopied ? <Check /> : <Copy />}{contractCopied ? 'COPIED' : 'COPY CA'}</button><a href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">VIEW CONTRACT <ArrowUpRight /></a></div>
     </aside>
 
     <section id="top" className="hero shell">

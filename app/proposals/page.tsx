@@ -8,6 +8,8 @@ import { useLandville } from '@/components/landville/provider';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { getBuildQueue, VOTING_HOURS } from '@/lib/proposal-lifecycle';
 import { BASE_VOTE_WEIGHT, shortWallet, TOKENS_PER_VOTE } from '@/lib/governance';
+import { SCRAPY_TOKEN, scrapyTokenExplorerUrl } from '@/lib/scrapy-token';
+import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const filters = ['ALL', 'LIVE', 'PASSED', 'BUILDING', 'BUILT', 'REJECTED'] as const;
@@ -71,7 +73,7 @@ export default function ProposalsPage() {
   }
 
   return <ProductShell title="PROPOSALS" eyebrow="IMAGINE / HOLD / VOTE" actions={wallet.address ? <button className="lv-button primary" disabled={!canSubmit} onClick={() => setOpen(true)}><Plus /> NEW PROPOSAL</button> : <Link className="lv-button primary" href="/citizens">CREATE ACCOUNT TO PARTICIPATE</Link>}>
-    <section className="governance-rule"><div><small>VOTING RULE / MAINNET</small><strong>{BASE_VOTE_WEIGHT} BASE VOTE + 1 PER {TOKENS_PER_VOTE.toLocaleString('en-US')} SCRAPY</strong><span>No tokens required to vote. Each full 250,000 SCRAPY adds one vote. Your balance is checked at voting time.</span></div><div><small>YOUR LAST VERIFIED POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? `${shortWallet(wallet.address)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} SCRAPY` : 'Connect and sign your wallet. No transaction.'}</span></div><button className="lv-button" onClick={checkPower} disabled={checkingPower}>{checkingPower ? 'CHECKING…' : wallet.address ? 'REFRESH HOLD' : 'CONNECT + CHECK HOLD'}</button></section>
+    <section className="governance-rule"><div><small>VOTING RULE / MAINNET</small><strong>{BASE_VOTE_WEIGHT} BASE VOTE + 1 PER {TOKENS_PER_VOTE.toLocaleString('en-US')} SCRAPY</strong><span>No tokens required to vote. Each full 250,000 SCRAPY adds one vote. Your balance is checked at voting time.</span><a href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">{SCRAPY_TOKEN.ticker} · {shortWallet(SCRAPY_TOKEN.address)} · VERIFIED CONTRACT</a></div><div><small>YOUR LAST VERIFIED POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? `${shortWallet(wallet.address)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} SCRAPY` : 'Connect and sign your wallet. No transaction.'}</span></div><button className="lv-button" onClick={checkPower} disabled={checkingPower}>{checkingPower ? 'CHECKING…' : wallet.address ? 'REFRESH HOLD' : 'CONNECT + CHECK HOLD'}</button></section>
     {actionMessage && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>{actionMessage}</div>}
     {created && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>PROPOSAL {created} SAVED TO THE SHARED TOWN. You can submit again after this proposal is built or rejected.</div>}
     <p className="admin-warning">Each proposal has its own {VOTING_HOURS}-hour vote. YES must exceed NO; ties and zero votes are rejected. Approved proposals are built one at a time, in voting-deadline order.</p>

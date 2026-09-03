@@ -30,6 +30,8 @@
 .holdings { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; padding: 24px; border: 1px solid #444a2d; background: #15180e; }
 .holdings > div { flex: 1 1 300px; }
 .holdings p, .records > p { color: #c4c0a7; }
+.contract { display: inline-flex; align-items: center; gap: 7px; color: var(--acid); font: 13px/1.5 var(--mono); overflow-wrap: anywhere; word-break: break-all; text-underline-offset: 4px; }
+.contract svg { width: 16px; flex: 0 0 auto; }
 .records { margin-top: 32px; padding: 24px; border: 1px solid #48402d; }
 .records header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
 .localTag { border: 1px dashed #a18250; color: #d8b985; padding: 5px 9px; font-size: 12px; font-family: var(--mono); }

@@ -8,12 +8,14 @@ LANDVILLE is a digital town built by its citizens. People propose physical town 
 - `/proposals` — wallet-gated proposals and token-weighted voting snapshots.
 - `/chat` — general Town Chat where Mayor Scrapy lives with the citizens.
 - `/mayor` — private, persistent Scrapy Workshop; refine an idea and explicitly submit a draft. It is separate from public Town Chat.
-- `/treasury` — read-only treasury view and Robinhood Chain network adapter.
+- `/treasury` — live `$SCRAPY` contract, supply, citizen token access, wallet import and separate read-only treasury state.
 - `/citizens` — citizen onboarding and wallet sign-in; then the signed wallet's shared activity. No sample identity or invented reputation.
 - `/citizens/[wallet-address]` — public profile from shared records; legacy username links redirect to `/citizens`.
 - `/admin` — server-authorized `LIVE → PASSED → BUILDING → BUILT` queue.
 
 The product uses signed wallet sessions and independently reads the official `$SCRAPY` contract (`0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe`) from Robinhood Chain at action time. Each signed wallet has one base vote, even with zero tokens. Every complete 250,000 SCRAPY adds one vote: 0 gives one, 250,000 gives two, 500,000 gives three, and 1,000,000 gives five. Build requests currently require at least 250,000 SCRAPY. Vote receipts preserve wallet, balance, block number and calculated weight.
+
+The mainnet contract reports token name `LANDVILLE`, symbol `SCRAPY`, 18 decimals and a total supply of 1,000,000,000 SCRAPY. The address and metadata are pinned in the application; `/api/token` verifies them against mainnet and the wallet action can import the ERC-20 directly.
 
 Product routes start with empty state and do not seed fake proposals, citizens, treasury balances, world objects or chat messages. Supabase is the only source of truth for citizens, both chat histories, proposals, votes, the build queue and World objects; when it is not configured, writes fail instead of falling back to browser storage.
 
@@ -60,7 +62,7 @@ npm run build
 3. Add the variables from `.env.example` under **Project Settings → Environment Variables**.
 4. Set `NEXT_PUBLIC_SITE_URL` to the final Vercel URL and redeploy once.
 5. Add `OPENAI_API_KEY` to activate the live Mayor; without it Mayor uses the built-in Scrapy fallback.
-6. Set the **mainnet** `SCRAPY_TOKEN_ADDRESS`, `NEXT_PUBLIC_TREASURY_ADDRESS`, a dedicated server-only `ROBINHOOD_MAINNET_RPC_URL` and a long `WALLET_SESSION_SECRET`. The treasury still needs an indexer; adding an address does not load assets by itself. Never copy a testnet contract address into production without verifying the mainnet deployment.
+6. Set `NEXT_PUBLIC_TREASURY_ADDRESS`, a dedicated server-only `ROBINHOOD_MAINNET_RPC_URL` and a long `WALLET_SESSION_SECRET`. The official mainnet SCRAPY contract is pinned in source. The treasury still needs an indexer; adding an address does not load assets by itself.
 7. In the Supabase SQL Editor, run `001_landville_chat.sql`, `002_landville_server.sql`, then `003_proposal_lifecycle.sql` in that order. Add `SUPABASE_URL` and a server-only `SUPABASE_SECRET_KEY` in Vercel.
 8. Add the operator wallet(s) to `LANDVILLE_ADMIN_WALLETS`. Never expose Supabase, wallet-session or OpenAI secrets with a `NEXT_PUBLIC_` prefix.
 

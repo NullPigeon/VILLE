@@ -1,12 +1,12 @@
 import 'server-only';
-import { createPublicClient, defineChain, erc20Abi, formatUnits, http, isAddress } from 'viem';
+import { createPublicClient, defineChain, erc20Abi, http } from 'viem';
 import { calculateVoteWeight, type VotingPowerSnapshot } from '@/lib/governance';
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import { ApiError } from '@/lib/server/api';
+import { formatTokenAmount, SCRAPY_TOKEN, SCRAPY_TOKEN_ADDRESS_LOWER } from '@/lib/scrapy-token';
 
 export async function readVotingSnapshot(wallet: string): Promise<VotingPowerSnapshot> {
-  const tokenAddress = (process.env.SCRAPY_TOKEN_ADDRESS || '').toLowerCase();
-  if (!isAddress(tokenAddress)) throw new ApiError(503, 'SCRAPY mainnet token contract is not configured.');
+  const tokenAddress = SCRAPY_TOKEN_ADDRESS_LOWER;
   const chain = defineChain({
     id: activeRobinhoodChain.id, name: activeRobinhoodChain.name, nativeCurrency: activeRobinhoodChain.nativeCurrency,
     rpcUrls: { default: { http: [process.env.ROBINHOOD_MAINNET_RPC_URL || activeRobinhoodChain.rpcUrl] } },
@@ -19,11 +19,12 @@ export async function readVotingSnapshot(wallet: string): Promise<VotingPowerSna
       client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: 'balanceOf', args: [wallet as `0x${string}`], blockNumber }),
       client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: 'decimals', blockNumber }),
     ]);
+    if (decimals !== SCRAPY_TOKEN.decimals) throw new ApiError(502, 'SCRAPY token decimals do not match the verified contract.');
     const weight = calculateVoteWeight(balance, decimals);
     if (!Number.isSafeInteger(weight)) throw new ApiError(422, 'Voting weight exceeds the supported range.');
     return {
       wallet, chainId: chain.id, tokenAddress, tokenDecimals: decimals,
-      tokenBalance: balance.toString(), tokenBalanceFormatted: Number(formatUnits(balance, decimals)).toLocaleString('en-US', { maximumFractionDigits: 2 }),
+      tokenBalance: balance.toString(), tokenBalanceFormatted: formatTokenAmount(balance, decimals),
       weight, blockNumber: blockNumber.toString(), capturedAt: new Date().toISOString(), source: 'chain',
     };
   } catch (error) {

@@ -15,6 +15,7 @@ const wallet = `0x${'a'.repeat(40)}`;
 const other = `0x${'b'.repeat(40)}`;
 const snapshot = { wallet, chainId: 4663, tokenAddress: `0x${'c'.repeat(40)}`, tokenDecimals: 18, tokenBalance: '250000000000000000000000', tokenBalanceFormatted: '250,000', weight: 2, blockNumber: '1234', capturedAt: new Date().toISOString(), source: 'chain' };
 const proposal = { id: 'LV-1', request_id: randomUUID(), creator_wallet: wallet, title: 'Town radio', summary: 'A public radio for the town.', category: 'UTILITY', district: 'THE DUMP', status: 'LIVE', build_tier: 'PENDING_REVIEW', eligibility_snapshot: snapshot, yes: 0, no: 0, created_at: new Date().toISOString(), closes_at: new Date(Date.now() + 43_200_000).toISOString() };
+const tokenStatus = { address: '0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe', symbol: 'SCRAPY', name: 'LANDVILLE', decimals: 18, chainId: 4663, totalSupply: '1000000000000000000000000000', totalSupplyFormatted: '1,000,000,000', blockNumber: '1234', verifiedAt: new Date().toISOString() };
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 
 // Execute the real route/helper source in isolation. Only HTTP and the chain read
@@ -36,6 +37,7 @@ function fixture(handler, extraEnv = {}) {
   function load(name) {
     if (name === 'server-only') return {};
     if (name === '@/lib/server/voting') return { readVotingSnapshot: async (address) => { balanceReads++; return { ...snapshot, wallet: address }; } };
+    if (name === '@/lib/server/token-status') return { readScrapyTokenStatus: async () => tokenStatus };
     if (!name.startsWith('@/') && !name.endsWith('.ts')) return require(name);
     const file = name.startsWith('@/') ? path.join(root, `${name.slice(2)}.ts`) : path.join(root, name);
     if (cache.has(file)) return cache.get(file).exports;
@@ -124,6 +126,15 @@ void test('Town history is public but always excludes private messages', async (
   const response = await f.load('app/api/chat/route.ts').GET(f.request('/api/chat', {}, { method: 'GET' }));
   assert.equal(response.status, 200);
   assert.ok(f.calls[0].url.includes('channel=eq.TOWN&owner_wallet=is.null'));
+});
+
+void test('official SCRAPY metadata is public and needs no database or wallet session', async () => {
+  const f = fixture(() => undefined);
+  const response = await f.load('app/api/token/route.ts').GET();
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), tokenStatus);
+  assert.equal(f.calls.length, 0);
+  assert.match(response.headers.get('cache-control'), /s-maxage=30/);
 });
 
 void test('first ten messages need no token read; bonus messages require a server snapshot', async () => {

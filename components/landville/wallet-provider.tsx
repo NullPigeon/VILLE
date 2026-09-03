@@ -4,6 +4,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { VotingPowerSnapshot } from '@/lib/governance';
 import { addRobinhoodNetwork } from '@/lib/robinhood-chain';
+import { SCRAPY_TOKEN } from '@/lib/scrapy-token';
 
 type WalletStatus = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -14,11 +15,12 @@ type WalletContextValue = {
   error: string;
   connectWallet(): Promise<string>;
   refreshVotingPower(): Promise<VotingPowerSnapshot>;
+  addScrapyToken(): Promise<void>;
   disconnectWallet(): Promise<void>;
 };
 
 type EthereumProvider = {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  request(args: { method: string; params?: unknown }): Promise<unknown>;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -101,6 +103,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setAddress(verified.address);
           setSnapshot(null);
           setStatus('CONNECTED');
+          void fetchSnapshot().then(setSnapshot).catch(() => undefined);
           // Citizen identity and chat access never depend on token holdings or RPC availability.
           return verified.address;
         } catch (caught) {
@@ -128,6 +131,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setError(message);
           throw new Error(message);
         }
+      },
+      async addScrapyToken() {
+        const provider = (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
+        if (!provider) throw new Error('NO EVM WALLET FOUND');
+        await addRobinhoodNetwork();
+        const accepted = await provider.request({
+          method: 'wallet_watchAsset',
+          params: { type: 'ERC20', options: { address: SCRAPY_TOKEN.address, symbol: SCRAPY_TOKEN.symbol, decimals: SCRAPY_TOKEN.decimals } },
+        });
+        if (accepted === false) throw new Error('Token import was declined.');
       },
       async disconnectWallet() {
         const response = await fetch('/api/auth/session', { method: 'DELETE' });
