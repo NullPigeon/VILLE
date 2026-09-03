@@ -19,7 +19,23 @@ export default function ProposalsPage() {
   const [form, setForm] = useState({ title: '', summary: '', category: 'UTILITY', district: 'THE DUMP' });
   const [actionMessage, setActionMessage] = useState('');
   const [busyId, setBusyId] = useState('');
+  const [checkingPower, setCheckingPower] = useState(false);
   const visible = useMemo(() => filter === 'ALL' ? proposals : proposals.filter((item) => item.status === filter), [filter, proposals]);
+
+  async function checkPower() {
+    if (checkingPower) return;
+    setCheckingPower(true);
+    setActionMessage('CHECKING MAINNET SCRAPY HOLD…');
+    try {
+      if (!wallet.address) await wallet.connectWallet();
+      const power = await wallet.refreshVotingPower();
+      setActionMessage(`${power.weight} VOTES VERIFIED ON MAINNET · BLOCK ${power.blockNumber}`);
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : 'Could not check holdings.');
+    } finally {
+      setCheckingPower(false);
+    }
+  }
 
   async function submit(event: { preventDefault(): void }) {
     event.preventDefault();
@@ -48,9 +64,9 @@ export default function ProposalsPage() {
   }
 
   return <ProductShell title="PROPOSALS" eyebrow="IMAGINE / HOLD / VOTE" actions={<button className="lv-button primary" onClick={() => setOpen(true)}><Plus /> NEW PROPOSAL</button>}>
-    <section className="governance-rule"><div><small>VOTING RULE</small><strong>{BASE_VOTE_WEIGHT} BASE VOTE + 1 PER {TOKENS_PER_VOTE.toLocaleString('en-US')} SCRAPY</strong><span>No tokens required to vote. Each full 250,000 SCRAPY adds one vote. Your balance is checked at voting time.</span></div><div><small>YOUR CURRENT POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? `${shortWallet(wallet.address)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} SCRAPY` : 'Connect and sign your wallet. No transaction.'}</span></div><button className="lv-button" onClick={() => wallet.address ? wallet.refreshVotingPower().catch(()=>undefined) : wallet.connectWallet().catch(()=>undefined)}>{wallet.address ? 'REFRESH HOLD' : 'CONNECT WALLET'}</button></section>
+    <section className="governance-rule"><div><small>VOTING RULE / MAINNET</small><strong>{BASE_VOTE_WEIGHT} BASE VOTE + 1 PER {TOKENS_PER_VOTE.toLocaleString('en-US')} SCRAPY</strong><span>No tokens required to vote. Each full 250,000 SCRAPY adds one vote. Your balance is checked at voting time.</span></div><div><small>YOUR LAST VERIFIED POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? `${shortWallet(wallet.address)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} SCRAPY` : 'Connect and sign your wallet. No transaction.'}</span></div><button className="lv-button" onClick={checkPower} disabled={checkingPower}>{checkingPower ? 'CHECKING…' : wallet.address ? 'REFRESH HOLD' : 'CONNECT + CHECK HOLD'}</button></section>
     {actionMessage && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>{actionMessage}</div>}
-    {created && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>PROPOSAL {created} IS LIVE. Democracy has been notified.</div>}
+    {created && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>PROPOSAL {created} SAVED IN THIS BROWSER. Shared publishing is not connected yet.</div>}
     <div className="filter-row">{filters.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>
     <section className="proposal-list">{visible.map((proposal) => {
       const total = proposal.yes + proposal.no;

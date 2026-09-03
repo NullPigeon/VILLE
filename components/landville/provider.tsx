@@ -49,7 +49,8 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
     objects,
     voted,
     async createProposal(input) {
-      const power = wallet.address ? await wallet.refreshVotingPower() : await wallet.connectWallet();
+      if (!wallet.address) await wallet.connectWallet();
+      const power = await wallet.refreshVotingPower();
       // Build eligibility still requires a token bonus; the free vote does not unlock builds.
       if (power.weight <= BASE_VOTE_WEIGHT) throw new Error('You need at least 250,000 SCRAPY to request a build.');
       const highestId = proposals.reduce((highest, item) => Math.max(highest, Number(item.id.replace('LV-', '')) || 0), 0);
@@ -59,7 +60,8 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
     },
     async vote(id, choice) {
       if (voted[id]) return voted[id];
-      const power = wallet.address ? await wallet.refreshVotingPower() : await wallet.connectWallet();
+      if (!wallet.address) await wallet.connectWallet();
+      const power = await wallet.refreshVotingPower();
       if (power.weight < BASE_VOTE_WEIGHT) throw new Error('Voting power could not be verified. Please reconnect your wallet.');
       const receipt: VoteReceipt = { ...power, choice };
       setVoted((current) => ({ ...current, [id]: receipt }));

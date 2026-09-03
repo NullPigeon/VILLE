@@ -1,0 +1,47 @@
+.page { --mono: 'Courier New', monospace; color: var(--paper); font-size: 16px; line-height: 1.6; }
+.intro { display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: stretch; }
+.manifesto { padding: 28px 0; }
+.label { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 14px; letter-spacing: .035em; color: var(--acid); }
+.label svg { width: 20px; height: 20px; }
+.manifesto h2 { margin: 26px 0; font-size: clamp(36px, 4.4vw, 66px); line-height: 1.02; letter-spacing: -.045em; font-weight: 900; }
+.manifesto em { color: var(--acid); font-style: normal; }
+.manifesto > p { max-width: 500px; font-size: 18px; }
+.scrapyNote { margin-top: 28px; padding: 16px 18px; border-left: 3px solid #966126; background: #201a12; color: #d8b985; }
+.scrapyNote span { display: block; font-family: var(--mono); font-size: 12px; margin-top: 8px; }
+.passport { position: relative; min-width: 0; padding: 28px; background: #141610; border: 1px solid #51512e; border-top: 5px solid var(--acid); box-shadow: 7px 7px 0 #211a11; }
+.passport::before { content: ''; position: absolute; right: 20px; top: -11px; width: 74px; height: 21px; background: #956f3a; opacity: .8; transform: rotate(7deg); }
+.fingerprint { width: 68px; height: 68px; color: var(--acid); margin: 30px 0 16px; }
+.page h3 { font-size: 22px; line-height: 1.25; font-weight: 750; margin: 10px 0 14px; overflow-wrap: anywhere; }
+.passport p { margin: 14px 0; color: #c4c0a7; }
+.passport .address { font-family: var(--mono); font-size: 14px; overflow-wrap: anywhere; color: var(--paper); }
+.page .caption { font-size: 14px; line-height: 1.5; }
+.network { display: block; border-top: 1px dashed #4f5131; padding-top: 16px; margin-top: 24px; color: #b7c485; font-family: var(--mono); font-size: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.page :global(.lv-button) { min-height: 44px; height: auto; border-radius: 2px; padding: 10px 14px; gap: 8px; font-size: 14px; white-space: normal; }
+.page :global(.lv-button):disabled { opacity: .55; }
+.page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--acid); outline-offset: 4px; }
+.roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin: 48px 0 30px; border-block: 1px solid #44432b; padding: 28px 0; }
+.roles article > svg { color: #d5a36d; width: 30px; height: 30px; margin-bottom: 20px; }
+.roles article { display: flex; flex-direction: column; align-items: flex-start; }
+.roles p { margin: 0 0 20px; color: #c4c0a7; }
+.roles a { margin-top: auto; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--acid); text-decoration: underline; text-underline-offset: 5px; }
+.roles a svg { width: 18px; }
+.error { padding: 16px; border: 1px solid #9a5e3c; background: #2b1a12; color: #ffd0a4; overflow-wrap: anywhere; }
+.holdings { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; padding: 24px; border: 1px solid #444a2d; background: #15180e; }
+.holdings > div { flex: 1 1 300px; }
+.holdings p, .records > p { color: #c4c0a7; }
+.records { margin-top: 32px; padding: 24px; border: 1px solid #48402d; }
+.records header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+.localTag { border: 1px dashed #a18250; color: #d8b985; padding: 5px 9px; font-size: 12px; font-family: var(--mono); }
+.stats { display: flex; gap: 40px; flex-wrap: wrap; margin: 28px 0; }
+.stats dt { font-size: 14px; color: #c4c0a7; }
+.stats dd { font-size: 32px; color: var(--acid); margin: 0; }
+.activity { list-style: none; padding: 0; }
+.activity li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 0; border-top: 1px solid #373a29; }
+.activity a { text-decoration: underline; text-underline-offset: 4px; }
+.activity span { color: #c2bd9e; font-size: 12px; font-family: var(--mono); }
+.empty { margin-top: 20px; border: 1px dashed #44432b; }
+.empty [data-slot='empty-title'] { font-size: 20px; color: var(--paper); }
+.empty [data-slot='empty-description'] { font-size: 16px; color: #c4c0a7; }
+@media (max-width: 900px) { .intro { grid-template-columns: 1fr; gap: 12px; } .manifesto > p { max-width: 650px; } .roles { grid-template-columns: 1fr; } .roles article + article { padding-top: 24px; border-top: 1px dashed #44432b; } }
+@media (max-width: 480px) { .passport, .holdings, .records { padding: 20px 16px; } .manifesto h2 { font-size: 42px; } .passport .label { padding-right: 26px; } }

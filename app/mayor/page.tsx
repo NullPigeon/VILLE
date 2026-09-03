@@ -35,17 +35,20 @@ export default function MayorPage() {
   const [isReplying, setIsReplying] = useState(false);
   const [replySource, setReplySource] = useState<'openai' | 'local'>('local');
   const [proposalMessage, setProposalMessage] = useState('');
+  const [publishing, setPublishing] = useState(false);
 
   async function send(event: { preventDefault(): void }) {
     event.preventDefault();
     const text = input.trim();
-    if (!text || isReplying) return;
+    if (!text || isReplying || publishing) return;
 
     const nextMessages = [...messages, { who: 'YOU' as const, text }];
     setMessages(nextMessages);
     setInput('');
     setIsReplying(true);
     setConcept(extractConcept(text));
+    setCreated('');
+    setProposalMessage('');
 
     try {
       const response = await fetch('/api/mayor', {
@@ -81,7 +84,8 @@ export default function MayorPage() {
   }
 
   async function publishConcept() {
-    if (!concept) return;
+    if (!concept || publishing || created) return;
+    setPublishing(true);
     setProposalMessage('CHECKING YOUR SCRAPY TOKEN HOLD…');
     try {
       const proposal = await createProposal({
@@ -94,13 +98,15 @@ export default function MayorPage() {
       setProposalMessage(`ELIGIBLE · ×${proposal.eligibilitySnapshot?.weight || 0} POWER`);
     } catch (error) {
       setProposalMessage(error instanceof Error ? error.message.toUpperCase() : 'WALLET CHECK FAILED');
+    } finally {
+      setPublishing(false);
     }
   }
 
   return (
     <ProductShell
-      title="MAYOR SCRAPY"
-      eyebrow="ONLINE / DOCKED / JUDGMENTAL"
+      title="SCRAPY WORKSHOP"
+      eyebrow="ONE-TO-ONE / REFINE AN IDEA / SUBMIT A PROPOSAL"
       actions={
         created ? (
           <Link className="lv-button primary" href="/proposals">
@@ -113,7 +119,7 @@ export default function MayorPage() {
         <section className="lv-panel mayor-terminal">
           <header className="lv-panel-head">
             <h2>
-              <Bot /> MAYOR CHANNEL
+              <Bot /> YOUR IDEA / SCRAPY’S DESK
             </h2>
             <span>{replySource === 'openai' ? 'AI PERSONA ONLINE' : 'LOCAL PERSONA / ADD API KEY'}</span>
           </header>
@@ -136,7 +142,7 @@ export default function MayorPage() {
             {concept && (
               <div className="concept-card">
                 <small>
-                  <Sparkles /> CONCEPT EXTRACTED
+                  <Sparkles /> DRAFT FROM YOUR MESSAGE
                 </small>
                 <h3>{concept.title}</h3>
                 <p>{concept.summary}</p>
@@ -144,8 +150,8 @@ export default function MayorPage() {
                 {created ? (
                   <span className="status-tag LIVE">{created} LIVE</span>
                 ) : (
-                  <button className="lv-button primary" onClick={publishConcept}>
-                    PUT IT TO A VOTE <ArrowUpRight />
+                  <button className="lv-button primary" onClick={publishConcept} disabled={publishing || isReplying}>
+                    {publishing ? 'CHECKING ELIGIBILITY…' : 'PUT IT TO A VOTE'} <ArrowUpRight />
                   </button>
                 )}
               </div>
@@ -155,11 +161,11 @@ export default function MayorPage() {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              disabled={isReplying}
+              disabled={isReplying || publishing}
               placeholder="Tell Mayor what Landville needs…"
               aria-label="Message Mayor Scrapy"
             />
-            <button aria-label="Send message" disabled={isReplying}>
+            <button aria-label="Send message" disabled={isReplying || publishing}>
               <Send />
             </button>
           </form>
@@ -173,9 +179,11 @@ export default function MayorPage() {
           />
           <h2>RESIDENT #0001</h2>
           <p>
-            Mayor. Builder. Town clerk. Junkyard caretaker. Scrapy talks through a server-only AI
-            route and has zero access to wallet keys, treasury signing, or deployment.
+            This conversation is not posted to Town Chat. Work through an idea with Scrapy here,
+            then confirm the draft before submitting. Messages reset when you leave this page.
           </p>
+          <p>Proposals currently stay in this browser. Publishing a draft does not deploy a working object. Scrapy has no access to wallet keys, treasury signing or deployment.</p>
+          <Link className="lv-button" href="/chat">BACK TO PUBLIC TOWN CHAT <ArrowUpRight /></Link>
           <div className="object-facts">
             <div>
               <dt>SARCASM</dt>

@@ -3,6 +3,7 @@ export const TOKENS_PER_VOTE = 250_000;
 
 export type VotingPowerSnapshot = {
   wallet: string;
+  chainId: number;
   tokenBalance: string;
   tokenBalanceFormatted: string;
   weight: number;

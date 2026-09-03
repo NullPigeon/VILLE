@@ -12,7 +12,7 @@ type WalletContextValue = {
   status: WalletStatus;
   snapshot: VotingPowerSnapshot | null;
   error: string;
-  connectWallet(): Promise<VotingPowerSnapshot>;
+  connectWallet(): Promise<string>;
   refreshVotingPower(): Promise<VotingPowerSnapshot>;
   disconnectWallet(): Promise<void>;
 };
@@ -74,7 +74,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           const account = accounts[0]?.toLowerCase();
           if (!account) throw new Error('NO_ACCOUNT');
 
-          await addRobinhoodNetwork('testnet');
+          await addRobinhoodNetwork();
           const challengeResponse = await fetch(
             `/api/auth/challenge?address=${encodeURIComponent(account)}`,
             { cache: 'no-store' },
@@ -99,10 +99,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           }
 
           setAddress(verified.address);
+          setSnapshot(null);
           setStatus('CONNECTED');
-          const current = await fetchSnapshot();
-          setSnapshot(current);
-          return current;
+          // Citizen identity and chat access never depend on token holdings or RPC availability.
+          return verified.address;
         } catch (caught) {
           const message = caught instanceof Error ? caught.message : 'Wallet connection failed.';
           const readable =
@@ -117,12 +117,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         }
       },
       async refreshVotingPower() {
-        const current = await fetchSnapshot();
-        setSnapshot(current);
-        return current;
+        setError('');
+        try {
+          const current = await fetchSnapshot();
+          setSnapshot(current);
+          return current;
+        } catch (caught) {
+          const message = caught instanceof Error ? caught.message : 'Could not check SCRAPY holdings.';
+          setSnapshot(null);
+          setError(message);
+          throw new Error(message);
+        }
       },
       async disconnectWallet() {
-        await fetch('/api/auth/session', { method: 'DELETE' });
+        const response = await fetch('/api/auth/session', { method: 'DELETE' });
+        if (!response.ok) throw new Error('Could not sign out. Try again.');
         setAddress('');
         setSnapshot(null);
         setError('');

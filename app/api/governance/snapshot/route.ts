@@ -3,17 +3,16 @@ import { defineChain } from 'viem';
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateVoteWeight } from '@/lib/governance';
 import { readWalletSession, SESSION_COOKIE } from '@/lib/wallet-session';
+import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 
-const robinhoodTestnet = defineChain({
-  id: 46630,
-  name: 'Robinhood Chain Testnet',
-  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+const governanceChain = defineChain({
+  id: activeRobinhoodChain.id,
+  name: activeRobinhoodChain.name,
+  nativeCurrency: activeRobinhoodChain.nativeCurrency,
   rpcUrls: {
     default: {
       http: [
-        process.env.ROBINHOOD_TESTNET_RPC_URL ||
-          process.env.NEXT_PUBLIC_ROBINHOOD_TESTNET_RPC_URL ||
-          'https://rpc.testnet.chain.robinhood.com',
+        process.env.ROBINHOOD_MAINNET_RPC_URL || activeRobinhoodChain.rpcUrl,
       ],
     },
   },
@@ -26,11 +25,14 @@ export async function GET(request: NextRequest) {
   const tokenAddress = process.env.SCRAPY_TOKEN_ADDRESS || '';
 
   if (!isAddress(tokenAddress)) {
-    return NextResponse.json({ error: 'SCRAPY token contract is not configured.' }, { status: 503 });
+    return NextResponse.json({ error: 'SCRAPY mainnet token contract is not configured.' }, { status: 503 });
   }
 
   try {
-    const client = createPublicClient({ chain: robinhoodTestnet, transport: http() });
+    const client = createPublicClient({ chain: governanceChain, transport: http() });
+    if (await client.getChainId() !== activeRobinhoodChain.id) {
+      return NextResponse.json({ error: 'Governance RPC must connect to Robinhood mainnet (4663).' }, { status: 503 });
+    }
     const blockNumber = await client.getBlockNumber();
     const [rawBalance, decimals] = await Promise.all([
       client.readContract({
@@ -50,6 +52,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       wallet: session.address,
+      chainId: activeRobinhoodChain.id,
       tokenBalance: rawBalance.toString(),
       tokenBalanceFormatted: Number(formatUnits(rawBalance, decimals)).toLocaleString('en-US', {
         maximumFractionDigits: 2,
@@ -61,6 +64,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Governance snapshot failed:', error);
-    return NextResponse.json({ error: 'Could not read SCRAPY balance from Robinhood Chain.' }, { status: 502 });
+    return NextResponse.json({ error: 'Could not read SCRAPY balance from Robinhood mainnet. Your wallet can still sign in.' }, { status: 502 });
   }
 }

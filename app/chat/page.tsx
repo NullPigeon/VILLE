@@ -65,7 +65,7 @@ export default function ChatPage() {
   }
 
   return (
-    <ProductShell title="TOWN CHAT" eyebrow="CITIZENS / NOISE / MAYOR PRESENT">
+    <ProductShell title="TOWN CHAT" eyebrow="PUBLIC CONVERSATION / CITIZENS + SCRAPY">
       <div className="chat-layout">
         <section className="lv-panel town-chat">
           <header className="lv-panel-head">
@@ -95,9 +95,11 @@ export default function ChatPage() {
           </form>
         </section>
         <aside className="lv-panel chat-sidebar">
-          <header className="lv-panel-head"><h2><Bot /> SCRAPY STATUS</h2><span>● ONLINE</span></header>
+          <header className="lv-panel-head"><h2><Bot /> SCRAPY IN THE TOWN</h2><span>REPLIES ON MESSAGE</span></header>
           <div className="chat-sidebar-body">
-            <p>Mayor lives in this channel. He reads the recent public conversation and answers as a citizen of LANDVILLE—not as a support bot.</p>
+            <p>This is the public conversation for everyone. Scrapy reads recent messages and replies here. AI replies need the server API key; otherwise he uses scripted replies.</p>
+            <p>A chat message does not create a proposal or build anything. Take your idea to the workshop, refine it, then explicitly submit it for a vote.</p>
+            <Link className="lv-button" href="/mayor">REFINE AN IDEA WITH SCRAPY</Link>
             <div className="object-facts"><div><dt>IDENTITY</dt><dd>{wallet.address ? shortWallet(wallet.address) : 'NOT CONNECTED'}</dd></div><div><dt>VOTE POWER</dt><dd>{wallet.snapshot?.weight ?? '—'}</dd></div><div><dt>PRIVACY</dt><dd>PUBLIC CHAT</dd></div></div>
             {!wallet.address && <button className="lv-button primary" onClick={() => wallet.connectWallet().catch((error) => setNotice((error as Error).message))}><Wallet /> CONNECT TO SPEAK</button>}
           </div>

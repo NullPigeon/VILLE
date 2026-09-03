@@ -19,11 +19,15 @@ export const robinhoodChain = {
   },
 } as const;
 
+// Product wallet actions and server balance reads must target the same network.
+export const ACTIVE_ROBINHOOD_NETWORK: RobinhoodNetwork = 'mainnet';
+export const activeRobinhoodChain = robinhoodChain[ACTIVE_ROBINHOOD_NETWORK];
+
 type EthereumProvider = {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
 };
 
-export async function addRobinhoodNetwork(network: RobinhoodNetwork = 'testnet') {
+export async function addRobinhoodNetwork(network: RobinhoodNetwork = ACTIVE_ROBINHOOD_NETWORK) {
   const provider = (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
   if (!provider) throw new Error('NO_WALLET');
   const config = robinhoodChain[network];
@@ -36,5 +40,11 @@ export async function addRobinhoodNetwork(network: RobinhoodNetwork = 'testnet')
       method: 'wallet_addEthereumChain',
       params: [{ chainId: config.hexId, chainName: config.name, nativeCurrency: config.nativeCurrency, rpcUrls: [config.rpcUrl], blockExplorerUrls: [config.explorerUrl] }],
     });
+    // Adding a network does not guarantee that the wallet switched to it.
+    await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: config.hexId }] });
+  }
+  const chainId = await provider.request({ method: 'eth_chainId' });
+  if (typeof chainId !== 'string' || Number(chainId) !== config.id) {
+    throw new Error(`Switch your wallet to ${config.name} (chain ${config.id}).`);
   }
 }

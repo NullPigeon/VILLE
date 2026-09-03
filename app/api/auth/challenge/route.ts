@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { isAddress } from 'viem';
 import { NextRequest, NextResponse } from 'next/server';
 import { CHALLENGE_COOKIE, sealCookie } from '@/lib/wallet-session';
+import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 
 export async function GET(request: NextRequest) {
   const address = request.nextUrl.searchParams.get('address')?.toLowerCase() || '';
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     `Wallet: ${address}`,
     'Purpose: prove this citizen file belongs to you.',
     'This request does not create a transaction or spend funds.',
-    `Robinhood Chain ID: 46630`,
+    `Robinhood Chain ID: ${activeRobinhoodChain.id}`,
     `Nonce: ${nonce}`,
     `Issued At: ${issuedAt}`,
   ].join('\n');
