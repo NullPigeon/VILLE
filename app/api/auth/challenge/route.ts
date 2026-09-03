@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const message = [
     'LANDVILLE WALLET SIGN-IN',
     '',
+    `Origin: ${request.nextUrl.origin}`,
     `Wallet: ${address}`,
     'Purpose: prove this citizen file belongs to you.',
     'This request does not create a transaction or spend funds.',

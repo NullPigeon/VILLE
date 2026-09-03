@@ -61,6 +61,7 @@ export default function WorldPage() {
               <div><dt><CalendarDays /> BUILT</dt><dd>{selected.builtAt}</dd></div>
             </dl>
             <Link className="lv-button primary" href="/mayor">ASK MAYOR ABOUT IT <Bot /></Link>
+            {selected.modulePath && <Link className="lv-button primary" href={selected.modulePath}>OPEN {selected.title}</Link>}
           </div>
         </aside>}
       </section>

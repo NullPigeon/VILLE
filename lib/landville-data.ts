@@ -6,6 +6,9 @@ export type WorldObjectRecord = {
   title: string;
   district: string;
   creator: string;
+  creatorWallet?: string;
+  modulePath?: string;
+  releaseRef?: string;
   description: string;
   yesPercent: number;
   builtAt: string;
@@ -20,6 +23,8 @@ export type ProposalRecord = {
   summary: string;
   category: string;
   creator: string;
+  creatorWallet?: string;
+  closesAt?: string;
   yes: number;
   no: number;
   status: ProposalStatus;
@@ -39,3 +44,7 @@ export type ProposalRecord = {
 export const initialWorldObjects: WorldObjectRecord[] = [];
 
 export const initialProposals: ProposalRecord[] = [];
+
+export type BuildAction = 'FINALIZE' | 'START_BUILD' | 'PUBLISH' | 'REJECT';
+export type BuildUpdate = { action: BuildAction; expectedStatus: ProposalStatus; note: string; modulePath?: string; releaseRef?: string };
+export type CitizenRecord = { wallet: string; joinedAt: string; proposals: ProposalRecord[]; objects: WorldObjectRecord[]; votesCast: number };

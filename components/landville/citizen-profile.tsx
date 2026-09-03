@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowUpRight, Fingerprint, Hammer, LogOut, MessageCircle, ShieldCheck, Vote, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
@@ -10,20 +10,35 @@ import { useLandville } from '@/components/landville/provider';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { shortWallet, walletUsername } from '@/lib/governance';
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
+import type { CitizenRecord } from '@/lib/landville-data';
 import styles from './citizen-profile.module.css';
 
 export function CitizenProfile({ identity }: { identity?: string }) {
-  const { objects, proposals, voted } = useLandville();
+  const { voted } = useLandville();
   const wallet = useWallet();
   const [checking, setChecking] = useState(false);
   const [notice, setNotice] = useState('');
+  const [citizen, setCitizen] = useState<CitizenRecord | null>(null);
+  const [recordError, setRecordError] = useState('');
   const requestedWallet = (identity || wallet.address).toLowerCase();
   const isOwnWallet = Boolean(requestedWallet && wallet.address === requestedWallet);
-  // A shortened display name is not an identity: match the full signed wallet.
-  const authored = proposals.filter((proposal) => proposal.eligibilitySnapshot?.wallet.toLowerCase() === requestedWallet);
-  const authoredIds = new Set(authored.map((proposal) => proposal.id));
-  const built = objects.filter((object) => authoredIds.has(object.id));
+  const authored = citizen?.proposals || [];
+  const built = citizen?.objects || [];
   const ownReceipts = isOwnWallet ? Object.entries(voted).filter(([, receipt]) => receipt.wallet.toLowerCase() === requestedWallet) : [];
+
+  useEffect(() => {
+    let active = true;
+    // oxlint-disable-next-line react/react-compiler -- replace records when viewing a different wallet
+    setCitizen(null);
+    setRecordError('');
+    if (!requestedWallet) return;
+    fetch(`/api/citizens/${requestedWallet}`, { cache: 'no-store' }).then(async (response) => {
+      const result = await response.json() as { citizen?: CitizenRecord; error?: string };
+      if (!response.ok || !result.citizen) throw new Error(result.error || 'Citizen record unavailable.');
+      if (active) setCitizen(result.citizen);
+    }).catch((error: Error) => { if (active) setRecordError(error.message); });
+    return () => { active = false; };
+  }, [requestedWallet, voted]);
 
   async function checkHoldings() {
     setChecking(true);
@@ -48,7 +63,8 @@ export function CitizenProfile({ identity }: { identity?: string }) {
           {requestedWallet ? <>
             <h3>{isOwnWallet ? `@${walletUsername(requestedWallet)}` : shortWallet(requestedWallet)}</h3>
             <p className={styles.address}>{requestedWallet}</p>
-            <p>{isOwnWallet ? 'This wallet is your identity. No invented name, avatar or reputation.' : 'A wallet address is not proof of a registered citizen. Only activity available in this browser is shown below.'}</p>
+            <p>{isOwnWallet ? 'This wallet is your citizen account. Your activity stays with it across devices.' : citizen ? 'Public citizen record. Private workshop conversations are never shown here.' : 'Looking up this address in the citizen registry.'}</p>
+            {citizen && <p className={styles.caption}>CITIZEN SINCE {new Date(citizen.joinedAt).toLocaleDateString()}</p>}
             <div className={styles.actions}>
               <a className="lv-button" href={`${activeRobinhoodChain.explorerUrl}/address/${requestedWallet}`} target="_blank" rel="noreferrer">VIEW WALLET <ArrowUpRight /></a>
               {isOwnWallet ? <Button className="lv-button" onClick={() => wallet.disconnectWallet().catch(() => setNotice('Could not sign out. Try again.'))}><LogOut /> SIGN OUT</Button> : <Link className="lv-button" href="/citizens">MY CITIZEN FILE <ArrowUpRight /></Link>}
@@ -56,7 +72,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
           </> : <>
             <h3>WHO ARE YOU IN LANDVILLE?</h3>
             <p>Your wallet identifies you. Your proposals, votes and builds give your citizen file a history.</p>
-            <Button className="lv-button primary" disabled={wallet.status === 'CONNECTING'} onClick={() => wallet.connectWallet().catch(() => undefined)}><Wallet /> {wallet.status === 'CONNECTING' ? 'CHECK YOUR WALLET…' : 'CONNECT WALLET'}</Button>
+            <Button className="lv-button primary" disabled={wallet.status === 'CONNECTING'} onClick={() => wallet.connectWallet().catch(() => undefined)}><Wallet /> {wallet.status === 'CONNECTING' ? 'CHECK YOUR WALLET…' : 'CREATE ACCOUNT / SIGN IN'}</Button>
             <p className={styles.caption}>Use an EVM browser wallet. Sign a message to prove ownership. No payment, transaction or SCRAPY required to sign in.</p>
           </>}
           <span className={styles.network}>ROBINHOOD MAINNET · {activeRobinhoodChain.id}</span>
@@ -66,9 +82,9 @@ export function CitizenProfile({ identity }: { identity?: string }) {
       {(notice || wallet.error) && <p className={styles.error} role="alert">{notice || wallet.error}</p>}
 
       <section className={styles.roles} aria-label="What citizens can do">
-        <article><MessageCircle /><span className={styles.label}>01 / JOIN THE CONVERSATION</span><h3>A voice in the town.</h3><p>Talk with other citizens and Scrapy in public Town Chat. No tokens needed to speak.</p><Link href="/chat">OPEN TOWN CHAT <ArrowUpRight /></Link></article>
+        <article><MessageCircle /><span className={styles.label}>01 / JOIN THE CONVERSATION</span><h3>A voice in the town.</h3><p>Everyone shares Town Chat history. Your account gets 10 messages a day without SCRAPY, or 50 with a positive balance, across Town Chat and Workshop. Resets at 00:00 UTC.</p><Link href="/chat">OPEN TOWN CHAT <ArrowUpRight /></Link></article>
         <article><Vote /><span className={styles.label}>02 / DECIDE WHAT BELONGS</span><h3>One wallet. A starting vote.</h3><p>One base vote, plus one for every full 250,000 SCRAPY. Holdings are verified on mainnet when you vote.</p><Link href="/proposals">EXPLORE PROPOSALS <ArrowUpRight /></Link></article>
-        <article><Hammer /><span className={styles.label}>03 / LEAVE SOMETHING BEHIND</span><h3>Give an idea a home.</h3><p>Refine it with Scrapy in the workshop. Build requests currently need 250,000 SCRAPY; complexity tiers are still to be defined.</p><Link href="/mayor">ENTER THE WORKSHOP <ArrowUpRight /></Link></article>
+        <article><Hammer /><span className={styles.label}>03 / LEAVE SOMETHING BEHIND</span><h3>Give an idea a home.</h3><p>Keep one active proposal at a time. Submit again after it is built or rejected. Build requests currently need 250,000 SCRAPY; complexity tiers are still to be defined. Discussion alone never submits a proposal.</p><Link href="/mayor">ENTER THE WORKSHOP <ArrowUpRight /></Link></article>
       </section>
 
       {isOwnWallet && <section className={styles.holdings} aria-label="Mainnet voting power">
@@ -77,10 +93,9 @@ export function CitizenProfile({ identity }: { identity?: string }) {
       </section>}
 
       {requestedWallet && <section className={styles.records}>
-        <header><div><span className={styles.label}>CITIZEN ACTIVITY</span><h3>{isOwnWallet ? 'Your part of the town.' : 'Activity for this address.'}</h3></div><span className={styles.localTag}>THIS BROWSER ONLY</span></header>
-        <p>Proposals, votes and world records are currently stored locally. This is not a shared citizen registry yet.</p>
-        {authored.length || ownReceipts.length ? <>
-          <dl className={styles.stats}><div><dt>PROPOSALS</dt><dd>{authored.length}</dd></div><div><dt>WORLD RECORDS</dt><dd>{built.length}</dd></div>{isOwnWallet && <div><dt>VOTES CAST</dt><dd>{ownReceipts.length}</dd></div>}</dl>
+        <header><div><span className={styles.label}>CITIZEN ACTIVITY</span><h3>{isOwnWallet ? 'Your part of the town.' : 'Activity for this address.'}</h3></div><span className={styles.localTag}>SHARED CITIZEN REGISTRY</span></header>
+        {recordError ? <p role="alert">{recordError}</p> : !citizen ? <p>Loading citizen record…</p> : authored.length || citizen.votesCast ? <>
+          <dl className={styles.stats}><div><dt>PROPOSALS</dt><dd>{authored.length}</dd></div><div><dt>WORLD RECORDS</dt><dd>{built.length}</dd></div><div><dt>VOTES CAST</dt><dd>{citizen.votesCast}</dd></div></dl>
           <ul className={styles.activity}>
             {authored.map((proposal) => <li key={proposal.id}><Link href="/proposals">{proposal.title}</Link><span>{proposal.status}</span></li>)}
             {ownReceipts.map(([id, receipt]) => <li key={id}><Link href="/proposals">{id} · {receipt.choice} · {receipt.weight} votes</Link><span>BLOCK {receipt.blockNumber}</span></li>)}

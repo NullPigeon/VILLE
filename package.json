@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "oxlint",
-    "test": "node --experimental-strip-types --test tests/governance.test.mjs tests/robinhood-chain.test.mjs",
+    "test": "node --experimental-strip-types --test tests/governance.test.mjs tests/robinhood-chain.test.mjs tests/server-api.test.mjs tests/proposal-lifecycle.test.mjs",
     "format": "oxfmt"
   },
   "dependencies": {

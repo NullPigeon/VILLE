@@ -1,5 +1,7 @@
 import { isAddress, verifyMessage } from 'viem';
 import { NextRequest, NextResponse } from 'next/server';
+import { apiFailure, jsonBody, requireMutation } from '@/lib/server/api';
+import { registerCitizen } from '@/lib/server/database';
 import {
   CHALLENGE_COOKIE,
   readCookie,
@@ -8,15 +10,17 @@ import {
 } from '@/lib/wallet-session';
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => null)) as
+  try {
+  requireMutation(request);
+  const body = (await jsonBody(request)) as
     | { address?: string; signature?: `0x${string}` }
     | null;
-  const address = body?.address?.toLowerCase() || '';
+  const address = typeof body?.address === 'string' ? body.address.toLowerCase() : '';
   const challenge = readCookie<{ address: string; message: string; expiresAt: number }>(
     request.cookies.get(CHALLENGE_COOKIE)?.value,
   );
 
-  if (!challenge || !isAddress(address) || !body?.signature || challenge.address !== address) {
+  if (!challenge || !isAddress(address) || typeof body?.signature !== 'string' || challenge.address !== address) {
     return NextResponse.json({ error: 'Wallet challenge is invalid or expired.' }, { status: 401 });
   }
 
@@ -24,8 +28,10 @@ export async function POST(request: NextRequest) {
     address: address as `0x${string}`,
     message: challenge.message,
     signature: body.signature,
-  });
+  }).catch(() => false);
   if (!valid) return NextResponse.json({ error: 'Wallet signature is invalid.' }, { status: 401 });
+
+  await registerCitizen(address);
 
   const response = NextResponse.json({ address });
   response.cookies.set(
@@ -35,4 +41,5 @@ export async function POST(request: NextRequest) {
   );
   response.cookies.delete(CHALLENGE_COOKIE);
   return response;
+  } catch (error) { return apiFailure(error); }
 }

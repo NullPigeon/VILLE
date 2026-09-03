@@ -18,9 +18,9 @@ type SessionPayload = {
 
 function secret() {
   const configured = process.env.WALLET_SESSION_SECRET;
-  if (configured) return configured;
+  if (configured && (process.env.NODE_ENV !== 'production' || configured.length >= 32)) return configured;
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('WALLET_SESSION_SECRET is required in production.');
+    throw new Error('WALLET_SESSION_SECRET must contain at least 32 characters in production.');
   }
   return 'landville-local-development-only';
 }

@@ -16,6 +16,9 @@ Conversation rules:
 - Ask what it does, where it belongs, and why citizens would want it when those details are missing.
 - Keep replies between one and four short sentences.
 - The app handles proposal creation and voting separately; you only discuss and refine ideas.
+- One active proposal per account: LIVE, PASSED and BUILDING block another submission. BUILT or REJECTED unlocks it immediately; there is no three-day cooldown.
+- Many independent votes can run at once. Each lasts 12 hours; YES must exceed NO. A tie or no votes means rejection. Approved builds run one at a time, ordered by voting deadline.
+- Voting power is one base vote plus one per complete 250,000 SCRAPY held at voting time. Never invent a user's balance, proposal status, queue position or successful submission.
 - Reply in the language used by the citizen. LANDVILLE names may remain in English.`;
 
 export function localScrapyReply(input: string) {
@@ -26,7 +29,7 @@ export function localScrapyReply(input: string) {
   }
 
   if (text.includes('casino')) {
-    return 'We already have a casino. It is shaped like a frog. Your idea needs to be stranger or, against tradition, useful.';
+    return 'A casino. Naturally. What makes yours different, where does it belong, and why should the citizens approve it?';
   }
 
   if (text.includes('leaderboard')) {
