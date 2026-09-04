@@ -12,7 +12,7 @@ const databaseErrors: Record<string, [number, string]> = {
   ACTIVE_PROPOSAL_EXISTS: [409, 'You already have an active proposal. Submit another after it is built or rejected.'],
   BUILD_ALREADY_RUNNING: [409, 'Another build is running. Finish or reject it before starting the next.'],
   BUILD_QUEUE_ORDER: [409, 'An earlier approved proposal is waiting. Finalize and build proposals in voting-deadline order.'],
-  DAILY_MESSAGE_LIMIT: [429, 'Daily message limit reached: 10 without SCRAPY, 50 with SCRAPY, across both chats. Resets at 00:00 UTC.'],
+  DAILY_MESSAGE_LIMIT: [429, 'Daily message limit reached: 10 without SCRAPY, 50 with SCRAPY, in Town Chat. Resets at 00:00 UTC.'],
   INVALID_SNAPSHOT: [409, 'The balance snapshot expired or is invalid. Please retry.'],
   BUILD_HOLD_REQUIRED: [403, 'You need at least 250,000 SCRAPY to request a build.'],
   ALREADY_VOTED: [409, 'This wallet has already voted on this proposal.'],

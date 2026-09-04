@@ -60,7 +60,7 @@ export default function WorldPage() {
               <div><dt><Vote /> FINAL POWER</dt><dd>{selected.yesPercent}% YES</dd></div>
               <div><dt><CalendarDays /> BUILT</dt><dd>{selected.builtAt}</dd></div>
             </dl>
-            <Link className="lv-button primary" href="/mayor">ASK MAYOR ABOUT IT <Bot /></Link>
+            <Link className="lv-button primary" href="/chat">ASK MAYOR ABOUT IT <Bot /></Link>
             {selected.modulePath && <Link className="lv-button primary" href={selected.modulePath}>OPEN {selected.title}</Link>}
           </div>
         </aside>}

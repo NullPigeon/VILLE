@@ -5,6 +5,7 @@ export type TownMessage = {
   body: string;
   kind: 'CITIZEN' | 'MAYOR' | 'SYSTEM';
   createdAt: string;
+  aiSource?: 'openai' | 'scripted' | null;
 };
 
 export const initialTownMessages: TownMessage[] = [];

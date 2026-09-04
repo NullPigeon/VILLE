@@ -14,4 +14,4 @@ await psql(['-f', 'tests/build-database.sql']);
 const query = "set role service_role; select public.landville_claim_build('0x' || repeat('a',40));";
 const results = await Promise.all(Array.from({ length: 8 }, () => psql(['-tA', '-c', query])));
 assert.equal(results.filter((output) => output.includes('"proposal_id": "LV-4"')).length, 1, 'Exactly one concurrent worker acquires the job');
-console.log('All four migrations, FIFO, leases, failures, publication, permissions and eight concurrent claims passed.');
+console.log('All five migrations, private archive preservation, provenance, FIFO, leases, failures, publication, permissions and eight concurrent claims passed.');

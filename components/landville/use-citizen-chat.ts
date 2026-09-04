@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TownMessage } from '@/lib/chat-data';
 import { useWallet } from '@/components/landville/wallet-provider';
+import { readJsonResponse } from '@/lib/http-response';
 
-type ChatPage = { messages: TownMessage[]; hasMore: boolean; nextCursor: string | null; error?: string };
+type ChatPage = { messages: TownMessage[]; hasMore: boolean; nextCursor: string | null; error?: string; aiConfigured?: boolean };
 function mergeMessages(previous: TownMessage[], incoming: TownMessage[]) {
   const unique = new Map(previous.map((message) => [message.id, message]));
   incoming.forEach((message) => unique.set(message.id, message));
@@ -22,6 +23,7 @@ export function useCitizenChat(channel: 'TOWN' | 'WORKSHOP') {
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [source, setSource] = useState('stored');
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const currentWallet = useRef(wallet.address);
   currentWallet.current = wallet.address;
   const pending = useRef(new Map<string, string>());
@@ -31,9 +33,9 @@ export function useCitizenChat(channel: 'TOWN' | 'WORKSHOP') {
     const identity = currentWallet.current;
     if (channel === 'WORKSHOP' && !identity) return;
     const response = await fetch(`${endpoint}${before ? `?before=${encodeURIComponent(before)}` : ''}`, { cache: 'no-store' });
-    const result = await response.json() as ChatPage;
-    if (!response.ok) throw new Error(result.error || 'Chat history unavailable.');
+    const result = await readJsonResponse<ChatPage>(response, 'Chat history');
     if (identity !== currentWallet.current) return;
+    setAiConfigured(result.aiConfigured ?? null);
     setData((previous) => ({ wallet: identity, messages: mergeMessages(previous.wallet === identity ? previous.messages : [], result.messages) }));
     if (before || !started.current) { setCursor(result.nextCursor); setHasMore(result.hasMore); started.current = true; }
     setHistoryError('');
@@ -55,6 +57,7 @@ export function useCitizenChat(channel: 'TOWN' | 'WORKSHOP') {
   }
 
   async function send(body: string) {
+    if (channel !== 'TOWN') { setError('This archive is read-only. Write new messages in public Town Chat.'); return false; }
     if (!wallet.address || sending) return false;
     const identity = wallet.address;
     const key = `${identity}:${body}`;
@@ -63,8 +66,7 @@ export function useCitizenChat(channel: 'TOWN' | 'WORKSHOP') {
     setSending(true); setError('');
     try {
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body, requestId }) });
-      const result = await response.json() as { messages?: TownMessage[]; source?: string; error?: string };
-      if (!response.ok) throw new Error(result.error || 'Message was not delivered.');
+      const result = await readJsonResponse<{ messages?: TownMessage[]; source?: string }>(response, 'Send message');
       pending.current.delete(key);
       if (identity === currentWallet.current) {
         setData((previous) => ({ wallet: identity, messages: mergeMessages(previous.wallet === identity ? previous.messages : [], result.messages || []) }));
@@ -75,5 +77,5 @@ export function useCitizenChat(channel: 'TOWN' | 'WORKSHOP') {
     finally { setSending(false); }
   }
 
-  return { messages: channel === 'WORKSHOP' && data.wallet !== wallet.address ? [] : data.messages, error: error || historyError, send, sending, source, hasMore, older, loading };
+  return { messages: channel === 'WORKSHOP' && data.wallet !== wallet.address ? [] : data.messages, error: error || historyError, send, sending, source, hasMore, older, loading, aiConfigured };
 }

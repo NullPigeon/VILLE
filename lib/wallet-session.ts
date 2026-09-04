@@ -16,11 +16,19 @@ type SessionPayload = {
   expiresAt: number;
 };
 
+export class WalletSessionConfigurationError extends Error {
+  constructor() { super('Wallet sign-in is not configured. The site operator must set WALLET_SESSION_SECRET to at least 32 random characters in Production, then redeploy.'); }
+}
+
+export function walletSessionConfigured() {
+  return (process.env.WALLET_SESSION_SECRET?.trim().length || 0) >= 32;
+}
+
 function secret() {
   const configured = process.env.WALLET_SESSION_SECRET;
-  if (configured && (process.env.NODE_ENV !== 'production' || configured.length >= 32)) return configured;
+  if (configured && (process.env.NODE_ENV !== 'production' || walletSessionConfigured())) return configured;
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('WALLET_SESSION_SECRET must contain at least 32 characters in production.');
+    throw new WalletSessionConfigurationError();
   }
   return 'landville-local-development-only';
 }

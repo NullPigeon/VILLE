@@ -1,6 +1,6 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
-import { readWalletSession, SESSION_COOKIE } from '@/lib/wallet-session';
+import { readWalletSession, SESSION_COOKIE, WalletSessionConfigurationError } from '@/lib/wallet-session';
 
 export class ApiError extends Error {
   status: number;
@@ -39,6 +39,7 @@ export async function jsonBody(request: NextRequest) {
 }
 
 export function apiFailure(error: unknown) {
+  if (error instanceof WalletSessionConfigurationError) return NextResponse.json({ error: error.message }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   if (error instanceof ApiError) return NextResponse.json({ error: error.message }, { status: error.status });
   console.error('LANDVILLE server action failed:', error instanceof Error ? error.name : 'Unknown error');
   return NextResponse.json({ error: 'The server could not complete this action. Try again.' }, { status: 500 });

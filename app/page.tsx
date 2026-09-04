@@ -37,7 +37,7 @@ function reply(message: string) {
 export default function Home() {
   const wallet = useWallet();
   const router = useRouter();
-  const openWorkshop = () => router.push(wallet.address ? '/mayor' : '/citizens');
+  const openWorkshop = () => router.push('/chat');
   const openVoting = () => router.push(wallet.address ? '/proposals' : '/citizens');
   const [chat, setChat] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -64,7 +64,7 @@ export default function Home() {
     <div className="noise" aria-hidden="true" />
     <header className="site-header junk-header">
       <div className="brand-stack"><a className="logo" href="#top">LANDVILLE<span>™</span></a><small><Wrench /> PUBLIC WORLD ENGINE</small></div>
-      <nav className={menu ? 'nav open junk-nav' : 'nav junk-nav'}><span className="nav-warning"><TriangleAlert /> BUILD ACCESS</span><Link href="/world" onClick={() => setMenu(false)}>01 / WORLD</Link><Link href="/proposals" onClick={() => setMenu(false)}>02 / VOTE</Link><a href="#about" onClick={() => setMenu(false)}>03 / HOW</a><Link href="/treasury" onClick={() => setMenu(false)}>04 / TREASURY</Link><button onClick={() => {openWorkshop();setMenu(false)}}><Bot /> 05 / WORKSHOP</button><Link href="/citizens" onClick={() => setMenu(false)}><User /> {wallet.address ? 'MY PROFILE' : 'CREATE ACCOUNT'}</Link></nav>
+      <nav className={menu ? 'nav open junk-nav' : 'nav junk-nav'}><span className="nav-warning"><TriangleAlert /> BUILD ACCESS</span><Link href="/world" onClick={() => setMenu(false)}>01 / WORLD</Link><Link href="/proposals" onClick={() => setMenu(false)}>02 / VOTE</Link><a href="#about" onClick={() => setMenu(false)}>03 / HOW</a><Link href="/treasury" onClick={() => setMenu(false)}>04 / TREASURY</Link><button onClick={() => {openWorkshop();setMenu(false)}}><Bot /> 05 / TOWN CHAT</button><Link href="/citizens" onClick={() => setMenu(false)}><User /> {wallet.address ? 'MY PROFILE' : 'CREATE ACCOUNT'}</Link></nav>
       <button className="menu" onClick={() => setMenu(!menu)} aria-label="Toggle navigation">{menu ? <X /> : <Menu />}</button>
     </header>
 

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ProductShell } from '@/components/landville/product-shell';
+import { ReadinessPanel } from '@/components/landville/readiness-panel';
 import { useLandville } from '@/components/landville/provider';
 import { getBuildQueue } from '@/lib/proposal-lifecycle';
 import type { BuildJob } from '@/lib/build-contract';
@@ -64,6 +65,7 @@ export default function AdminPage() {
   }
   return <ProductShell title="BUILD CONTROL" eyebrow="REVIEW → BUILD → PR → VERIFIED RELEASE">
     {!isAdmin ? <section className="lv-panel chat-sidebar-body"><h2>ADMIN ACCESS REQUIRED</h2><p>{status === 'loading' ? 'Checking access…' : 'Sign in with an authorized operator wallet.'}</p><Link className="lv-button" href="/citizens">MY PROFILE / SIGN IN</Link></section> : <>
+      <ReadinessPanel />
       <p className="admin-warning">Votes close after 12 hours. YES must exceed NO. Review a sandbox-compatible specification, then the enabled worker builds one module at a time. Review its PR, wait for City checks, test the acceptance checklist and merge manually. Only a verified production release adds the object to the World.</p>
       <p className="admin-warning">V1 modules cannot access wallets, shared storage or external APIs. Keep the approved goal unchanged. Do not send unsupported work to the automatic builder.</p>
       {jobError && <p role="alert" className="admin-warning">{jobError} <button onClick={() => void loadJobs()}>RETRY LOAD</button></p>}

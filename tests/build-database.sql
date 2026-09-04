@@ -7,6 +7,23 @@ grant usage on schema public to service_role;
 \ir ../supabase/migrations/002_landville_server.sql
 \ir ../supabase/migrations/003_proposal_lifecycle.sql
 \ir ../supabase/migrations/004_build_executor.sql
+-- Existing private data must remain private and unclassified through the upgrade.
+insert into public.landville_citizens(wallet) values ('0x' || repeat('e',40));
+insert into public.landville_messages(id, author, body, kind, channel, owner_wallet)
+values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WORKSHOP', '0x' || repeat('e',40));
+\ir ../supabase/migrations/005_chat_provenance.sql
+
+do $$ begin
+  if not exists (select 1 from public.landville_messages where id='legacy-private-test'
+    and channel='WORKSHOP' and owner_wallet='0x' || repeat('e',40) and ai_source is null) then
+    raise exception 'Migration exposed or relabeled private history';
+  end if;
+  begin
+    insert into public.landville_messages(id, author, body, kind, ai_source)
+    values ('invalid-source-test','@citizen','A citizen is not AI','CITIZEN','openai');
+    raise exception 'Citizen message accepted AI provenance';
+  exception when check_violation then null; end;
+end $$;
 
 do $$ begin
   if has_table_privilege('anon', 'public.landville_build_jobs', 'SELECT') or

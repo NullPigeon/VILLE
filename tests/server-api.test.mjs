@@ -225,6 +225,116 @@ void test('Town history is public but always excludes private messages', async (
   assert.ok(f.calls[0].url.includes('channel=eq.TOWN&owner_wallet=is.null'));
 });
 
+void test('Workshop writes are retired without publishing private content', async () => {
+  const f = fixture(() => undefined);
+  const response = await f.load('app/api/mayor/route.ts').POST(f.request('/api/mayor', { body: 'Private idea', requestId: randomUUID() }, { signed: true }));
+  assert.equal(response.status, 410); assert.equal(f.calls.length, 0);
+  await assert.rejects(f.load('@/lib/server/chat').sendMessage(wallet, 'WORKSHOP', 'Private idea', randomUUID()), /read-only/);
+  assert.equal(f.calls.length, 0);
+});
+
+void test('production challenge returns actionable JSON for missing or short session secrets', async () => {
+  for (const secret of ['', 'too-short', ' '.repeat(40)]) {
+    const f = fixture(() => undefined, { NODE_ENV: 'production', WALLET_SESSION_SECRET: secret });
+    const response = await f.load('app/api/auth/challenge/route.ts').GET(f.request(`/api/auth/challenge?address=${wallet}`, {}, { method: 'GET' }));
+    assert.equal(response.status, 503);
+    assert.match((await response.json()).error, /WALLET_SESSION_SECRET/);
+    assert.equal(response.headers.get('set-cookie'), null);
+  }
+  const f = fixture(() => undefined, { NODE_ENV: 'production' });
+  const response = await f.load('app/api/auth/challenge/route.ts').GET(f.request(`/api/auth/challenge?address=${wallet}`, {}, { method: 'GET' }));
+  assert.equal(response.status, 200); assert.match(response.headers.get('set-cookie'), /Secure/);
+  assert.match((await response.json()).message, /LANDVILLE WALLET SIGN-IN/);
+});
+
+void test('client JSON reader replaces empty or HTML failures without exposing their content', async () => {
+  const { readJsonResponse } = fixture(() => undefined).load('@/lib/http-response');
+  for (const body of ['', '<html>private provider details</html>', 'null', '[]']) {
+    await assert.rejects(readJsonResponse(new Response(body, { status: 502 }), 'Sign-in'), (error) => /HTTP 502/.test(error.message) && !/private provider|Unexpected/.test(error.message));
+  }
+  await assert.rejects(readJsonResponse(json({ error: 'Wallet configuration required' }, 503), 'Sign-in'), /Wallet configuration required/);
+  assert.equal((await readJsonResponse(json({ address: wallet }), 'Session')).address, wallet);
+});
+
+void test('AI distinguishes missing key, provider failures and incomplete replies from live success', async () => {
+  const message = { id: 'm', kind: 'CITIZEN', wallet, author: '@citizen', body: 'Town radio please', createdAt: new Date().toISOString() };
+  const absent = fixture(() => undefined);
+  assert.equal((await absent.load('@/lib/server/mayor-ai').requestMayorReply([message], wallet)).ok, false);
+  assert.equal(absent.calls.length, 0);
+  for (const status of [401, 403, 404, 429, 500]) {
+    const f = fixture(() => json({ error: { message: 'sensitive provider detail' } }, status), { OPENAI_API_KEY: 'fake-test-key' });
+    const reply = await f.load('@/lib/server/mayor-ai').requestMayorReply([message], wallet);
+    assert.equal(reply.ok, false); assert.ok(!reply.reason.includes('sensitive'));
+  }
+  for (const result of [{ status: 'completed', output: [] }, { status: 'incomplete', output: [{ content: [{ type: 'output_text', text: 'unfinished' }] }] }]) {
+    const f = fixture(() => json(result), { OPENAI_API_KEY: 'fake-test-key' });
+    assert.equal((await f.load('@/lib/server/mayor-ai').requestMayorReply([message], wallet)).ok, false);
+  }
+  const f = fixture(() => json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'What should the radio play?' }] }] }), { OPENAI_API_KEY: 'fake-test-key', OPENAI_MODEL: 'test-model' });
+  const result = await f.load('@/lib/server/mayor-ai').requestMayorReply([message], wallet);
+  assert.equal(result.ok, true); assert.equal(result.text, 'What should the radio play?');
+  assert.equal(f.calls[0].body.store, false); assert.equal(f.calls[0].body.model, 'test-model');
+  assert.match(f.calls[0].body.instructions, /public Town Chat/);
+});
+
+void test('missing provenance migration refuses chat before a message or quota is consumed', async () => {
+  const f = fixture((call) => call.url.includes('select=ai_source') ? json({ code: '42703', message: 'column missing' }, 400) : undefined);
+  const response = await f.load('app/api/chat/route.ts').POST(f.request('/api/chat', { body: 'Town radio please', requestId: randomUUID() }, { signed: true }));
+  assert.equal(response.status, 503);
+  assert.ok(!f.calls.some((call) => call.method === 'POST'));
+});
+
+void test('public replies persist provenance, exclude private context and never submit proposals', async () => {
+  for (const ai of [false, true]) {
+    let saved;
+    const message = { id: 'citizen-test', author: '@citizen', wallet, body: 'Town radio please', kind: 'CITIZEN', created_at: new Date().toISOString() };
+    const f = fixture((call) => {
+      if (call.url.endsWith('/rpc/landville_submit_message')) return json(message);
+      if (call.url.includes('api.openai.com')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'Where should the radio go?' }] }] });
+      if (call.method === 'POST' && call.url.includes('landville_messages?')) { saved = { ...call.body, created_at: message.created_at }; return new Response(null, { status: 204 }); }
+      if (call.url.includes('id=eq.reply-')) return json(saved ? [saved] : []);
+      return undefined;
+    }, { OPENAI_API_KEY: ai ? 'fake-test-key' : '' });
+    const result = await f.load('@/lib/server/chat').sendMessage(wallet, 'TOWN', message.body, randomUUID());
+    assert.equal(saved.ai_source, ai ? 'openai' : 'scripted');
+    assert.equal(result.messages[1].aiSource, saved.ai_source);
+    assert.equal(saved.owner_wallet, null); assert.equal(saved.channel, 'TOWN');
+    assert.ok(!f.calls.some((call) => /WORKSHOP|create_proposal/.test(call.url)));
+    const replay = await f.load('@/lib/server/chat').sendMessage(wallet, 'TOWN', message.body, randomUUID());
+    assert.equal(replay.source, 'stored'); assert.equal(replay.messages[1].aiSource, saved.ai_source);
+  }
+});
+
+void test('readiness is admin-only, reveals no secrets and never calls AI on GET', async () => {
+  for (const signed of [false, true]) {
+    const f = fixture(() => undefined);
+    const response = await f.load('app/api/admin/readiness/route.ts').GET(f.request('/api/admin/readiness', {}, { method: 'GET', signed }));
+    assert.equal(response.status, signed ? 403 : 401); assert.equal(f.calls.length, 0);
+  }
+  const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet, OPENAI_API_KEY: 'private-secret-test' });
+  const response = await f.load('app/api/admin/readiness/route.ts').GET(f.request('/api/admin/readiness', {}, { method: 'GET', signed: true }));
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.ai.verified, false); assert.equal(body.ai.configured, true);
+  assert.ok(!JSON.stringify(body).includes('private-secret-test'));
+  assert.ok(f.calls.some((call) => call.url.includes('ai_source')));
+  assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com')));
+});
+
+void test('live AI test is explicit, rate-limited and does not post to chat', async () => {
+  const f = fixture((call) => call.url.includes('api.openai.com') ? json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'I can answer.' }] }] }) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet, OPENAI_API_KEY: 'fake-test-key' });
+  const route = f.load('app/api/admin/readiness/route.ts');
+  const blocked = await route.POST(f.request('/api/admin/readiness', {}, { signed: true, headers: { Origin: 'https://attacker.example' } }));
+  assert.equal(blocked.status, 403); assert.equal(f.calls.length, 0);
+  const response = await route.POST(f.request('/api/admin/readiness', {}, { signed: true }));
+  assert.equal(response.status, 200); assert.equal((await response.json()).ok, true);
+  assert.equal(f.calls[0].body.p_limit, 1);
+  assert.ok(!f.calls.some((call) => call.url.includes('landville_messages')));
+  const limited = fixture((call) => call.url.endsWith('/rpc/landville_rate_limit') ? json(false) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet });
+  assert.equal((await limited.load('app/api/admin/readiness/route.ts').POST(limited.request('/api/admin/readiness', {}, { signed: true }))).status, 429);
+  assert.equal(limited.calls.length, 1);
+});
+
 void test('official SCRAPY metadata is public and needs no database or wallet session', async () => {
   const f = fixture(() => undefined);
   const response = await f.load('app/api/token/route.ts').GET();

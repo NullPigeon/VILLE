@@ -65,7 +65,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
           {requestedWallet ? <>
             <h3>{isOwnWallet ? `@${walletUsername(requestedWallet)}` : shortWallet(requestedWallet)}</h3>
             <p className={styles.address}>{requestedWallet}</p>
-            <p>{isOwnWallet ? 'This wallet is your citizen account. Your activity stays with it across devices.' : citizen ? 'Public citizen record. Private workshop conversations are never shown here.' : 'Looking up this address in the citizen registry.'}</p>
+            <p>{isOwnWallet ? 'This wallet is your citizen account. Your activity stays with it across devices.' : citizen ? 'Public citizen record. Private archived conversations are never shown here.' : 'Looking up this address in the citizen registry.'}</p>
             {citizen && <p className={styles.caption}>CITIZEN SINCE {new Date(citizen.joinedAt).toLocaleDateString()}</p>}
             <div className={styles.actions}>
               <a className="lv-button" href={`${activeRobinhoodChain.explorerUrl}/address/${requestedWallet}`} target="_blank" rel="noreferrer">VIEW WALLET <ArrowUpRight /></a>
@@ -84,9 +84,9 @@ export function CitizenProfile({ identity }: { identity?: string }) {
       {(notice || wallet.error) && <p className={styles.error} role="alert">{notice || wallet.error}</p>}
 
       <section className={styles.roles} aria-label="What citizens can do">
-        <article><MessageCircle /><span className={styles.label}>01 / JOIN THE CONVERSATION</span><h3>A voice in the town.</h3><p>Everyone shares Town Chat history. Your account gets 10 messages a day without SCRAPY, or 50 with a positive balance, across Town Chat and Workshop. Resets at 00:00 UTC.</p><Link href="/chat">OPEN TOWN CHAT <ArrowUpRight /></Link></article>
+        <article><MessageCircle /><span className={styles.label}>01 / JOIN THE CONVERSATION</span><h3>A voice in the town.</h3><p>Everyone shares Town Chat history. Your account gets 10 messages a day without SCRAPY, or 50 with a positive balance, in public Town Chat. Resets at 00:00 UTC.</p><Link href="/chat">OPEN TOWN CHAT <ArrowUpRight /></Link></article>
         <article><Vote /><span className={styles.label}>02 / DECIDE WHAT BELONGS</span><h3>One wallet. A starting vote.</h3><p>One base vote, plus one for every full 250,000 SCRAPY. Holdings are verified on mainnet when you vote.</p><Link href="/proposals">EXPLORE PROPOSALS <ArrowUpRight /></Link></article>
-        <article><Hammer /><span className={styles.label}>03 / LEAVE SOMETHING BEHIND</span><h3>Give an idea a home.</h3><p>Keep one active proposal at a time. Submit again after it is built or rejected. Build requests currently need 250,000 SCRAPY; complexity tiers are still to be defined. Discussion alone never submits a proposal.</p><Link href="/mayor">ENTER THE WORKSHOP <ArrowUpRight /></Link></article>
+        <article><Hammer /><span className={styles.label}>03 / LEAVE SOMETHING BEHIND</span><h3>Give an idea a home.</h3><p>Keep one active proposal at a time. Submit again after it is built or rejected. Build requests currently need 250,000 SCRAPY; complexity tiers are still to be defined. Discussion alone never submits a proposal.</p><Link href="/chat">DISCUSS IN TOWN CHAT <ArrowUpRight /></Link></article>
       </section>
 
       {isOwnWallet && <section className={styles.holdings} aria-label="Mainnet voting power">
@@ -102,7 +102,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
             {authored.map((proposal) => <li key={proposal.id}><Link href="/proposals">{proposal.title}</Link><span>{proposal.status}</span></li>)}
             {ownReceipts.map(([id, receipt]) => <li key={id}><Link href="/proposals">{id} · {receipt.choice} · {receipt.weight} votes</Link><span>BLOCK {receipt.blockNumber}</span></li>)}
           </ul>
-        </> : <Empty className={styles.empty}><EmptyHeader><EmptyTitle>No recorded activity here yet.</EmptyTitle><EmptyDescription>A citizen file starts with what you actually do, not a made-up track record.</EmptyDescription></EmptyHeader><Link className="lv-button" href="/mayor">START WITH AN IDEA <ArrowUpRight /></Link></Empty>}
+        </> : <Empty className={styles.empty}><EmptyHeader><EmptyTitle>No recorded activity here yet.</EmptyTitle><EmptyDescription>A citizen file starts with what you actually do, not a made-up track record.</EmptyDescription></EmptyHeader><Link className="lv-button" href="/chat">START WITH AN IDEA <ArrowUpRight /></Link></Empty>}
       </section>}
     </div>
   </ProductShell>;

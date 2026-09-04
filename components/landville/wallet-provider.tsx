@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { VotingPowerSnapshot } from '@/lib/governance';
 import { addRobinhoodNetwork } from '@/lib/robinhood-chain';
 import { SCRAPY_TOKEN } from '@/lib/scrapy-token';
+import { readJsonResponse } from '@/lib/http-response';
 
 type WalletStatus = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -27,8 +28,7 @@ const WalletContext = createContext<WalletContextValue | null>(null);
 
 async function fetchSnapshot() {
   const response = await fetch('/api/governance/snapshot', { cache: 'no-store' });
-  const result = (await response.json()) as VotingPowerSnapshot & { error?: string };
-  if (!response.ok) throw new Error(result.error || 'Could not read voting power.');
+  const result = await readJsonResponse<VotingPowerSnapshot>(response, 'SCRAPY balance check');
   return result;
 }
 
@@ -41,7 +41,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     fetch('/api/auth/session', { cache: 'no-store' })
-      .then((response) => response.json())
+      .then((response) => readJsonResponse<{ address?: string | null }>(response, 'Wallet session'))
       .then(async (session: { address?: string | null }) => {
         if (!active || !session.address) return;
         setAddress(session.address);
@@ -81,7 +81,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             `/api/auth/challenge?address=${encodeURIComponent(account)}`,
             { cache: 'no-store' },
           );
-          const challenge = (await challengeResponse.json()) as { message?: string; error?: string };
+          const challenge = await readJsonResponse<{ message?: string; error?: string }>(challengeResponse, 'Wallet sign-in challenge');
           if (!challengeResponse.ok || !challenge.message) {
             throw new Error(challenge.error || 'Could not create wallet challenge.');
           }
@@ -95,7 +95,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ address: account, signature }),
           });
-          const verified = (await verifyResponse.json()) as { address?: string; error?: string };
+          const verified = await readJsonResponse<{ address?: string; error?: string }>(verifyResponse, 'Wallet verification');
           if (!verifyResponse.ok || !verified.address) {
             throw new Error(verified.error || 'Wallet verification failed.');
           }
