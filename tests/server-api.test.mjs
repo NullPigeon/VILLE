@@ -60,6 +60,7 @@ function fixture(handler, extraEnv = {}, overrides = {}) {
 }
 
 for (const [route, url, method] of [
+  ['app/api/profile/route.ts', '/api/profile', 'PATCH'],
   ['app/api/chat/route.ts', '/api/chat', 'POST'],
   ['app/api/mayor/route.ts', '/api/mayor', 'POST'],
   ['app/api/proposals/route.ts', '/api/proposals', 'POST'],
@@ -289,18 +290,18 @@ void test('public replies persist provenance, exclude private context and never 
     let saved;
     const message = { id: 'citizen-test', author: '@citizen', wallet, body: 'Town radio please', kind: 'CITIZEN', created_at: new Date().toISOString() };
     const f = fixture((call) => {
-      if (call.url.endsWith('/rpc/landville_submit_message')) return json(message);
+      if (call.url.endsWith('/rpc/landville_submit_public_message')) return json(message);
       if (call.url.includes('api.openai.com')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'Where should the radio go?' }] }] });
       if (call.method === 'POST' && call.url.includes('landville_messages?')) { saved = { ...call.body, created_at: message.created_at }; return new Response(null, { status: 204 }); }
       if (call.url.includes('id=eq.reply-')) return json(saved ? [saved] : []);
       return undefined;
     }, { OPENAI_API_KEY: ai ? 'fake-test-key' : '' });
-    const result = await f.load('@/lib/server/chat').sendMessage(wallet, 'TOWN', message.body, randomUUID());
+    const result = await f.load('@/lib/server/chat').sendMessage(wallet, 'TOWN', message.body, randomUUID(), true);
     assert.equal(saved.ai_source, ai ? 'openai' : 'scripted');
     assert.equal(result.messages[1].aiSource, saved.ai_source);
     assert.equal(saved.owner_wallet, null); assert.equal(saved.channel, 'TOWN');
     assert.ok(!f.calls.some((call) => /WORKSHOP|create_proposal/.test(call.url)));
-    const replay = await f.load('@/lib/server/chat').sendMessage(wallet, 'TOWN', message.body, randomUUID());
+    const replay = await f.load('@/lib/server/chat').sendMessage(wallet, 'TOWN', message.body, randomUUID(), true);
     assert.equal(replay.source, 'stored'); assert.equal(replay.messages[1].aiSource, saved.ai_source);
   }
 });
@@ -335,6 +336,74 @@ void test('live AI test is explicit, rate-limited and does not post to chat', as
   assert.equal(limited.calls.length, 1);
 });
 
+void test('citizen defaults reserve Scrapy #1 and validate canonical usernames', () => {
+  const { citizenLabel, validUsername } = fixture(() => undefined).load('@/lib/citizen-identity');
+  assert.equal(citizenLabel({ citizenNumber: 2, username: null }), 'Citizen #2');
+  assert.equal(citizenLabel({ citizenNumber: 2, username: 'pigeon' }), '@pigeon');
+  for (const name of ['scrapy', 'scrapy_1', 'citizen2', 'citizen_2', 'admin', 'Admin', 'ab', '1pigeon', '<script>', 'hello world']) assert.equal(validUsername(name), false, name);
+  assert.equal(validUsername('null_pigeon'), true);
+});
+
+void test('profile writes use signed ownership, normalize names, and cannot edit permanent IDs', async () => {
+  const row = { wallet, joined_at: new Date().toISOString(), citizen_number: 2, username: 'pigeon', bio: '', avatar: 'radio' };
+  const f = fixture((call) => call.method === 'PATCH' ? json([{ ...row, ...call.body }]) : undefined);
+  const route = f.load('app/api/profile/route.ts');
+  const response = await route.PATCH(f.request(`/api/profile?wallet=${other}`, { username: ' PiGeOn ', bio: ' Hello ', avatar: 'radio' }, { method: 'PATCH', signed: true }));
+  assert.equal(response.status, 200);
+  const profile = (await response.json()).profile;
+  assert.equal(profile.citizenNumber, 2); assert.equal(profile.username, 'pigeon'); assert.equal(profile.bio, 'Hello');
+  const patch = f.calls.find((call) => call.method === 'PATCH');
+  assert.ok(patch.url.endsWith(`wallet=eq.${wallet}`)); assert.ok(!patch.url.includes(other));
+  assert.deepEqual(Object.keys(patch.body).sort(), ['avatar','bio','username']);
+  const writesBefore = f.calls.length;
+  for (const extra of [{ wallet: other }, { citizenNumber: 1 }, { citizen_number: 1 }]) {
+    const blocked = await route.PATCH(f.request('/api/profile', { username: 'pigeon', bio: '', avatar: 'radio', ...extra }, { signed: true, method: 'PATCH' }));
+    assert.equal(blocked.status, 400);
+  }
+  assert.equal(f.calls.length, writesBefore);
+});
+
+void test('profile rejects cross-site, invalid names, avatars and oversized bios without writes', async () => {
+  const f = fixture(() => undefined);
+  const route = f.load('app/api/profile/route.ts');
+  const input = { username: 'pigeon', bio: '', avatar: 'radio' };
+  assert.equal((await route.PATCH(f.request('/api/profile', input, { signed: true, method: 'PATCH', headers: { Origin: 'https://attacker.example' } }))).status, 403);
+  for (const changed of [{ username: 'scrapy' }, { username: 'a'.repeat(25) }, { bio: 'x'.repeat(281) }, { avatar: 'https://tracker.example/avatar' }]) {
+    assert.equal((await route.PATCH(f.request('/api/profile', { ...input, ...changed }, { signed: true, method: 'PATCH' }))).status, 400);
+  }
+  assert.equal(f.calls.length, 0);
+});
+
+void test('taken username is an honest conflict; blank restores default without changing number', async () => {
+  const taken = fixture((call) => call.method === 'PATCH' ? json({ code: '23505' }, 409) : undefined);
+  const input = { username: 'pigeon', bio: '', avatar: 'fingerprint' };
+  const response = await taken.load('app/api/profile/route.ts').PATCH(taken.request('/api/profile', input, { method: 'PATCH', signed: true }));
+  assert.equal(response.status, 409); assert.match((await response.json()).error, /already taken/);
+  const f = fixture((call) => call.method === 'PATCH' ? json([{ wallet, citizen_number: 2, ...call.body }]) : undefined);
+  const cleared = await f.load('app/api/profile/route.ts').PATCH(f.request('/api/profile', { ...input, username: '' }, { method: 'PATCH', signed: true }));
+  const profile = (await cleared.json()).profile;
+  assert.equal(profile.username, null); assert.equal(profile.citizenNumber, 2);
+});
+
+void test('profile reads resolve only the signed wallet and keep response uncacheable', async () => {
+  const f = fixture(() => json([{ wallet, citizen_number: 2, username: 'pigeon' }]));
+  const route = f.load('app/api/profile/route.ts');
+  assert.equal((await route.GET(f.request('/api/profile', {}, { method: 'GET' }))).status, 401);
+  const response = await route.GET(f.request(`/api/profile?wallet=${other}`, {}, { method: 'GET', signed: true }));
+  assert.equal((await response.json()).profile.wallet, wallet);
+  assert.match(response.headers.get('cache-control'), /private, no-store/);
+  assert.ok(f.calls.every((call) => !call.url.includes(other)));
+});
+
+void test('public chat resolves current usernames and numbers without changing historical bodies', async () => {
+  const original = { id: 'old-public', wallet, kind: 'CITIZEN', body: 'My original idea', author: '@old_name', created_at: new Date().toISOString() };
+  const f = fixture((call) => call.url.includes('landville_messages?') ? json([original]) : call.url.includes('landville_citizens?') ? json([{ wallet, citizen_number: 2, username: 'new_name', avatar: 'hammer' }]) : undefined);
+  const result = await f.load('@/lib/server/chat').readMessages('TOWN');
+  assert.equal(result.messages[0].author, '@new_name'); assert.equal(result.messages[0].body, original.body);
+  assert.equal(result.messages[0].citizenNumber, 2); assert.equal(result.messages[0].avatar, 'hammer');
+  assert.ok(f.calls.every((call) => call.method === 'GET'));
+});
+
 void test('official SCRAPY metadata is public and needs no database or wallet session', async () => {
   const f = fixture(() => undefined);
   const response = await f.load('app/api/token/route.ts').GET();
@@ -350,7 +419,7 @@ void test('first ten messages need no token read; bonus messages require a serve
     const requestId = randomUUID();
     const message = { id: `citizen-${requestId}`, author: '@citizen_aaaaaa', wallet, body: 'Town radio please', kind: 'CITIZEN', created_at: new Date().toISOString() };
     const f = fixture((call) => {
-      if (call.url.endsWith('/rpc/landville_submit_message')) {
+      if (call.url.endsWith('/rpc/landville_submit_public_message')) {
         submits++;
         if (bonus && submits === 1) return json({ message: 'HOLD_CHECK_REQUIRED' }, 400);
         return json(message);
@@ -363,8 +432,29 @@ void test('first ten messages need no token read; bonus messages require a serve
   }
 });
 
+void test('SEND saves one public citizen message and never calls AI even with a configured key', async () => {
+  const message = { id: 'normal-message', wallet, kind: 'CITIZEN', author: '@old', body: 'Hi fellow citizens', ask_scrapy: false, created_at: new Date().toISOString() };
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_submit_public_message') ? json(message) : undefined, { OPENAI_API_KEY: 'fake-test-key' });
+  const response = await f.load('app/api/chat/route.ts').POST(f.request('/api/chat', { body: message.body, requestId: randomUUID(), askScrapy: false }, { signed: true }));
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.source, 'citizen'); assert.equal(result.messages.length, 1); assert.equal(result.messages[0].askScrapy, false);
+  assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_submit_public_message')).body.p_ask_scrapy, false);
+  assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com') || (call.method === 'POST' && call.url.includes('landville_messages?'))));
+});
+
+void test('ASK SCRAPY is explicit and persisted; invalid or changed intent cannot silently request AI', async () => {
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_submit_public_message') ? json({ message: 'IDEMPOTENCY_CONFLICT' }, 400) : undefined, { OPENAI_API_KEY: 'fake-test-key' });
+  const route = f.load('app/api/chat/route.ts');
+  const input = { body: 'Hello Scrapy', requestId: randomUUID(), askScrapy: 'yes' };
+  assert.equal((await route.POST(f.request('/api/chat', input, { signed: true }))).status, 400);
+  assert.equal(f.calls.length, 0);
+  assert.equal((await route.POST(f.request('/api/chat', { ...input, askScrapy: true }, { signed: true }))).status, 409);
+  assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com')));
+});
+
 void test('daily limit is a real error, not a fake successful reply', async () => {
-  const f = fixture((call) => call.url.endsWith('/rpc/landville_submit_message') ? json({ message: 'DAILY_MESSAGE_LIMIT' }, 400) : undefined);
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_submit_public_message') ? json({ message: 'DAILY_MESSAGE_LIMIT' }, 400) : undefined);
   const response = await f.load('app/api/chat/route.ts').POST(f.request('/api/chat', { body: 'Hello town', requestId: randomUUID() }, { signed: true }));
   assert.equal(response.status, 429); assert.equal(f.balanceReads, 0);
   assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com')));

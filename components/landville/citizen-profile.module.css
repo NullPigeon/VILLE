@@ -1,4 +1,14 @@
 .page { --mono: 'Courier New', monospace; color: var(--paper); font-size: 16px; line-height: 1.6; }
+.editor { padding: 24px; background: #141610; border: 1px solid #51512e; display: grid; gap: 14px; }
+.editor p { margin: 0; color: #c4c0a7; font-size: 14px; }
+.editor label, .editor legend { font-size: 14px; }
+.editor > input, .editor textarea { width: 100%; min-width: 0; background: #090b07; border: 1px solid #62633e; border-radius: 2px; padding: 12px; color: var(--paper); font-size: 16px; }
+.editor fieldset { min-width: 0; border: 1px dashed #51512e; padding: 12px; }
+.avatars { display: flex; flex-wrap: wrap; gap: 16px; }
+.avatars label { display: grid; justify-items: center; gap: 6px; cursor: pointer; }
+.avatars svg { color: var(--acid); width: 28px; height: 28px; }
+.editor :focus-visible { outline: 2px solid var(--acid); outline-offset: 3px; }
+.editor output { color: var(--acid); overflow-wrap: anywhere; }
 .intro { display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: stretch; }
 .manifesto { padding: 28px 0; }
 .label { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 14px; letter-spacing: .035em; color: var(--acid); }

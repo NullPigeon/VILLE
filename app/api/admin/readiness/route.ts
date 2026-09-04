@@ -20,13 +20,13 @@ export async function GET(request: NextRequest) {
     if (databaseConfigured()) {
       try {
         await Promise.all([
-          database('landville_messages?select=id,ai_source&limit=0'),
-          database('landville_citizens?select=wallet&limit=0'),
+          database('landville_messages?select=id,ai_source,ask_scrapy&limit=0'),
+          database('landville_citizens?select=wallet,citizen_number,username,bio,avatar&limit=0'),
           database('landville_proposals?select=id&limit=0'),
           database('landville_build_jobs?select=proposal_id&limit=0'),
         ]);
-        storage = 'reachable; chat provenance column available';
-      } catch { storage = 'unavailable: check credentials and migrations 001–005'; }
+        storage = 'reachable; chat provenance and citizen profile columns available';
+      } catch { storage = 'unavailable: check credentials and migrations 001–007'; }
     }
     return NextResponse.json({ storage, sessionConfigured: walletSessionConfigured(), ai: { ...mayorConfiguration(), verified: false },
       builderEnabled: process.env.LANDVILLE_BUILDER_ENABLED === 'true',

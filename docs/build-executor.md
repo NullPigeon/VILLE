@@ -27,7 +27,7 @@ confirmed engineering-spec flow before voting is not implemented by this release
 
 ## 1. Activate shared storage
 
-In the **LANDVILLE** Supabase SQL Editor, apply migrations 001, 002, 003, 004 and 005 in
+In the **LANDVILLE** Supabase SQL Editor, apply migrations 001 through 007 in
 order, only those not already applied. Migration 004 adds `landville_build_jobs` and
 service-role-only transaction functions. Migration 005 records chat reply provenance without publishing private archives. Existing Supabase data is not deleted.
 First back up an existing production database. The CI database tests are disposable;

@@ -6,6 +6,9 @@ export type TownMessage = {
   kind: 'CITIZEN' | 'MAYOR' | 'SYSTEM';
   createdAt: string;
   aiSource?: 'openai' | 'scripted' | null;
+  citizenNumber?: number | null;
+  avatar?: string;
+  askScrapy?: boolean;
 };
 
 export const initialTownMessages: TownMessage[] = [];

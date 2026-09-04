@@ -1,7 +1,9 @@
 'use client';
 /* oxlint-disable react/react-compiler -- wallet session hydration happens after mount */
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import type { CitizenIdentity } from '@/lib/citizen-identity';
 import type { VotingPowerSnapshot } from '@/lib/governance';
 import { addRobinhoodNetwork } from '@/lib/robinhood-chain';
 import { SCRAPY_TOKEN } from '@/lib/scrapy-token';
@@ -14,6 +16,8 @@ type WalletContextValue = {
   status: WalletStatus;
   snapshot: VotingPowerSnapshot | null;
   error: string;
+  profile: CitizenIdentity | null;
+  refreshProfile(): Promise<void>;
   connectWallet(): Promise<string>;
   refreshVotingPower(): Promise<VotingPowerSnapshot>;
   addScrapyToken(): Promise<void>;
@@ -33,7 +37,19 @@ async function fetchSnapshot() {
 }
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [address, setAddress] = useState('');
+  const currentAddress = useRef(address);
+  currentAddress.current = address;
+  const [profile, setProfile] = useState<CitizenIdentity | null>(null);
+  const refreshProfile = useCallback(async () => {
+    const identity = currentAddress.current;
+    if (!identity) return;
+    const response = await fetch('/api/profile', { cache: 'no-store' });
+    const result = await readJsonResponse<{ profile: CitizenIdentity }>(response, 'Citizen profile');
+    if (currentAddress.current === identity && result.profile.wallet === identity) setProfile(result.profile);
+  }, []);
+  useEffect(() => { void refreshProfile().catch(() => undefined); }, [address, refreshProfile]);
   const [status, setStatus] = useState<WalletStatus>('DISCONNECTED');
   const [snapshot, setSnapshot] = useState<VotingPowerSnapshot | null>(null);
   const [error, setError] = useState('');
@@ -65,6 +81,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       status,
       snapshot,
       error,
+      profile: profile?.wallet === address ? profile : null,
+      refreshProfile,
       async connectWallet() {
         setStatus('CONNECTING');
         setError('');
@@ -103,7 +121,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setAddress(verified.address);
           setSnapshot(null);
           setStatus('CONNECTED');
-          void fetchSnapshot().then(setSnapshot).catch(() => undefined);
+          void fetchSnapshot().then((current) => { if (currentAddress.current === current.wallet) setSnapshot(current); }).catch(() => undefined);
+          router.push(`/citizens/${verified.address}`);
           // Citizen identity and chat access never depend on token holdings or RPC availability.
           return verified.address;
         } catch (caught) {
@@ -151,7 +170,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setStatus('DISCONNECTED');
       },
     }),
-    [address, error, snapshot, status],
+    [address, error, snapshot, status, profile, refreshProfile, router],
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

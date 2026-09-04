@@ -56,16 +56,16 @@ export function useCitizenChat(channel: 'TOWN' | 'WORKSHOP') {
     finally { setLoading(false); }
   }
 
-  async function send(body: string) {
+  async function send(body: string, askScrapy = false) {
     if (channel !== 'TOWN') { setError('This archive is read-only. Write new messages in public Town Chat.'); return false; }
     if (!wallet.address || sending) return false;
     const identity = wallet.address;
-    const key = `${identity}:${body}`;
+    const key = JSON.stringify([identity, body, askScrapy]);
     const requestId = pending.current.get(key) || crypto.randomUUID();
     pending.current.set(key, requestId);
     setSending(true); setError('');
     try {
-      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body, requestId }) });
+      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body, requestId, askScrapy }) });
       const result = await readJsonResponse<{ messages?: TownMessage[]; source?: string }>(response, 'Send message');
       pending.current.delete(key);
       if (identity === currentWallet.current) {

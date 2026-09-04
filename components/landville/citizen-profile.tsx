@@ -1,6 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { citizenLabel } from '@/lib/citizen-identity';
+import { ProfileEditor } from '@/components/landville/profile-editor';
+import { CitizenAvatar } from '@/components/landville/citizen-avatar';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Fingerprint, Hammer, LogOut, MessageCircle, ShieldCheck, Vote, Wallet, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +12,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { ProductShell } from '@/components/landville/product-shell';
 import { useLandville } from '@/components/landville/provider';
 import { useWallet } from '@/components/landville/wallet-provider';
-import { shortWallet, walletUsername } from '@/lib/governance';
+import { shortWallet } from '@/lib/governance';
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import type { CitizenRecord } from '@/lib/landville-data';
 import styles from './citizen-profile.module.css';
@@ -17,6 +21,8 @@ import { SCRAPY_TOKEN, scrapyAccess, scrapyTokenExplorerUrl } from '@/lib/scrapy
 export function CitizenProfile({ identity }: { identity?: string }) {
   const { voted } = useLandville();
   const wallet = useWallet();
+  const router = useRouter();
+  useEffect(() => { if (!identity && wallet.address) router.replace(`/citizens/${wallet.address}`); }, [identity, wallet.address, router]);
   const [checking, setChecking] = useState(false);
   const [notice, setNotice] = useState('');
   const [citizen, setCitizen] = useState<CitizenRecord | null>(null);
@@ -40,7 +46,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
       if (active) setCitizen(result.citizen);
     }).catch((error: Error) => { if (active) setRecordError(error.message); });
     return () => { active = false; };
-  }, [requestedWallet, voted]);
+  }, [requestedWallet]);
 
   async function checkHoldings() {
     setChecking(true);
@@ -50,21 +56,21 @@ export function CitizenProfile({ identity }: { identity?: string }) {
     finally { setChecking(false); }
   }
 
-  return <ProductShell title={requestedWallet ? 'CITIZEN FILE' : 'BECOME A CITIZEN'} eyebrow="YOUR WALLET / YOUR IDEAS / YOUR TOWN">
+  return <ProductShell title={isOwnWallet ? 'MY CABINET' : requestedWallet ? 'CITIZEN FILE' : 'BECOME A CITIZEN'} eyebrow="YOUR WALLET / YOUR IDEAS / YOUR TOWN">
     <div className={styles.page}>
       <section className={styles.intro}>
-        <div className={styles.manifesto}>
+        {requestedWallet ? <div>{recordError ? <p role="alert">{recordError}</p> : citizen ? isOwnWallet ? <ProfileEditor key={requestedWallet} citizen={citizen} onSaved={(profile) => setCitizen((previous) => previous?.wallet === profile.wallet ? { ...previous, ...profile } : previous)} /> : <section className={styles.passport}><span className={styles.label}>PUBLIC CITIZEN FILE</span><h3>{citizenLabel(citizen)}</h3><p>{citizen.bio || 'This citizen has not added a bio yet.'}</p><p>Proposals, votes and builds below belong to this wallet.</p></section> : <p>Loading citizen profile…</p>}</div> : <div className={styles.manifesto}>
           <span className={styles.label}><Fingerprint /> LANDVILLE CITIZENSHIP</span>
           <h2>{requestedWallet ? <>A WALLET.<br />A VOICE.<br /><em>A PLACE HERE.</em></> : <>THIS TOWN<br />WON’T BUILD<br /><em>ITSELF.</em></>}</h2>
           <p>You are not a spectator. You are a citizen: bring an idea, argue for it, vote on what belongs here.</p>
           <p className={styles.scrapyNote}>“Bring a wallet. The personality is your problem.” <span>— SCRAPY</span></p>
-        </div>
+        </div>}
         <div className={styles.passport}>
           <span className={styles.label}><ShieldCheck /> {isOwnWallet ? 'WALLET SIGNED' : requestedWallet ? 'ADDRESS VIEW' : 'YOUR CITIZEN FILE'}</span>
-          <Fingerprint className={styles.fingerprint} aria-hidden="true" />
+          <CitizenAvatar avatar={citizen?.avatar} className={styles.fingerprint} />
           {requestedWallet ? <>
-            <h3>{isOwnWallet ? `@${walletUsername(requestedWallet)}` : shortWallet(requestedWallet)}</h3>
-            <p className={styles.address}>{requestedWallet}</p>
+            <h3>{citizen ? citizenLabel(citizen) : shortWallet(requestedWallet)}</h3>
+            {citizen?.citizenNumber && <span className={styles.label}>PERMANENT CITIZEN #{citizen.citizenNumber}</span>}<p className={styles.address}>{requestedWallet}</p>
             <p>{isOwnWallet ? 'This wallet is your citizen account. Your activity stays with it across devices.' : citizen ? 'Public citizen record. Private archived conversations are never shown here.' : 'Looking up this address in the citizen registry.'}</p>
             {citizen && <p className={styles.caption}>CITIZEN SINCE {new Date(citizen.joinedAt).toLocaleDateString()}</p>}
             <div className={styles.actions}>
@@ -83,11 +89,11 @@ export function CitizenProfile({ identity }: { identity?: string }) {
 
       {(notice || wallet.error) && <p className={styles.error} role="alert">{notice || wallet.error}</p>}
 
-      <section className={styles.roles} aria-label="What citizens can do">
+      {!requestedWallet && <section className={styles.roles} aria-label="What citizens can do">
         <article><MessageCircle /><span className={styles.label}>01 / JOIN THE CONVERSATION</span><h3>A voice in the town.</h3><p>Everyone shares Town Chat history. Your account gets 10 messages a day without SCRAPY, or 50 with a positive balance, in public Town Chat. Resets at 00:00 UTC.</p><Link href="/chat">OPEN TOWN CHAT <ArrowUpRight /></Link></article>
         <article><Vote /><span className={styles.label}>02 / DECIDE WHAT BELONGS</span><h3>One wallet. A starting vote.</h3><p>One base vote, plus one for every full 250,000 SCRAPY. Holdings are verified on mainnet when you vote.</p><Link href="/proposals">EXPLORE PROPOSALS <ArrowUpRight /></Link></article>
         <article><Hammer /><span className={styles.label}>03 / LEAVE SOMETHING BEHIND</span><h3>Give an idea a home.</h3><p>Keep one active proposal at a time. Submit again after it is built or rejected. Build requests currently need 250,000 SCRAPY; complexity tiers are still to be defined. Discussion alone never submits a proposal.</p><Link href="/chat">DISCUSS IN TOWN CHAT <ArrowUpRight /></Link></article>
-      </section>
+      </section>}
 
       {isOwnWallet && <section className={styles.holdings} aria-label="Mainnet voting power">
         <div><span className={styles.label}>{SCRAPY_TOKEN.ticker} / MAINNET HOLDINGS</span><h3>{wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY · ${wallet.snapshot.weight} votes` : 'Your balance hasn’t been checked yet.'}</h3><p>{wallet.snapshot ? `${tokenAccess?.dailyMessageLimit} messages per UTC day · build request ${tokenAccess?.buildEligible ? 'unlocked' : 'requires 250,000 SCRAPY'}. Snapshot at block ${wallet.snapshot.blockNumber}.` : 'Sign-in is complete. Checking holdings is separate; a failed check never means a zero balance.'}</p><a className={styles.contract} href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">{SCRAPY_TOKEN.address} <ArrowUpRight /></a></div>

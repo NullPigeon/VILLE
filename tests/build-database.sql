@@ -12,6 +12,18 @@ insert into public.landville_citizens(wallet) values ('0x' || repeat('e',40));
 insert into public.landville_messages(id, author, body, kind, channel, owner_wallet)
 values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WORKSHOP', '0x' || repeat('e',40));
 \ir ../supabase/migrations/005_chat_provenance.sql
+\ir ../supabase/migrations/006_citizen_profiles.sql
+\ir ../supabase/migrations/007_chat_recipient.sql
+
+do $$ begin
+  if (select citizen_number from public.landville_citizens where wallet='0x' || repeat('e',40)) <> 2 then
+    raise exception 'First existing citizen did not receive number 2';
+  end if;
+  if has_sequence_privilege('anon','public.landville_citizen_number_seq','USAGE') or
+    has_table_privilege('authenticated','public.landville_citizens','UPDATE') then
+    raise exception 'Browser roles can mutate citizen identities';
+  end if;
+end $$;
 
 do $$ begin
   if not exists (select 1 from public.landville_messages where id='legacy-private-test'
@@ -33,6 +45,46 @@ do $$ begin
 end $$;
 set role service_role;
 insert into public.landville_citizens(wallet) select '0x' || repeat(letter, 40) from unnest(array['a','b','c','d']) as letter;
+do $$
+declare actor text := '0x' || repeat('a',40); number_before integer;
+begin
+  select citizen_number into number_before from public.landville_citizens where wallet=actor;
+  update public.landville_citizens set username='test_builder', bio='Building the town.', avatar='hammer' where wallet=actor;
+  insert into public.landville_citizens(wallet) values (actor) on conflict (wallet) do nothing;
+  if (select citizen_number from public.landville_citizens where wallet=actor) <> number_before then raise exception 'Sign-in or rename changed citizen number'; end if;
+  begin
+    update public.landville_citizens set citizen_number=999 where wallet=actor;
+    raise exception 'Number was editable';
+  exception when raise_exception then if sqlerrm <> 'IMMUTABLE_CITIZEN_IDENTITY' then raise; end if; end;
+  begin
+    update public.landville_citizens set username='test_builder' where wallet='0x' || repeat('b',40);
+    raise exception 'Duplicate username accepted';
+  exception when unique_violation then null; end;
+  begin
+    update public.landville_citizens set username='scrapy' where wallet=actor;
+    raise exception 'Mayor impersonation accepted';
+  exception when check_violation then null; end;
+  begin
+    update public.landville_citizens set username='Test_Builder' where wallet=actor;
+    raise exception 'Noncanonical username accepted';
+  exception when check_violation then null; end;
+  if (select count(distinct citizen_number) from public.landville_citizens) <> 5 then raise exception 'Citizen numbers collided'; end if;
+end $$;
+do $$
+declare actor text := '0x' || repeat('a',40); request_id uuid := gen_random_uuid(); result public.landville_messages;
+begin
+  result := public.landville_submit_public_message(actor,request_id,'Hello fellow citizens',null,false);
+  if result.ask_scrapy or result.channel <> 'TOWN' or result.owner_wallet is not null then raise exception 'Normal message recipient was lost'; end if;
+  result := public.landville_submit_public_message(actor,request_id,'Hello fellow citizens',null,false);
+  if (select count(*) from public.landville_messages where wallet=actor and kind='CITIZEN') <> 1 then raise exception 'Retry duplicated message or quota'; end if;
+  begin
+    perform public.landville_submit_public_message(actor,request_id,'Hello fellow citizens',null,true);
+    raise exception 'Retry changed recipient';
+  exception when raise_exception then if sqlerrm <> 'IDEMPOTENCY_CONFLICT' then raise; end if; end;
+  result := public.landville_submit_public_message(actor,gen_random_uuid(),'Hello Scrapy',null,true);
+  if not result.ask_scrapy then raise exception 'Explicit AI request was lost'; end if;
+  if has_function_privilege('anon','public.landville_submit_public_message(text,uuid,text,jsonb,boolean)','EXECUTE') then raise exception 'Anonymous RPC allowed'; end if;
+end $$;
 insert into public.landville_proposals(id, request_id, creator_wallet, title, summary, category, district, eligibility_snapshot, yes, no, created_at, closes_at)
 values
   ('LV-1', gen_random_uuid(), '0x' || repeat('a',40), 'Town counter', 'A counter for the citizens of town.', 'UTILITY','THE DUMP','{}',2,1,now()-interval '14 hours',now()-interval '2 hours'),

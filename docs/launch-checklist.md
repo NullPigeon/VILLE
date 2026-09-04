@@ -46,6 +46,26 @@ A key being present does not verify model access, quota or a successful response
 
 ## 2. Database upgrade before deploying this chat release
 
+For the citizen cabinet / two-action chat update, if 001–005 are already installed,
+apply **006_citizen_profiles.sql**, then **007_chat_recipient.sql** once each before
+deploying. No new environment variables are required. Migration 006 numbers existing
+citizens by `joined_at, wallet` starting at 2; Scrapy's reserved #1 is not a fake wallet
+account. Numbers are unique and immutable; sequence gaps after rolled-back joins are
+possible and are not reused. Usernames are lowercase, 3–24 characters, unique, and
+cannot impersonate reserved system/numbered-citizen names. Clearing a name restores
+the numbered default. Public URLs remain wallet-based so renames do not break links.
+Avatars are selected from local icons; arbitrary uploads/remote tracking URLs are not supported.
+Migration 007 preserves old message history and stores whether a new message addresses
+Scrapy. A normal SEND never calls AI, including when the key is configured. ASK SCRAPY
+and SEND use the same 10/50 daily allowance. Private archives remain private.
+
+After deployment, check sign-in redirects to `/citizens/<wallet>`, edit and save a
+username, reload and verify it appears on the public profile and existing chat
+messages. A different wallet must not be able to edit it. Test SEND with a normal
+greeting (no AI reply), then ASK SCRAPY (public labeled AI reply). Enter defaults to SEND.
+The chat scrollbar uses a robot icon in Chromium/WebKit and native green/dark colors
+where scrollbar images are unsupported; keyboard/touch scrolling remain native.
+
 Back up an existing production database. Apply only migrations not already applied,
 in numerical order. If 001–004 are already installed, run only
 `supabase/migrations/005_chat_provenance.sql` in the LANDVILLE Supabase SQL Editor.
@@ -72,7 +92,7 @@ Redeploy the latest main commit after setting variables and applying migration 0
 3. Click **TEST LIVE AI · API COST**. This explicitly makes one small billable API
    request. A successful result proves a reply was received at that time; no test
    message is saved to Town Chat. The test is limited to once per minute per operator.
-4. Send a real message in `/chat`. Confirm the reply says **AI RESPONSE**. Missing
+4. Send a real message using **ASK SCRAPY** in `/chat`. Confirm the reply says **AI RESPONSE**. Missing
    credentials or upstream failure produce clearly marked **SCRIPTED RESPONSE**,
    not a false claim that AI answered. Replies preserve this source after reload.
 5. Read Town Chat in another browser. Confirm the same public history appears.

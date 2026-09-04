@@ -47,4 +47,4 @@ export const initialProposals: ProposalRecord[] = [];
 
 export type BuildAction = 'FINALIZE' | 'START_BUILD' | 'PUBLISH' | 'REJECT';
 export type BuildUpdate = { action: BuildAction; expectedStatus: ProposalStatus; note: string; modulePath?: string; releaseRef?: string };
-export type CitizenRecord = { wallet: string; joinedAt: string; proposals: ProposalRecord[]; objects: WorldObjectRecord[]; votesCast: number };
+export type CitizenRecord = import('./citizen-identity').CitizenIdentity & { joinedAt: string; proposals: ProposalRecord[]; objects: WorldObjectRecord[]; votesCast: number };

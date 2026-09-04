@@ -6,10 +6,10 @@ LANDVILLE is a digital town built by its citizens. People propose town objects, 
 
 - `/world` — empty shared canvas; permanent built objects appear here.
 - `/proposals` — wallet-gated proposals and token-weighted voting snapshots.
-- `/chat` — one public Town Chat with Scrapy, saved reply provenance and explicit proposal preparation from your own messages.
+- `/chat` — one public Town Chat. SEND talks to citizens without calling AI; ASK SCRAPY requests a public AI reply. Both share the daily allowance. Reply provenance and recipient intent are durable; your own messages can become explicit proposal drafts.
 - `/mayor` — redirects to Town Chat. `/chat/archive` preserves the signed wallet's old private Workshop as read-only history; nothing is republished.
 - `/treasury` — live `$SCRAPY` contract, supply, citizen token access, wallet import and separate read-only treasury state.
-- `/citizens` — citizen onboarding and wallet sign-in; then the signed wallet's shared activity. No sample identity or invented reputation.
+- `/citizens` — onboarding; signed citizens are redirected to their `/citizens/<wallet>` cabinet. Edit your unique username, public bio and preset avatar. Scrapy is #1; existing citizens are numbered from #2 in join order, with immutable numbers for new accounts. Clearing a username restores Citizen #N without losing activity.
 - `/citizens/[wallet-address]` — public profile from shared records; legacy username links redirect to `/citizens`.
 - `/admin` — server-authorized `LIVE → PASSED → BUILDING → BUILT` queue, configuration checks and an explicit paid live AI test.
 
@@ -27,7 +27,7 @@ The product targets **Robinhood mainnet (chain 4663)** for wallet switching, sig
 
 Workflow:
 
-1. A citizen suggests an object in public Town Chat. Scrapy asks what it does, where it belongs and why it should exist.
+1. A citizen suggests an object in public Town Chat with ASK SCRAPY. Scrapy asks what it does, where it belongs and why it should exist. Ordinary SEND messages are citizen-to-citizen and do not call AI.
 2. The citizen selects PREPARE MY PROPOSAL on their own public message, edits the draft and explicitly confirms submission. A chat reply is not authorization to publish or deploy.
 3. The server checks the signed identity and current mainnet SCRAPY holdings, then opens an independent 12-hour vote. Each account can have only one `LIVE`, `PASSED` or `BUILDING` proposal; `BUILT` or `REJECTED` unlocks the next submission.
 4. Any number of proposals from different citizens can be voted on simultaneously. The balance is read at voting time; weight is `1 + floor(SCRAPY / 250000)`. The database deduplicates one receipt per wallet and proposal.
@@ -59,7 +59,7 @@ npm run build
 
 ## Deploy to Vercel
 
-Follow the [current launch checklist](docs/launch-checklist.md) for exact Production variables, migration 005 and live AI verification. Configured is not the same as verified. Missing or short production wallet-session secrets now return actionable JSON instead of an empty 500 response.
+Follow the [current launch checklist](docs/launch-checklist.md) for exact Production variables, migrations 001–007 and live AI verification. Configured is not the same as verified. Missing or short production wallet-session secrets now return actionable JSON instead of an empty 500 response.
 
 1. In Vercel, choose **Add New → Project** and import `NullPigeon/VILLE`.
 2. Keep the detected framework as **Next.js** and deploy from `main`.
@@ -67,7 +67,7 @@ Follow the [current launch checklist](docs/launch-checklist.md) for exact Produc
 4. Set `NEXT_PUBLIC_SITE_URL` to the final Vercel URL and redeploy once.
 5. Add `OPENAI_API_KEY` to activate the live Mayor; without it Mayor uses the built-in Scrapy fallback.
 6. Set `NEXT_PUBLIC_TREASURY_ADDRESS`, a dedicated server-only `ROBINHOOD_MAINNET_RPC_URL` and a long `WALLET_SESSION_SECRET`. The official mainnet SCRAPY contract is pinned in source. The treasury still needs an indexer; adding an address does not load assets by itself.
-7. In the Supabase SQL Editor, run migrations 001 through 005 in order (only unapplied migrations). Add `SUPABASE_URL` and a server-only `SUPABASE_SECRET_KEY` in Vercel.
+7. In the Supabase SQL Editor, run migrations 001 through 007 in order (only unapplied migrations). Add `SUPABASE_URL` and a server-only `SUPABASE_SECRET_KEY` in Vercel.
 8. Add the operator wallet(s) to `LANDVILLE_ADMIN_WALLETS`. Never expose Supabase, wallet-session or OpenAI secrets with a `NEXT_PUBLIC_` prefix.
 
 Robinhood Chain integration is adapter-first: the UI can request that a user wallet add or switch networks, but the app never stores private keys or signs treasury transactions.
