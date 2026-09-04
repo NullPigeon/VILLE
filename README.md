@@ -1,6 +1,6 @@
 # LANDVILLE
 
-LANDVILLE is a digital town built by its citizens. People propose physical town objects, vote on them, and approved ideas move through a human build queue before appearing in the shared World.
+LANDVILLE is a digital town built by its citizens. People propose town objects, vote on them, and approved ideas move through a reviewed AI build queue before appearing in the shared World.
 
 ## Product surfaces
 
@@ -36,7 +36,9 @@ Workflow:
 7. A builder implements the actual functional module, tests it and submits it for review. After deployment, its release path and reference are registered on the World canvas and linked to its creator.
 8. Scrapy reports each confirmed lifecycle change to Town Chat and the citizen's record.
 
-**Current boundaries:** public chat replies do not automatically create drafts or proposals. Workshop drafts are text-derived previews, not complete engineering specs. The build queue registers an already implemented and deployed module; it does not generate or deploy code automatically. Build-complexity tiers still need product rules. Per-wallet voting also needs an explicit anti-Sybil policy for multiple wallets and token movement between votes before a public governance launch.
+**Current boundaries:** public chat replies do not automatically create drafts or proposals. Workshop drafts are text-derived previews, not complete engineering specs. The opt-in builder generates isolated, transient HTML/JS modules, commits a scoped artifact and opens a PR. It does not implement arbitrary backend changes, merge or deploy automatically. An operator reviews acceptance criteria, merges, and verifies the matching production release before an object is published. Build-complexity tiers still need product rules. Per-wallet voting also needs an explicit anti-Sybil policy for multiple wallets and token movement between votes before a public governance launch.
+
+See [Build executor setup and launch gates](docs/build-executor.md) for migration 004, worker activation, credentials, CI, safe module limits and recovery.
 
 ## Local development
 
@@ -63,7 +65,7 @@ npm run build
 4. Set `NEXT_PUBLIC_SITE_URL` to the final Vercel URL and redeploy once.
 5. Add `OPENAI_API_KEY` to activate the live Mayor; without it Mayor uses the built-in Scrapy fallback.
 6. Set `NEXT_PUBLIC_TREASURY_ADDRESS`, a dedicated server-only `ROBINHOOD_MAINNET_RPC_URL` and a long `WALLET_SESSION_SECRET`. The official mainnet SCRAPY contract is pinned in source. The treasury still needs an indexer; adding an address does not load assets by itself.
-7. In the Supabase SQL Editor, run `001_landville_chat.sql`, `002_landville_server.sql`, then `003_proposal_lifecycle.sql` in that order. Add `SUPABASE_URL` and a server-only `SUPABASE_SECRET_KEY` in Vercel.
+7. In the Supabase SQL Editor, run `001_landville_chat.sql`, `002_landville_server.sql`, `003_proposal_lifecycle.sql`, then `004_build_executor.sql` in that order (only unapplied migrations). Add `SUPABASE_URL` and a server-only `SUPABASE_SECRET_KEY` in Vercel.
 8. Add the operator wallet(s) to `LANDVILLE_ADMIN_WALLETS`. Never expose Supabase, wallet-session or OpenAI secrets with a `NEXT_PUBLIC_` prefix.
 
 Robinhood Chain integration is adapter-first: the UI can request that a user wallet add or switch networks, but the app never stores private keys or signs treasury transactions.

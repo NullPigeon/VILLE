@@ -6,6 +6,7 @@ export function databaseConfigured() {
 }
 
 const databaseErrors: Record<string, [number, string]> = {
+  INVALID_BUILD_SPEC: [400, 'The build specification must match the approved proposal.'],
   HOLD_CHECK_REQUIRED: [409, 'Messages beyond the first 10 require verified SCRAPY holdings.'],
   ACCOUNT_REQUIRED: [401, 'Create your citizen account by signing in with your wallet.'],
   ACTIVE_PROPOSAL_EXISTS: [409, 'You already have an active proposal. Submit another after it is built or rejected.'],

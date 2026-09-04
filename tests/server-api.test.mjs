@@ -20,7 +20,7 @@ const json = (value, status = 200) => new Response(JSON.stringify(value), { stat
 
 // Execute the real route/helper source in isolation. Only HTTP and the chain read
 // are replaced; no test request reaches Supabase, OpenAI or a funded wallet.
-function fixture(handler, extraEnv = {}) {
+function fixture(handler, extraEnv = {}, overrides = {}) {
   const calls = [];
   const cache = new Map();
   let balanceReads = 0;
@@ -35,6 +35,7 @@ function fixture(handler, extraEnv = {}) {
     return json([]);
   };
   function load(name) {
+    if (overrides[name]) return overrides[name];
     if (name === 'server-only') return {};
     if (name === '@/lib/server/voting') return { readVotingSnapshot: async (address) => { balanceReads++; return { ...snapshot, wallet: address }; } };
     if (name === '@/lib/server/token-status') return { readScrapyTokenStatus: async () => tokenStatus };
@@ -64,12 +65,108 @@ for (const [route, url, method] of [
   ['app/api/proposals/route.ts', '/api/proposals', 'POST'],
   ['app/api/proposals/[id]/vote/route.ts', '/api/proposals/LV-1/vote', 'POST'],
   ['app/api/admin/builds/[id]/route.ts', '/api/admin/builds/LV-1', 'PATCH'],
+  ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
+  ['app/api/admin/build-jobs/[id]/release/route.ts', '/api/admin/build-jobs/LV-1/release', 'POST'],
 ]) void test(`${url} rejects anonymous writes before any database/chain request`, async () => {
   const f = fixture(() => undefined);
   const response = await f.load(route)[method](f.request(url, {}, { method }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 401);
   assert.equal(f.calls.length, 0);
   assert.equal(f.balanceReads, 0);
+});
+
+void test('anonymous visitors cannot execute modules', async () => {
+  const f = fixture(() => undefined);
+  const response = await f.load('app/api/modules/[id]/route.ts').GET(f.request('/api/modules/LV-1', {}, { method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 401); assert.equal(f.calls.length, 0);
+});
+void test('worker authorization is independent of wallet sessions and fails closed', async () => {
+  for (const secret of ['', 'short', 'w'.repeat(40)]) {
+    const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret });
+    const response = await f.load('app/api/internal/builds/route.ts').POST(f.request('/api/internal/builds', { action: 'CLAIM' }, { signed: true }));
+    assert.equal(response.status, secret.length >= 32 ? 401 : 503); assert.equal(f.calls.length, 0);
+  }
+});
+void test('disabled builder refuses claims but authorized scheduler can finalize votes', async () => {
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_claim_build') ? json(null) : undefined, { LANDVILLE_WORKER_SECRET: 'w'.repeat(40), LANDVILLE_BUILD_ACTOR: wallet, LANDVILLE_ADMIN_WALLETS: wallet });
+  const route = f.load('app/api/internal/builds/route.ts');
+  const options = { headers: { Authorization: `Bearer ${'w'.repeat(40)}` } };
+  assert.equal((await route.POST(f.request('/api/internal/builds', { action: 'CLAIM' }, options))).status, 503);
+  assert.equal(f.calls.length, 0);
+  assert.equal((await route.POST(f.request('/api/internal/builds', { action: 'TICK' }, options))).status, 200);
+  assert.equal(f.calls.at(-1).body.p_claim, false);
+});
+void test('manual status changes cannot bypass verified publication', async () => {
+  for (const action of ['START_BUILD', 'PUBLISH']) {
+    const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet });
+    const response = await f.load('app/api/admin/builds/[id]/route.ts').PATCH(f.request('/api/admin/builds/LV-1', { action, expectedStatus: 'BUILDING', note: 'Reviewed release', modulePath: '/modules/LV-1', releaseRef: '12345678' }, { signed: true, method: 'PATCH' }), { params: Promise.resolve({ id: 'LV-1' }) });
+    assert.equal(response.status, 409);
+    assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_transition')));
+  }
+});
+void test('specification goal is copied from the voted proposal, not admin request fields', async () => {
+  const f = fixture((call) => call.url.includes('landville_proposals?') ? json([proposal]) : call.url.endsWith('/rpc/landville_prepare_build') ? json({ state: 'READY' }) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet });
+  const response = await f.load('app/api/admin/build-jobs/[id]/route.ts').POST(f.request('/api/admin/build-jobs/LV-1', { action: 'PREPARE', goal: 'Replace the wallet authentication', acceptance: ['The radio has a visible play button.'] }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.equal(f.calls.at(-1).body.p_spec.goal, proposal.summary);
+});
+
+const releaseEnv = { LANDVILLE_ADMIN_WALLETS: wallet, VERCEL_ENV: 'production', VERCEL_DEPLOYMENT_ID: 'dpl_test', VERCEL_GIT_COMMIT_SHA: 'c'.repeat(40), LANDVILLE_VERCEL_PROJECT_ID: 'prj_test', NEXT_PUBLIC_SITE_URL: 'https://town.example', LANDVILLE_GITHUB_READ_TOKEN: 'read-only-test', LANDVILLE_VERCEL_READ_TOKEN: 'read-only-vercel-test' };
+function releaseFixture(change = {}) {
+  const sha = 'a'.repeat(40), hash = 'b'.repeat(64), mergedSha = 'c'.repeat(40);
+  const job = { proposal_id: 'LV-1', state: 'REVIEW', branch: 'codex/build-lv-1-1', commit_sha: sha, content_hash: hash, pr_number: 42, ...change.job };
+  const pr = { merged: true, merge_commit_sha: mergedSha, head: { sha, ref: job.branch, repo: { full_name: 'NullPigeon/VILLE' } }, base: { ref: 'main', repo: { full_name: 'NullPigeon/VILLE' } }, ...change.pr };
+  return fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([job]);
+    if (call.url.includes('/pulls/42/files')) return json(change.files || [{ filename: 'city-modules/LV-1.json', status: 'added' }]);
+    if (call.url.endsWith('/pulls/42')) return json(pr);
+    if (call.url.includes('/check-runs?')) return json({ check_runs: change.checks || [{ name: 'City checks', status: 'completed', conclusion: 'success', app: { slug: 'github-actions' } }] });
+    if (call.url.includes('api.vercel.com/v13/deployments/')) return json({ id: 'dpl_test', projectId: 'prj_test', target: 'production', readyState: 'READY', gitSource: { sha: mergedSha }, ...change.deployment });
+    if (call.url.includes('api.vercel.com/v4/aliases/')) return json({ deploymentId: 'dpl_test', projectId: 'prj_test', ...change.alias });
+    if (call.url.endsWith('/rpc/landville_publish_build')) return json({ ...proposal, status: 'BUILT' });
+  }, { ...releaseEnv, ...change.env }, { '@/lib/server/city-module': { readCityModule: async () => ({ module: {}, hash: change.hash || hash }) } });
+}
+void test('matching PR, CI, production alias and artifact permit one verified publication', async () => {
+  const f = releaseFixture();
+  const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', { releaseUrl: 'https://attacker.example' }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const publish = f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_build'));
+  assert.equal(publish.body.p_release, `dpl_test:${'c'.repeat(40)}`);
+  assert.ok(!f.calls.some((call) => call.url.includes('attacker.example')));
+});
+for (const [label, change, expected] of [
+  ['unmerged PR', { pr: { merged: false } }, 409],
+  ['modified PR head', { pr: { head: { sha: 'd'.repeat(40), ref: 'codex/build-lv-1-1', repo: { full_name: 'NullPigeon/VILLE' } } } }, 409],
+  ['extra repository changes', { files: [{ filename: '.github/workflows/evil.yml', status: 'added' }] }, 409],
+  ['missing checks', { checks: [] }, 409],
+  ['failed CI', { checks: [{ name: 'City checks', status: 'completed', conclusion: 'failure', app: { slug: 'github-actions' } }] }, 409],
+  ['preview deployment', { deployment: { target: 'preview' } }, 409],
+  ['wrong project', { deployment: { projectId: 'prj_other' } }, 409],
+  ['failed deployment', { deployment: { readyState: 'ERROR' } }, 409],
+  ['old alias', { alias: { deploymentId: 'dpl_other' } }, 409],
+  ['redirecting alias', { alias: { redirect: 'https://other.example' } }, 409],
+  ['different deployed artifact', { hash: 'd'.repeat(64) }, 409],
+  ['different production commit', { deployment: { gitSource: { sha: 'd'.repeat(40) } } }, 409],
+  ['non-production environment', { env: { VERCEL_ENV: 'preview' } }, 503],
+]) void test(`${typeof label === 'string' ? label : 'Invalid release'} cannot publish a world object`, async () => {
+  const f = releaseFixture(change);
+  const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', {}, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, expected);
+  assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_publish_build')));
+});
+
+void test('module HTML is served only with an opaque CSP and no caching', async () => {
+  const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet }, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html>module</html>' }, hash: 'b'.repeat(64) }) } });
+  const response = await f.load('app/api/modules/[id]/route.ts').GET(f.request('/api/modules/LV-1', {}, { signed: true, method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-security-policy'), /^sandbox allow-scripts;/);
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+});
+void test('a modified published module cannot silently execute for a citizen', async () => {
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1' }]) : call.url.includes('landville_build_jobs?') ? json([{ state: 'RELEASED', content_hash: 'b'.repeat(64) }]) : undefined, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html>module</html>' }, hash: 'c'.repeat(64) }) } });
+  const response = await f.load('app/api/modules/[id]/route.ts').GET(f.request('/api/modules/LV-1', {}, { signed: true, method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 409);
 });
 
 void test('cross-site mutation is denied before database access', async () => {

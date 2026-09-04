@@ -18,6 +18,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const modulePath = action === 'PUBLISH' ? field(body, 'modulePath', 2, 200) : null;
     const releaseRef = action === 'PUBLISH' ? field(body, 'releaseRef', 8, 200) : null;
     if (modulePath && (!/^\/[a-zA-Z0-9][a-zA-Z0-9/_-]*$/.test(modulePath) || /^\/(api|admin)(\/|$)/.test(modulePath))) throw new ApiError(400, 'Use the public path of a deployed module on this site.');
+    if (action === 'START_BUILD' || action === 'PUBLISH') throw new ApiError(409, 'Use the reviewed builder job and verified production release flow. Manual status changes cannot publish a feature.');
     await enforceRate(actor, 'build', 20);
     const row = await rpc<ProposalRow>('landville_transition', { p_id: id, p_actor: actor, p_expected: expected, p_action: action, p_note: note, p_module_path: modulePath, p_release_ref: releaseRef });
     return NextResponse.json({ proposal: proposalRecord(row) });

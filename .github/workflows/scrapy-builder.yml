@@ -1,0 +1,33 @@
+name: Scrapy builder
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: scrapy-builder
+  cancel-in-progress: false
+jobs:
+  build:
+    # Opt-in only; pushing this workflow alone does not start paid AI requests.
+    if: vars.LANDVILLE_SCHEDULER_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Finalize votes and process one reviewed module
+        run: node --experimental-strip-types scripts/build-worker.mjs
+        env:
+          LANDVILLE_SITE_URL: ${{ vars.LANDVILLE_SITE_URL }}
+          LANDVILLE_BUILDER_ENABLED: ${{ vars.LANDVILLE_BUILDER_ENABLED }}
+          LANDVILLE_BUILDER_MODEL: ${{ vars.LANDVILLE_BUILDER_MODEL }}
+          LANDVILLE_WORKER_SECRET: ${{ secrets.LANDVILLE_WORKER_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.LANDVILLE_BUILDER_OPENAI_KEY }}
+          LANDVILLE_GITHUB_WRITE_TOKEN: ${{ secrets.LANDVILLE_GITHUB_WRITE_TOKEN }}
