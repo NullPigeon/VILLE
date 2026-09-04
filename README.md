@@ -53,6 +53,9 @@ The chat assistant and the code-building worker are separate integrations. A wor
 
 ### Access and voting
 
+**Every citizen starts with 1 vote. Every full 250,000 $SCRAPY held in your wallet adds +1 vote.**
+For example, 750,000 $SCRAPY gives you 4 votes; 1,000,000 gives you 5.
+
 | SCRAPY held | Vote weight | Messages per UTC day | Submit a build proposal |
 | --- | ---: | ---: | --- |
 | 0 | 1 | 10 | No |
