@@ -1,73 +1,98 @@
+![LANDVILLE — a digital town built by the internet](docs/assets/landville-banner.png)
+
 # LANDVILLE
 
-LANDVILLE is a digital town built by its citizens. People propose town objects, vote on them, and approved ideas move through a reviewed AI build queue before appearing in the shared World.
+A shared digital town that grows through citizen proposals and votes. Approved ideas become interactive objects on the World canvas: games, tools, art and other usable parts of the website.
 
-## Product surfaces
+[Enter LANDVILLE](https://landville.xyz) · [Town Chat](https://landville.xyz/chat) · [Proposals](https://landville.xyz/proposals)
 
-- `/world` — empty shared canvas; permanent built objects appear here.
-- `/proposals` — wallet-gated proposals and token-weighted voting snapshots.
-- `/chat` — one public Town Chat. SEND talks to citizens without calling AI; ASK SCRAPY requests a public AI reply. Both share the daily allowance. Reply provenance and recipient intent are durable; your own messages can become explicit proposal drafts.
-- `/mayor` — redirects to Town Chat. `/chat/archive` preserves the signed wallet's old private Workshop as read-only history; nothing is republished.
-- `/treasury` — live `$SCRAPY` contract, supply, citizen token access, wallet import and separate read-only treasury state.
-- `/citizens` — onboarding; signed citizens are redirected to their `/citizens/<wallet>` cabinet. Edit your unique username, public bio and preset avatar. Scrapy is #1; existing citizens are numbered from #2 in join order, with immutable numbers for new accounts. Clearing a username restores Citizen #N without losing activity.
-- `/citizens/[wallet-address]` — public profile from shared records; legacy username links redirect to `/citizens`.
-- `/admin` — server-authorized `LIVE → PASSED → BUILDING → BUILT` queue, configuration checks and an explicit paid live AI test.
+## What citizens can do
 
-The product uses signed wallet sessions and independently reads the official `$SCRAPY` contract (`0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe`) from Robinhood Chain at action time. Each signed wallet has one base vote, even with zero tokens. Every complete 250,000 SCRAPY adds one vote: 0 gives one, 250,000 gives two, 500,000 gives three, and 1,000,000 gives five. Build requests currently require at least 250,000 SCRAPY. Vote receipts preserve wallet, balance, block number and calculated weight.
+- **Explore:** anyone can view the World, public profiles, proposals and Town Chat.
+- **Join:** sign a message with an EVM wallet. No transaction or SCRAPY is required to create an account.
+- **Make a profile:** keep a permanent citizen number; choose a unique username, bio and avatar icon. Scrapy is #1. Human citizens start at #2.
+- **Talk:** SEND posts to other citizens without an AI reply. ASK SCRAPY requests a public AI reply in the same shared history.
+- **Propose:** turn one of your own messages into a draft, edit it and explicitly submit it for voting.
+- **Vote:** choose YES or NO. Your current SCRAPY holdings determine your voting weight.
+- **Use what gets built:** open released objects in the World. Interactive modules require a signed-in account.
 
-The mainnet contract reports token name `LANDVILLE`, symbol `SCRAPY`, 18 decimals and a total supply of 1,000,000,000 SCRAPY. The address and metadata are pinned in the application; `/api/token` verifies them against mainnet and the wallet action can import the ERC-20 directly.
+## From an idea to a working object
 
-Product routes start with empty state and do not seed fake proposals, citizens, treasury balances, world objects or chat messages. Supabase is the only source of truth for citizens, both chat histories, proposals, votes, the build queue and World objects; when it is not configured, writes fail instead of falling back to browser storage.
+1. Discuss an idea in Town Chat. Ask Scrapy to help define what it does.
+2. Select **PREPARE MY PROPOSAL** on your message, review the draft and confirm.
+3. The server checks your wallet, SCRAPY balance and available proposal slot.
+4. A **12-hour vote** opens. YES must exceed NO; ties and no-vote results are rejected. Multiple proposals can run at once.
+5. Approved proposals enter a sequential build queue, ordered by voting deadline. An operator reviews the specification and acceptance checks.
+6. When enabled, the builder generates a module, commits it to a separate branch and opens a pull request.
+7. A human reviews the code and tests, merges the PR and deploys it. Verified production release adds the object to the World and records the update in Town Chat.
 
-## Mainnet and identity
+A chat message alone never creates a proposal. A passed vote is not a completed build.
 
-The product targets **Robinhood mainnet (chain 4663)** for wallet switching, sign-in challenges, balance snapshots and treasury explorer links. Testnet is only an explicitly selected development adapter; product actions never fall back to it. The snapshot endpoint rejects an RPC serving the wrong chain. Wallet sign-in proves ownership without a transaction and does not require SCRAPY or a successful balance read.
+Each account can have **one active proposal** across voting, approval and construction. Another request becomes available after the previous one is built or rejected.
 
-## From an idea to an object
+## Who is Scrapy?
 
-Workflow:
+**Mayor Scrapy is LANDVILLE's AI mayor and Citizen #1.** A rusty robot with dry humor who helps citizens refine ideas and explains the town's rules. Confirmed build-status updates are also posted to Town Chat.
 
-1. A citizen suggests an object in public Town Chat with ASK SCRAPY. Scrapy asks what it does, where it belongs and why it should exist. Ordinary SEND messages are citizen-to-citizen and do not call AI.
-2. The citizen selects PREPARE MY PROPOSAL on their own public message, edits the draft and explicitly confirms submission. A chat reply is not authorization to publish or deploy.
-3. The server checks the signed identity and current mainnet SCRAPY holdings, then opens an independent 12-hour vote. Each account can have only one `LIVE`, `PASSED` or `BUILDING` proposal; `BUILT` or `REJECTED` unlocks the next submission.
-4. Any number of proposals from different citizens can be voted on simultaneously. The balance is read at voting time; weight is `1 + floor(SCRAPY / 250000)`. The database deduplicates one receipt per wallet and proposal.
-5. When the window ends, strict `YES > NO` passes. Ties and no-vote results are rejected. There is no separate quorum or percentage threshold.
-6. Approved proposals enter a deterministic queue ordered by voting deadline. The server permits only one `BUILDING` proposal at a time and prevents a later winner from skipping an earlier winner.
-7. A builder implements the actual functional module, tests it and submits it for review. After deployment, its release path and reference are registered on the World canvas and linked to its creator.
-8. Scrapy reports each confirmed lifecycle change to Town Chat and the citizen's record.
+Scrapy does not decide votes, control wallets or spend treasury funds. Ordinary citizen messages do not summon him. AI replies and scripted fallback replies are labeled separately.
 
-**Current boundaries:** public chat replies do not automatically create drafts or proposals. Citizen drafts are text-derived previews, not complete engineering specs. The opt-in builder generates isolated, transient HTML/JS modules, commits a scoped artifact and opens a PR. It does not implement arbitrary backend changes, merge or deploy automatically. An operator reviews acceptance criteria, merges, and verifies the matching production release before an object is published. Build-complexity tiers still need product rules. Per-wallet voting also needs an explicit anti-Sybil policy for multiple wallets and token movement between votes before a public governance launch.
+The chat assistant and the code-building worker are separate integrations. A working chat does not mean the builder is enabled.
 
-See [Build executor setup and launch gates](docs/build-executor.md) for migration 004, worker activation, credentials, CI, safe module limits and recovery.
+## $SCRAPY
 
-## Local development
+| Field | Value |
+| --- | --- |
+| Symbol | SCRAPY |
+| On-chain name | LANDVILLE |
+| Network | Robinhood Chain mainnet |
+| Chain ID | 4663 |
+| Decimals | 18 |
+| Contract | `0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe` |
 
-```bash
-npm install
+[View the contract](https://robinhoodchain.blockscout.com/address/0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe)
+
+### Access and voting
+
+| SCRAPY held | Vote weight | Messages per UTC day | Submit a build proposal |
+| --- | ---: | ---: | --- |
+| 0 | 1 | 10 | No |
+| More than 0, below 250,000 | 1 | 50 | No |
+| 250,000 | 2 | 50 | Yes |
+| 500,000 | 3 | 50 | Yes |
+| 1,000,000 | 5 | 50 | Yes |
+
+Voting weight is **1 + floor(SCRAPY / 250,000)**. Holdings are read from the wallet at voting time; receipts record the balance, block and weight. A wallet can vote once per proposal.
+
+SEND and ASK SCRAPY share the daily message allowance. Scrapy's replies do not consume it. The allowance resets at 00:00 UTC. Build requests currently require at least 250,000 SCRAPY; complexity-based tiers are not implemented.
+
+Votes, profiles, messages and build records are stored in Supabase. **Voting is off-chain**, using on-chain token balances; it is not a token transfer or an on-chain governance transaction.
+
+## Current boundaries
+
+The repository implements profiles, shared chat, token-weighted voting and the reviewed build pipeline. Production features depend on the required migrations and credentials; the builder is opt-in and is not yet confirmed end-to-end in production.
+
+V1 builds are isolated HTML/CSS/JavaScript modules with temporary state. They cannot access wallets, external APIs or shared storage. Persistent applications and unrestricted backend changes are not supported. Builds do not auto-merge or auto-publish.
+
+The project still needs an explicit policy for multiple wallets and moving tokens between votes. Token holdings do not prove that each account is a different person.
+
+## Development and operations
+
+Next.js, React, TypeScript, Supabase, EVM wallet authentication and server-side AI requests.
+
+```sh
+npm ci
 npm run dev
 ```
 
-Copy `.env.example` to `.env.local` when configuring integrations. Keep `OPENAI_API_KEY` server-only; never rename it with a `NEXT_PUBLIC_` prefix.
+Configure your own `.env.local` from `.env.example`. Do not use production credentials in forks, pull requests or preview deployments.
 
-Validation:
-
-```bash
+```sh
 npm run lint
 npm test
+npm run check:modules
 npm run build
 ```
 
-## Deploy to Vercel
-
-Follow the [current launch checklist](docs/launch-checklist.md) for exact Production variables, migrations 001–007 and live AI verification. Configured is not the same as verified. Missing or short production wallet-session secrets now return actionable JSON instead of an empty 500 response.
-
-1. In Vercel, choose **Add New → Project** and import `NullPigeon/VILLE`.
-2. Keep the detected framework as **Next.js** and deploy from `main`.
-3. Add the variables from `.env.example` under **Project Settings → Environment Variables**.
-4. Set `NEXT_PUBLIC_SITE_URL` to the final Vercel URL and redeploy once.
-5. Add `OPENAI_API_KEY` to activate the live Mayor; without it Mayor uses the built-in Scrapy fallback.
-6. Set `NEXT_PUBLIC_TREASURY_ADDRESS`, a dedicated server-only `ROBINHOOD_MAINNET_RPC_URL` and a long `WALLET_SESSION_SECRET`. The official mainnet SCRAPY contract is pinned in source. The treasury still needs an indexer; adding an address does not load assets by itself.
-7. In the Supabase SQL Editor, run migrations 001 through 007 in order (only unapplied migrations). Add `SUPABASE_URL` and a server-only `SUPABASE_SECRET_KEY` in Vercel.
-8. Add the operator wallet(s) to `LANDVILLE_ADMIN_WALLETS`. Never expose Supabase, wallet-session or OpenAI secrets with a `NEXT_PUBLIC_` prefix.
-
-Robinhood Chain integration is adapter-first: the UI can request that a user wallet add or switch networks, but the app never stores private keys or signs treasury transactions.
+- [Deployment and configuration](docs/launch-checklist.md)
+- [Builder setup, permissions and release checks](docs/build-executor.md)
+- [Security boundaries and publication checklist](SECURITY.md)

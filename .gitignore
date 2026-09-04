@@ -19,6 +19,15 @@
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+/.codex/
+/.agents/
+/.supabase/
+/supabase/.temp/
+/.netrc
+/.npmrc
 
 # debug
 npm-debug.log*
