@@ -20,6 +20,10 @@ or private database records. This is a design boundary, not a security guarantee
   archive is restricted to its signed-in owner and is not copied into Town Chat.
 - Production wallet-session signing refuses a missing or short secret. The development
   fallback and isolated test credentials in source must never be used in production.
+- Sign-in challenges and authenticated sessions use different versioned HMAC domains.
+  Only signature verification issues a session. Deploying this change invalidates old
+  cookies: every citizen, including administrators, must sign in again. Keep older
+  deployments inaccessible; do not roll production back to the old authentication code.
 
 ## Pull requests and generated modules
 

@@ -4,8 +4,8 @@ import { apiFailure, jsonBody, requireMutation } from '@/lib/server/api';
 import { registerCitizen } from '@/lib/server/database';
 import {
   CHALLENGE_COOKIE,
-  readCookie,
-  sealCookie,
+  readWalletChallenge,
+  sealWalletSession,
   SESSION_COOKIE,
 } from '@/lib/wallet-session';
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     | { address?: string; signature?: `0x${string}` }
     | null;
   const address = typeof body?.address === 'string' ? body.address.toLowerCase() : '';
-  const challenge = readCookie<{ address: string; message: string; expiresAt: number }>(
+  const challenge = readWalletChallenge(
     request.cookies.get(CHALLENGE_COOKIE)?.value,
   );
 
@@ -33,10 +33,10 @@ export async function POST(request: NextRequest) {
 
   await registerCitizen(address);
 
-  const response = NextResponse.json({ address });
+  const response = NextResponse.json({ address }, { headers: { 'Cache-Control': 'private, no-store' } });
   response.cookies.set(
     SESSION_COOKIE,
-    sealCookie({ address, expiresAt: Date.now() + 7 * 24 * 60 * 60_000 }),
+    sealWalletSession({ address, expiresAt: Date.now() + 7 * 24 * 60 * 60_000 }),
     { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 604_800, path: '/' },
   );
   response.cookies.delete(CHALLENGE_COOKIE);

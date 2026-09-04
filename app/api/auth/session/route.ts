@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
   const session = readWalletSession(request.cookies.get(SESSION_COOKIE)?.value);
   if (session) await assertCitizen(session.address);
-  return NextResponse.json({ address: session?.address || null });
+  return NextResponse.json({ address: session?.address || null }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) { return apiFailure(error); }
 }
 

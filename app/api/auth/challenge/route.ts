@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { isAddress } from 'viem';
 import { NextRequest, NextResponse } from 'next/server';
-import { CHALLENGE_COOKIE, sealCookie } from '@/lib/wallet-session';
+import { CHALLENGE_COOKIE, sealWalletChallenge } from '@/lib/wallet-session';
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import { apiFailure } from '@/lib/server/api';
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.json({ message }, { headers: { 'Cache-Control': 'no-store' } });
   response.cookies.set(
     CHALLENGE_COOKIE,
-    sealCookie({ address, message, expiresAt: Date.now() + 5 * 60_000 }),
+    sealWalletChallenge({ address, message, expiresAt: Date.now() + 5 * 60_000 }),
     { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 300, path: '/' },
   );
   return response;

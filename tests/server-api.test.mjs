@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import ts from 'typescript';
 import { NextRequest } from 'next/server.js';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
@@ -52,12 +52,58 @@ function fixture(handler, extraEnv = {}, overrides = {}) {
   const session = load('@/lib/wallet-session');
   function request(url, body = {}, options = {}) {
     const headers = { 'Content-Type': 'application/json', Origin: 'http://localhost:3000', ...options.headers };
-    if (options.signed) headers.Cookie = `${session.SESSION_COOKIE}=${session.sealCookie({ address: options.wallet || wallet, expiresAt: Date.now() + 60000 })}`;
+    if (options.signed) headers.Cookie = `${session.SESSION_COOKIE}=${session.sealWalletSession({ address: options.wallet || wallet, expiresAt: Date.now() + 60000 })}`;
     const method = options.method || 'POST';
     return new NextRequest(`http://localhost:3000${url}`, { method, headers, ...(method === 'GET' ? {} : { body: JSON.stringify(body) }) });
   }
   return { load, calls, request, session, get balanceReads() { return balanceReads; } };
 }
+
+void test('an unsigned sign-in challenge cannot access private history or admin APIs', async () => {
+  const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet });
+  const challenge = await f.load('app/api/auth/challenge/route.ts').GET(f.request(`/api/auth/challenge?address=${wallet}`, {}, { method: 'GET' }));
+  assert.equal(challenge.status, 200);
+  const value = challenge.cookies.get(f.session.CHALLENGE_COOKIE).value;
+  for (const [route, url] of [
+    ['app/api/mayor/route.ts', '/api/mayor'],
+    ['app/api/profile/route.ts', '/api/profile'],
+    ['app/api/admin/readiness/route.ts', '/api/admin/readiness'],
+    ['app/api/admin/build-jobs/route.ts', '/api/admin/build-jobs'],
+  ]) {
+    const response = await f.load(route).GET(f.request(url, {}, { method: 'GET', headers: { Cookie: `${f.session.SESSION_COOKIE}=${value}` } }));
+    assert.equal(response.status, 401, url);
+  }
+  assert.equal(f.calls.length, 0);
+});
+
+void test('wallet cookies reject legacy signatures, wrong purposes, tampering and invalid payloads', () => {
+  const f = fixture(() => undefined);
+  const value = { address: wallet, expiresAt: Date.now() + 60000 };
+  const session = f.session.sealWalletSession(value);
+  assert.equal(f.session.readWalletSession(session).address, wallet);
+  assert.equal(f.session.readWalletChallenge(session), null);
+  assert.equal(f.session.readWalletSession(`${session}.extra`), null);
+  const payload = Buffer.from(JSON.stringify(value)).toString('base64url');
+  const legacy = `${payload}.${createHmac('sha256', 'server-api-tests-only-not-a-real-secret').update(payload).digest('base64url')}`;
+  assert.equal(f.session.readWalletSession(legacy), null, 'Pre-fix sessions must be invalidated');
+  const changed = Buffer.from(JSON.stringify({ ...value, address: other })).toString('base64url');
+  assert.equal(f.session.readWalletSession(`${changed}.${session.split('.')[1]}`), null);
+  for (const invalid of [
+    { ...value, address: 'not-a-wallet' },
+    { ...value, expiresAt: String(value.expiresAt) },
+    { ...value, expiresAt: Date.now() - 1 },
+    { ...value, message: 'An unsigned challenge is not a session' },
+    { ...value, isAdmin: true },
+  ]) assert.equal(f.session.readWalletSession(f.session.sealWalletSession(invalid)), null);
+});
+
+void test('session responses are private and never cacheable', async () => {
+  const f = fixture(() => undefined);
+  const response = await f.load('app/api/auth/session/route.ts').GET(f.request('/api/auth/session', {}, { signed: true, method: 'GET' }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).address, wallet);
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+});
 
 for (const [route, url, method] of [
   ['app/api/profile/route.ts', '/api/profile', 'PATCH'],
@@ -464,12 +510,14 @@ void test('signature verification creates a citizen before issuing a session', a
   const account = privateKeyToAccount(generatePrivateKey());
   const f = fixture((call) => call.method === 'POST' && call.url.includes('landville_citizens?') ? new Response(null, { status: 204 }) : undefined);
   const message = 'LANDVILLE isolated test sign-in. No transaction.';
-  const challenge = f.session.sealCookie({ address: account.address.toLowerCase(), message, expiresAt: Date.now() + 60000 });
+  const challenge = f.session.sealWalletChallenge({ address: account.address.toLowerCase(), message, expiresAt: Date.now() + 60000 });
   const signature = await account.signMessage({ message });
   const response = await f.load('app/api/auth/verify/route.ts').POST(f.request('/api/auth/verify', { address: account.address, signature }, { headers: { Cookie: `${f.session.CHALLENGE_COOKIE}=${challenge}` } }));
   assert.equal(response.status, 200);
   assert.equal(f.calls[0].body.wallet, account.address.toLowerCase());
   assert.ok(response.headers.get('set-cookie').includes('HttpOnly'));
+  assert.equal(f.session.readWalletSession(response.cookies.get(f.session.SESSION_COOKIE).value).address, account.address.toLowerCase());
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
 });
 
 void test('absent Supabase configuration never falls back to local records', async () => {
