@@ -2,7 +2,9 @@
 
 The builder may add exactly one JSON artifact: `city-modules/LV-<number>.json`.
 No executable server imports, repository paths or model-generated commands.
-Artifacts contain version, proposalId, title, html and acceptance fields. They are
+Artifacts contain version, proposalId, title, html and acceptance fields. Their HTML
+may contain one worker-injected OpenAI image as a data URL, so the artifact review
+must include visual quality and repository size. They are
 validated by `lib/build-contract.ts`, served only through the authenticated module
 endpoint with an opaque sandbox CSP, and never placed in `public/`.
 
