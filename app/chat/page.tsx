@@ -15,9 +15,10 @@ export default function ChatPage() {
   const wallet = useWallet();
   const chat = useCitizenChat('TOWN');
   const [input, setInput] = useState('');
-  const [draft, setDraft] = useState<{ id: string; text: string; wallet: string } | null>(null);
+  const [draft, setDraft] = useState<{ id: string; title: string; summary: string; wallet: string } | null>(null);
   const feed = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
+  const messagesById = new Map(chat.messages.map((message) => [message.id, message]));
 
   useEffect(() => { if (follow.current && feed.current) feed.current.scrollTop = feed.current.scrollHeight; }, [chat.messages]);
 
@@ -34,10 +35,14 @@ export default function ChatPage() {
         <header className="lv-panel-head"><h2><Radio /> PUBLIC TOWN HISTORY</h2><span>ALL CITIZENS SEE THE SAME MESSAGES</span></header>
         <div className="town-feed" ref={feed} onScroll={() => { const element = feed.current; if (element) follow.current = element.scrollHeight - element.clientHeight - element.scrollTop < 100; }} aria-live="polite">
           {chat.hasMore && <button className="lv-button" disabled={chat.loading} onClick={() => { follow.current = false; void chat.older(); }}>{chat.loading ? 'LOADING…' : 'LOAD EARLIER MESSAGES'}</button>}
-          {chat.messages.map((message) => <article className={`town-message ${message.kind.toLowerCase()}`} key={message.id}>
-            <div className="town-avatar">{message.kind === 'CITIZEN' ? <CitizenAvatar avatar={message.avatar} /> : <Bot />}</div>
-            <div><header>{message.wallet ? <Link href={`/citizens/${message.wallet}`}>{message.author}</Link> : <b>{message.author}</b>}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time></header><p>{message.body}</p>{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE · AI UNAVAILABLE' : 'OLDER REPLY · SOURCE NOT RECORDED'}</small>}{message.wallet && <small>{shortWallet(message.wallet)}</small>}{wallet.address && message.kind === 'CITIZEN' && message.wallet?.toLowerCase() === wallet.address.toLowerCase() && <button className="lv-button" onClick={() => setDraft({ id: message.id, text: message.body, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>PREPARE MY PROPOSAL</button>}</div>
-          </article>)}
+          {chat.messages.map((message) => {
+            const request = message.kind === 'MAYOR' && message.id.startsWith('reply-') ? messagesById.get(message.id.slice(6)) : undefined;
+            const canReviewPlan = message.aiSource === 'openai' && request?.kind === 'CITIZEN' && request.askScrapy === true && request.wallet?.toLowerCase() === wallet.address.toLowerCase();
+            return <article className={`town-message ${message.kind.toLowerCase()}`} key={message.id}>
+              <div className="town-avatar">{message.kind === 'CITIZEN' ? <CitizenAvatar avatar={message.avatar} /> : <Bot />}</div>
+              <div><header>{message.wallet ? <Link href={`/citizens/${message.wallet}`}>{message.author}</Link> : <b>{message.author}</b>}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time></header><p>{message.body}</p>{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE · AI UNAVAILABLE' : 'OLDER REPLY · SOURCE NOT RECORDED'}</small>}{message.wallet && <small>{shortWallet(message.wallet)}</small>}{wallet.address && message.kind === 'CITIZEN' && message.wallet?.toLowerCase() === wallet.address.toLowerCase() && <button className="lv-button" onClick={() => setDraft({ id: message.id, title: message.body, summary: message.body, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>PREPARE MY PROPOSAL</button>}{canReviewPlan && request && <button className="lv-button primary" onClick={() => setDraft({ id: message.id, title: request.body, summary: `${request.body}\n\nSCRAPY'S PLAN:\n${message.body}`, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>REVIEW &amp; PROPOSE</button>}</div>
+            </article>;
+          })}
           {!chat.messages.length && !chat.error && <p className="empty-state">No messages loaded yet.</p>}
         </div>
         {chat.error && <p className="chat-notice" role="alert">{chat.error}</p>}
@@ -53,10 +58,10 @@ export default function ChatPage() {
         <p>10 messages per UTC day without SCRAPY. 50 with any positive SCRAPY balance. Scrapy’s replies do not use your allowance.</p>
         <p>One active proposal per account. Submit again after it is built or rejected. A conversation does not submit a proposal automatically.</p>
         <p>{chat.aiConfigured === null ? 'Checking Scrapy configuration…' : chat.aiConfigured ? 'AI key configured. Each reply shows whether AI actually answered.' : 'AI is not configured. Scrapy uses clearly marked scripted replies.'}</p>
-        <p>Discuss your idea here, then choose PREPARE MY PROPOSAL on your own message. Review the draft before opening voting.</p>
+        <p>Discuss your idea here. Use REVIEW &amp; PROPOSE on Scrapy’s plan, or PREPARE MY PROPOSAL on your own final message. Review the draft before opening voting.</p>
         {wallet.address && <Link href="/chat/archive">MY OLD PRIVATE ARCHIVE</Link>}
       </div></aside>
     </div>
-    {draft && wallet.address === draft.wallet && <section className="lv-panel"><ChatProposalDraft key={`${draft.id}:${draft.wallet}`} text={draft.text} onClose={() => setDraft(null)} /></section>}
+    {draft && wallet.address === draft.wallet && <section className="lv-panel"><ChatProposalDraft key={`${draft.id}:${draft.wallet}`} titleText={draft.title} summaryText={draft.summary} onClose={() => setDraft(null)} /></section>}
   </ProductShell>;
 }
