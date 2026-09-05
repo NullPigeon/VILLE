@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runWorker, artifactFor, extractOutput } from '../scripts/build-worker.mjs';
+import { runWorker, artifactFor, extractOutput, reviewedArtifactFor } from '../scripts/build-worker.mjs';
 import { MODULE_CSP, validateModule, validateSpec, validProposalId } from '../lib/build-contract.ts';
 
 const html = '<!doctype html><html><head><title>Town counter</title></head><body><button id="count">Count</button><script>let count = 0; document.querySelector("button").onclick = () => { document.querySelector("button").textContent = String(++count); };</script></body></html>';
@@ -9,6 +9,7 @@ const work = { title: 'Town counter', job: { proposal_id: 'LV-1', lease_id: '111
 const sha = 'a'.repeat(40);
 const baseSha = 'b'.repeat(40);
 const env = { LANDVILLE_SITE_URL: 'https://town.example', LANDVILLE_WORKER_SECRET: 'w'.repeat(40), LANDVILLE_BUILDER_ENABLED: 'true', LANDVILLE_BUILDER_MODEL: 'configured-test-model', LANDVILLE_GITHUB_WRITE_TOKEN: 'github-test-only', OPENAI_API_KEY: 'openai-test-only' };
+const acceptanceReport = ['The Count control increments the visible total in the inline script.'];
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 function harness(override = () => undefined) {
   const calls = [];
@@ -18,7 +19,7 @@ function harness(override = () => undefined) {
     const other = override(call, calls);
     if (other) return other;
     if (url.endsWith('/api/internal/builds')) return json(call.body.action === 'CLAIM' ? { work } : { work: null });
-    if (url.includes('api.openai.com')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ html }) }] }] });
+    if (url.includes('api.openai.com')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(calls.filter((entry) => entry.url.includes('api.openai.com')).length === 1 ? { html } : { html, acceptanceReport }) }] }] });
     if (url.endsWith('git/ref/heads/main')) return json({ object: { sha: baseSha } });
     if (url.endsWith(`git/commits/${baseSha}`)) return json({ tree: { sha: baseSha } });
     if (url.endsWith('git/trees')) return json({ sha: baseSha });
@@ -43,6 +44,10 @@ void test('artifact is deterministic and contains only the scoped module contrac
   assert.deepEqual(Object.keys(record), ['version', 'proposalId', 'title', 'html', 'acceptance']);
   assert.deepEqual(record.acceptance, spec.acceptance);
   assert.match(first.hash, /^[a-f0-9]{64}$/);
+});
+void test('reviewed artifacts require one evidence statement per acceptance check', () => {
+  assert.equal(reviewedArtifactFor(work, { html, acceptanceReport }).report[0], acceptanceReport[0]);
+  assert.throws(() => reviewedArtifactFor(work, { html, acceptanceReport: [] }));
 });
 void test('frames, forms, refresh and cross-proposal artifacts are rejected', () => {
   const record = JSON.parse(artifactFor(work, { html }).content);
@@ -72,7 +77,9 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   const receipt = f.calls.at(-1).body;
   assert.equal(receipt.action, 'COMPLETE'); assert.equal(receipt.sha, sha); assert.equal(receipt.pr, 42);
   const ai = f.calls.find((call) => call.url.includes('api.openai.com'));
+  assert.equal(f.calls.filter((call) => call.url.includes('api.openai.com')).length, 2);
   assert.equal(ai.body.store, false); assert.equal(ai.body.text.format.strict, true);
+  assert.deepEqual(ai.body.tools, [{ type: 'web_search_preview', search_context_size: 'low' }]);
   assert.ok(!JSON.stringify(ai.body).includes(env.LANDVILLE_GITHUB_WRITE_TOKEN));
 });
 void test('disabled builder only finalizes votes and makes no AI/GitHub requests', async () => {
