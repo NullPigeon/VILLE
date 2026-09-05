@@ -9,6 +9,7 @@ import { ProductShell } from '@/components/landville/product-shell';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { useCitizenChat } from '@/components/landville/use-citizen-chat';
 import { shortWallet } from '@/lib/governance';
+import { scrapyProposalDraft } from '@/lib/proposal-draft';
 import { ChatProposalDraft } from '@/components/landville/chat-proposal-draft';
 
 export default function ChatPage() {
@@ -37,10 +38,11 @@ export default function ChatPage() {
           {chat.hasMore && <button className="lv-button" disabled={chat.loading} onClick={() => { follow.current = false; void chat.older(); }}>{chat.loading ? 'LOADING…' : 'LOAD EARLIER MESSAGES'}</button>}
           {chat.messages.map((message) => {
             const request = message.kind === 'MAYOR' && message.id.startsWith('reply-') ? messagesById.get(message.id.slice(6)) : undefined;
-            const canReviewPlan = message.aiSource === 'openai' && request?.kind === 'CITIZEN' && request.askScrapy === true && request.wallet?.toLowerCase() === wallet.address.toLowerCase();
+            const proposalDraft = message.aiSource === 'openai' && request?.kind === 'CITIZEN' && request.askScrapy === true ? scrapyProposalDraft(request.body, message.body) : null;
+            const canReviewPlan = proposalDraft && request?.wallet?.toLowerCase() === wallet.address.toLowerCase();
             return <article className={`town-message ${message.kind.toLowerCase()}`} key={message.id}>
               <div className="town-avatar">{message.kind === 'CITIZEN' ? <CitizenAvatar avatar={message.avatar} /> : <Bot />}</div>
-              <div><header>{message.wallet ? <Link href={`/citizens/${message.wallet}`}>{message.author}</Link> : <b>{message.author}</b>}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time></header><p>{message.body}</p>{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE · AI UNAVAILABLE' : 'OLDER REPLY · SOURCE NOT RECORDED'}</small>}{message.wallet && <small>{shortWallet(message.wallet)}</small>}{wallet.address && message.kind === 'CITIZEN' && message.wallet?.toLowerCase() === wallet.address.toLowerCase() && <button className="lv-button" onClick={() => setDraft({ id: message.id, title: message.body, summary: message.body, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>PREPARE MY PROPOSAL</button>}{canReviewPlan && request && <button className="lv-button primary" onClick={() => setDraft({ id: message.id, title: request.body, summary: `${request.body}\n\nSCRAPY'S PLAN:\n${message.body}`, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>REVIEW &amp; PROPOSE</button>}</div>
+              <div><header>{message.wallet ? <Link href={`/citizens/${message.wallet}`}>{message.author}</Link> : <b>{message.author}</b>}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time></header><p>{message.body}</p>{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE · AI UNAVAILABLE' : 'OLDER REPLY · SOURCE NOT RECORDED'}</small>}{message.wallet && <small>{shortWallet(message.wallet)}</small>}{wallet.address && message.kind === 'CITIZEN' && message.wallet?.toLowerCase() === wallet.address.toLowerCase() && <button className="lv-button" onClick={() => setDraft({ id: message.id, title: '', summary: message.body, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>PREPARE MY PROPOSAL</button>}{canReviewPlan && proposalDraft && <button className="lv-button primary" onClick={() => setDraft({ id: message.id, ...proposalDraft, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>REVIEW &amp; PROPOSE</button>}</div>
             </article>;
           })}
           {!chat.messages.length && !chat.error && <p className="empty-state">No messages loaded yet.</p>}
