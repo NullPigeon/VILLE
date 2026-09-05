@@ -3,9 +3,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useLandville } from '@/components/landville/provider';
 
-export function ChatProposalDraft({ text, onClose }: { text: string; onClose(): void }) {
+export function ChatProposalDraft({ titleText, summaryText, onClose }: { titleText: string; summaryText?: string; onClose(): void }) {
   const { createProposal, activeProposal, status } = useLandville();
-  const [draft, setDraft] = useState({ title: text.slice(0, 80), summary: text, category: 'UTILITY', district: 'THE DUMP' });
+  const [draft, setDraft] = useState({ title: titleText.slice(0, 80), summary: summaryText || titleText, category: 'UTILITY', district: 'THE DUMP' });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [created, setCreated] = useState('');

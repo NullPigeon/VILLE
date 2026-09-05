@@ -14,6 +14,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/005_chat_provenance.sql
 \ir ../supabase/migrations/006_citizen_profiles.sql
 \ir ../supabase/migrations/007_chat_recipient.sql
+\ir ../supabase/migrations/008_launch_vote_window.sql
 
 do $$ begin
   if (select citizen_number from public.landville_citizens where wallet='0x' || repeat('e',40)) <> 2 then
@@ -84,6 +85,38 @@ begin
   result := public.landville_submit_public_message(actor,gen_random_uuid(),'Hello Scrapy',null,true);
   if not result.ask_scrapy then raise exception 'Explicit AI request was lost'; end if;
   if has_function_privilege('anon','public.landville_submit_public_message(text,uuid,text,jsonb,boolean)','EXECUTE') then raise exception 'Anonymous RPC allowed'; end if;
+end $$;
+select setval('public.landville_proposal_number', 99, true);
+insert into public.landville_citizens(wallet) select '0x' || repeat(letter, 40) from unnest(array['f','1','2','3']) as letter;
+do $$
+declare
+  test_wallet text;
+  snapshot jsonb;
+  proposal public.landville_proposals;
+  request uuid;
+  expected_hours integer;
+begin
+  foreach test_wallet in array array['0x' || repeat('f',40),'0x' || repeat('1',40),'0x' || repeat('2',40),'0x' || repeat('3',40)] loop
+    request := gen_random_uuid();
+    snapshot := jsonb_build_object(
+      'wallet',test_wallet,'chainId',4663,'tokenAddress','0x' || repeat('c',40),
+      'tokenDecimals',18,'tokenBalance','250000000000000000000000','weight',2,
+      'blockNumber','1234','capturedAt',clock_timestamp()
+    );
+    proposal := public.landville_create_proposal(test_wallet,request,'Launch module','A launch voting-window test module.','UTILITY','THE DUMP',snapshot);
+    expected_hours := case when proposal.id in ('LV-100','LV-101','LV-102') then 1 else 12 end;
+    if proposal.closes_at < proposal.created_at + make_interval(hours => expected_hours) - interval '2 seconds'
+       or proposal.closes_at > proposal.created_at + make_interval(hours => expected_hours) + interval '2 seconds'
+    then raise exception 'Incorrect launch vote window for %', proposal.id; end if;
+    if public.landville_create_proposal(test_wallet,request,'Launch module','A launch voting-window test module.','UTILITY','THE DUMP',snapshot).id <> proposal.id
+    then raise exception 'Launch-window retry was not idempotent'; end if;
+  end loop;
+  if (select remaining_fast_votes from public.landville_launch_vote_window where singleton) <> 0 then
+    raise exception 'Launch vote counter was not exhausted';
+  end if;
+  if has_table_privilege('anon','public.landville_launch_vote_window','SELECT') then
+    raise exception 'Launch vote counter exposed to browser roles';
+  end if;
 end $$;
 insert into public.landville_proposals(id, request_id, creator_wallet, title, summary, category, district, eligibility_snapshot, yes, no, created_at, closes_at)
 values

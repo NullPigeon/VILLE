@@ -21,4 +21,4 @@ assert.ok(numbers.every((number) => Number.isInteger(number) && number >= 2));
 await Promise.all(Array.from({ length: 8 }, () => psql(['-tA', '-c', "set role service_role; insert into public.landville_citizens(wallet) values ('0x' || repeat('f',40)) on conflict(wallet) do nothing;"])));
 const stable = await psql(['-tA', '-c', "select count(*) from public.landville_citizens where wallet='0x' || repeat('f',40);"]);
 assert.equal(stable.trim(), '1', 'Concurrent sign-ins produce one citizen');
-console.log('All seven migrations, chat recipients, profile identities, concurrent registrations, private archive preservation, provenance, FIFO, leases, failures, publication, permissions and eight concurrent claims passed.');
+console.log('All eight migrations, launch vote window, chat recipients, profile identities, concurrent registrations, private archive preservation, provenance, FIFO, leases, failures, publication, permissions and eight concurrent claims passed.');
