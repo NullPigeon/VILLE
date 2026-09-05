@@ -109,7 +109,7 @@ begin
     if proposal.closes_at < proposal.created_at + make_interval(hours => expected_hours) - interval '2 seconds'
        or proposal.closes_at > proposal.created_at + make_interval(hours => expected_hours) + interval '2 seconds'
     then raise exception 'Incorrect launch vote window for %', proposal.id; end if;
-    if public.landville_create_proposal(test_wallet,request,'Launch module','A launch voting-window test module.','UTILITY','THE DUMP',snapshot).id <> proposal.id
+    if (public.landville_create_proposal(test_wallet,request,'Launch module','A launch voting-window test module.','UTILITY','THE DUMP',snapshot)).id <> proposal.id
     then raise exception 'Launch-window retry was not idempotent'; end if;
   end loop;
   if (select remaining_fast_votes from public.landville_launch_vote_window where singleton) <> 0 then
