@@ -86,7 +86,6 @@ begin
   if not result.ask_scrapy then raise exception 'Explicit AI request was lost'; end if;
   if has_function_privilege('anon','public.landville_submit_public_message(text,uuid,text,jsonb,boolean)','EXECUTE') then raise exception 'Anonymous RPC allowed'; end if;
 end $$;
-select setval('public.landville_proposal_number', 99, true);
 insert into public.landville_citizens(wallet) select '0x' || repeat(letter, 40) from unnest(array['f','1','2','3']) as letter;
 do $$
 declare
@@ -95,8 +94,10 @@ declare
   proposal public.landville_proposals;
   request uuid;
   expected_hours integer;
+  test_index integer := 0;
 begin
   foreach test_wallet in array array['0x' || repeat('f',40),'0x' || repeat('1',40),'0x' || repeat('2',40),'0x' || repeat('3',40)] loop
+    test_index := test_index + 1;
     request := gen_random_uuid();
     snapshot := jsonb_build_object(
       'wallet',test_wallet,'chainId',4663,'tokenAddress','0x' || repeat('c',40),
@@ -104,7 +105,7 @@ begin
       'blockNumber','1234','capturedAt',clock_timestamp()
     );
     proposal := public.landville_create_proposal(test_wallet,request,'Launch module','A launch voting-window test module.','UTILITY','THE DUMP',snapshot);
-    expected_hours := case when proposal.id in ('LV-100','LV-101','LV-102') then 1 else 12 end;
+    expected_hours := case when test_index <= 3 then 1 else 12 end;
     if proposal.closes_at < proposal.created_at + make_interval(hours => expected_hours) - interval '2 seconds'
        or proposal.closes_at > proposal.created_at + make_interval(hours => expected_hours) + interval '2 seconds'
     then raise exception 'Incorrect launch vote window for %', proposal.id; end if;
@@ -117,6 +118,9 @@ begin
   if has_table_privilege('anon','public.landville_launch_vote_window','SELECT') then
     raise exception 'Launch vote counter exposed to browser roles';
   end if;
+  delete from public.landville_proposals where creator_wallet in (
+    '0x' || repeat('f',40),'0x' || repeat('1',40),'0x' || repeat('2',40),'0x' || repeat('3',40)
+  );
 end $$;
 insert into public.landville_proposals(id, request_id, creator_wallet, title, summary, category, district, eligibility_snapshot, yes, no, created_at, closes_at)
 values
