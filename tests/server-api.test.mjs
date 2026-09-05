@@ -272,6 +272,18 @@ void test('Town history is public but always excludes private messages', async (
   assert.ok(f.calls[0].url.includes('channel=eq.TOWN&owner_wallet=is.null'));
 });
 
+void test('Town state settles expired votes without claiming or running a build', async () => {
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_claim_build') ? json(null) : undefined, {
+    LANDVILLE_BUILD_ACTOR: wallet,
+    LANDVILLE_ADMIN_WALLETS: wallet,
+  });
+  const response = await f.load('app/api/town/route.ts').GET(f.request('/api/town', {}, { method: 'GET' }));
+  assert.equal(response.status, 200);
+  const settlement = f.calls.find((call) => call.url.endsWith('/rpc/landville_claim_build'));
+  assert.deepEqual(settlement.body, { p_actor: wallet, p_claim: false });
+  assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com') || call.url.includes('api.github.com')));
+});
+
 void test('Workshop writes are retired without publishing private content', async () => {
   const f = fixture(() => undefined);
   const response = await f.load('app/api/mayor/route.ts').POST(f.request('/api/mayor', { body: 'Private idea', requestId: randomUUID() }, { signed: true }));
