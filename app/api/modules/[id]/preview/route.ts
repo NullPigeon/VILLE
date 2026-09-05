@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { ApiError, apiFailure } from '@/lib/server/api';
-import { readJob } from '@/lib/server/builds';
 import { readCityModule } from '@/lib/server/city-module';
 import { database } from '@/lib/server/database';
 import { proposalId } from '@/lib/server/validation';
@@ -10,12 +9,10 @@ const PREVIEW_CSP = "sandbox; default-src 'none'; script-src 'none'; style-src '
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const id = proposalId((await params).id);
-    const artifact = await readCityModule(id);
-    const [objects, job] = await Promise.all([
-      database<Array<{ proposal_id: string }>>(`landville_objects?select=proposal_id&proposal_id=eq.${id}&limit=1`),
-      readJob(id),
-    ]);
-    if (!objects.length || job.state !== 'RELEASED' || job.content_hash !== artifact.hash) throw new ApiError(404, 'Published preview not found.');
+    const objects = await database<Array<{ artifact_path: string; artifact_hash: string }>>(`landville_objects?select=artifact_path,artifact_hash&proposal_id=eq.${id}&limit=1`);
+    if (!objects[0]) throw new ApiError(404, 'Published preview not found.');
+    const artifact = await readCityModule(id, objects[0].artifact_path);
+    if (objects[0].artifact_hash !== artifact.hash) throw new ApiError(404, 'Published preview not found.');
     const staticHtml = artifact.module.html.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
     return new NextResponse(staticHtml, { headers: {
       'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': PREVIEW_CSP,

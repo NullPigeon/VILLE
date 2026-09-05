@@ -15,6 +15,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/006_citizen_profiles.sql
 \ir ../supabase/migrations/007_chat_recipient.sql
 \ir ../supabase/migrations/008_launch_vote_window.sql
+\ir ../supabase/migrations/009_versioned_module_rebuilds.sql
 
 do $$ begin
   if (select citizen_number from public.landville_citizens where wallet='0x' || repeat('e',40)) <> 2 then
@@ -158,11 +159,11 @@ begin
   if job.state <> 'REVIEW' or exists(select 1 from public.landville_objects) then raise exception 'Premature publication'; end if;
   if public.landville_claim_build(actor) is not null then raise exception 'Review did not hold the queue'; end if;
   begin
-    perform public.landville_publish_build('LV-1',actor,repeat('a',40),repeat('c',64),'deployment:commit');
+    perform public.landville_publish_build_v2('LV-1',actor,repeat('a',40),repeat('c',64),'city-modules/LV-1.json','deployment:commit');
     raise exception 'Accepted wrong artifact';
   exception when raise_exception then if sqlerrm <> 'STALE_STATUS' then raise; end if; end;
-  perform public.landville_publish_build('LV-1',actor,repeat('a',40),repeat('b',64),'deployment:commit');
-  perform public.landville_publish_build('LV-1',actor,repeat('a',40),repeat('b',64),'deployment:commit');
+  perform public.landville_publish_build_v2('LV-1',actor,repeat('a',40),repeat('b',64),'city-modules/LV-1.json','deployment:commit');
+  perform public.landville_publish_build_v2('LV-1',actor,repeat('a',40),repeat('b',64),'city-modules/LV-1.json','deployment:commit');
   if (select count(*) from public.landville_objects where proposal_id = 'LV-1') <> 1 or
     (select status from public.landville_proposals where id = 'LV-1') <> 'BUILT' then raise exception 'Publication is not atomic/idempotent'; end if;
   work := public.landville_claim_build(actor);
@@ -187,6 +188,20 @@ begin
     raise exception 'Unlimited retries';
   exception when raise_exception then if sqlerrm <> 'INVALID_TRANSITION' then raise; end if; end;
   perform public.landville_transition('LV-2',actor,'BUILDING','REJECT','Build cannot be completed within its scope.');
+  perform public.landville_rebuild_release('LV-1',actor);
+  if (select state from public.landville_build_jobs where proposal_id='LV-1') <> 'READY' or
+    (select revision from public.landville_build_jobs where proposal_id='LV-1') <> 2 or
+    (select artifact_path from public.landville_objects where proposal_id='LV-1') <> 'city-modules/LV-1.json'
+    then raise exception 'Released rebuild did not preserve the active artifact'; end if;
+  work := public.landville_claim_build(actor);
+  if work->'job'->>'proposal_id' <> 'LV-1' or work->'job'->>'branch' <> 'codex/build-lv-1-2' then
+    raise exception 'Corrective revision was not claimed safely'; end if;
+  job := public.landville_finish_build('LV-1',(work->'job'->>'lease_id')::uuid,repeat('c',40),repeat('d',64),44);
+  perform public.landville_publish_build_v2('LV-1',actor,repeat('c',40),repeat('d',64),'city-modules/LV-1-r2.json','deployment-2:commit');
+  if (select artifact_path from public.landville_objects where proposal_id='LV-1') <> 'city-modules/LV-1-r2.json' or
+    (select artifact_hash from public.landville_objects where proposal_id='LV-1') <> repeat('d',64) or
+    (select status from public.landville_proposals where id='LV-1') <> 'BUILT'
+    then raise exception 'Verified corrective release did not switch atomically'; end if;
 end $$;
 
 -- Leave one eligible job for concurrent-claim checks in the Node runner.

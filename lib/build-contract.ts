@@ -2,13 +2,17 @@
 export type BuildSpec = { version: 1; runtime: 'sandbox-html'; goal: string; acceptance: string[]; constraints: string };
 export type BuildJob = {
   proposal_id: string; state: 'READY' | 'RUNNING' | 'REVIEW' | 'FAILED' | 'RELEASED';
-  spec: BuildSpec; attempt: number; lease_id: string | null; lease_until: string | null;
+  spec: BuildSpec; attempt: number; revision: number; lease_id: string | null; lease_until: string | null;
   branch: string | null; commit_sha: string | null; content_hash: string | null;
   pr_number: number | null; error: string | null; updated_at: string;
 };
 export type CityModule = { version: 1; proposalId: string; title: string; html: string; acceptance: string[] };
 
 export function validProposalId(id: unknown): id is string { return typeof id === 'string' && /^LV-[1-9][0-9]{0,15}$/.test(id); }
+export function artifactPathFor(id: string, revision: number) {
+  if (!validProposalId(id) || !Number.isInteger(revision) || revision < 1 || revision > 99) throw new Error('Invalid city module revision.');
+  return `city-modules/${id}${revision === 1 ? '' : `-r${revision}`}.json`;
+}
 export function validateSpec(value: unknown): BuildSpec {
   const spec = value as BuildSpec;
   if (!spec || spec.version !== 1 || spec.runtime !== 'sandbox-html' || typeof spec.goal !== 'string' || spec.goal.trim().length < 10 || spec.goal.length > 2000 ||
