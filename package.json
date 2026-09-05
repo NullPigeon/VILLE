@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "oxlint",
-    "test": "node --experimental-strip-types --test tests/governance.test.mjs tests/robinhood-chain.test.mjs tests/server-api.test.mjs tests/proposal-lifecycle.test.mjs tests/scrapy-token.test.mjs tests/build-worker.test.mjs",
+    "test": "node --experimental-strip-types --test tests/governance.test.mjs tests/robinhood-chain.test.mjs tests/server-api.test.mjs tests/proposal-lifecycle.test.mjs tests/proposal-draft.test.mjs tests/scrapy-token.test.mjs tests/build-worker.test.mjs",
     "format": "oxfmt",
     "check:modules": "node --experimental-strip-types scripts/check-city-modules.mjs",
     "worker:once": "node --experimental-strip-types scripts/build-worker.mjs"
