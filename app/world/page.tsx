@@ -39,8 +39,8 @@ export default function WorldPage() {
             onClick={() => inspectObject(object.id)}
             aria-label={`Inspect ${object.title}`}
           >
-            <Building2 />
-            <small>{object.title}</small>
+            <span className="world-beacon-icon"><Building2 /></span>
+            <span className="world-beacon-label"><strong>{object.title}</strong><small>{object.creator}</small></span>
           </button>
         ))}
 

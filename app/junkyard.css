@@ -217,13 +217,6 @@
   height: 100dvh;
 }
 
-.world-beacon > svg {
-  position: absolute;
-  inset: 5px;
-  width: 14px;
-  height: 14px;
-}
-
 .citizen-placeholder {
   display: grid;
   place-items: center;
