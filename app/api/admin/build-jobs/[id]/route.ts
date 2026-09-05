@@ -11,9 +11,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const actor = await requireBuildAdmin(request);
     const id = proposalId((await params).id);
     const body = await jsonBody(request);
-    const action = oneOf(body.action, ['PREPARE', 'RETRY']);
+    const action = oneOf(body.action, ['PREPARE', 'RETRY', 'REBUILD']);
     await enforceRate(actor, 'build-spec', 10);
     let spec = null;
+    if (action === 'REBUILD') {
+      const job = await rpc('landville_rebuild_release', { p_id: id, p_actor: actor });
+      return NextResponse.json({ job });
+    }
     if (action === 'RETRY') {
       const previous = await readJob(id);
       if (previous.state === 'REVIEW') {

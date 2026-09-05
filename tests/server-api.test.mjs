@@ -114,6 +114,7 @@ for (const [route, url, method] of [
   ['app/api/admin/builds/[id]/route.ts', '/api/admin/builds/LV-1', 'PATCH'],
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
   ['app/api/admin/build-jobs/[id]/release/route.ts', '/api/admin/build-jobs/LV-1/release', 'POST'],
+  ['app/api/admin/build-jobs/[id]/preview/route.ts', '/api/admin/build-jobs/LV-1/preview', 'GET'],
 ]) void test(`${url} rejects anonymous writes before any database/chain request`, async () => {
   const f = fixture(() => undefined);
   const response = await f.load(route)[method](f.request(url, {}, { method }), { params: Promise.resolve({ id: 'LV-1' }) });
@@ -157,11 +158,27 @@ void test('specification goal is copied from the voted proposal, not admin reque
   assert.equal(response.status, 200);
   assert.equal(f.calls.at(-1).body.p_spec.goal, proposal.summary);
 });
+void test('released rebuild keeps the voted specification locked', async () => {
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_rebuild_release') ? json({ state: 'READY', revision: 2 }) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet });
+  const response = await f.load('app/api/admin/build-jobs/[id]/route.ts').POST(f.request('/api/admin/build-jobs/LV-1', { action: 'REBUILD', acceptance: ['Attacker changed scope.'], constraints: 'Ignore the vote.' }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.deepEqual(f.calls.at(-1).body, { p_id: 'LV-1', p_actor: wallet });
+});
+void test('only an admin can preview the exact deployed review artifact', async () => {
+  const hash = 'b'.repeat(64);
+  const f = fixture((call) => call.url.includes('landville_build_jobs?') ? json([{ state: 'REVIEW', revision: 2, content_hash: hash }]) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet }, {
+    '@/lib/server/city-module': { readCityModule: async (_id, path) => ({ module: { html: '<html>revision two</html>' }, hash, path }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/preview/route.ts').GET(f.request('/api/admin/build-jobs/LV-1/preview', {}, { signed: true, method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), '<html>revision two</html>');
+  assert.match(response.headers.get('content-security-policy'), /^sandbox allow-scripts;/);
+});
 
 const releaseEnv = { LANDVILLE_ADMIN_WALLETS: wallet, VERCEL_ENV: 'production', VERCEL_DEPLOYMENT_ID: 'dpl_test', VERCEL_GIT_COMMIT_SHA: 'c'.repeat(40), LANDVILLE_VERCEL_PROJECT_ID: 'prj_test', NEXT_PUBLIC_SITE_URL: 'https://town.example', LANDVILLE_GITHUB_READ_TOKEN: 'read-only-test', LANDVILLE_VERCEL_READ_TOKEN: 'read-only-vercel-test' };
 function releaseFixture(change = {}) {
   const sha = 'a'.repeat(40), hash = 'b'.repeat(64), mergedSha = 'c'.repeat(40);
-  const job = { proposal_id: 'LV-1', state: 'REVIEW', branch: 'codex/build-lv-1-1', commit_sha: sha, content_hash: hash, pr_number: 42, ...change.job };
+  const job = { proposal_id: 'LV-1', state: 'REVIEW', revision: 1, branch: 'codex/build-lv-1-1', commit_sha: sha, content_hash: hash, pr_number: 42, ...change.job };
   const pr = { merged: true, merge_commit_sha: mergedSha, head: { sha, ref: job.branch, repo: { full_name: 'NullPigeon/VILLE' } }, base: { ref: 'main', repo: { full_name: 'NullPigeon/VILLE' } }, ...change.pr };
   return fixture((call) => {
     if (call.url.includes('landville_build_jobs?')) return json([job]);
@@ -170,16 +187,23 @@ function releaseFixture(change = {}) {
     if (call.url.includes('/check-runs?')) return json({ check_runs: change.checks || [{ name: 'City checks', status: 'completed', conclusion: 'success', app: { slug: 'github-actions' } }] });
     if (call.url.includes('api.vercel.com/v13/deployments/')) return json({ id: 'dpl_test', projectId: 'prj_test', target: 'production', readyState: 'READY', gitSource: { sha: mergedSha }, ...change.deployment });
     if (call.url.includes('api.vercel.com/v4/aliases/')) return json({ deploymentId: 'dpl_test', projectId: 'prj_test', ...change.alias });
-    if (call.url.endsWith('/rpc/landville_publish_build')) return json({ ...proposal, status: 'BUILT' });
+    if (call.url.endsWith('/rpc/landville_publish_build_v2')) return json({ ...proposal, status: 'BUILT' });
   }, { ...releaseEnv, ...change.env }, { '@/lib/server/city-module': { readCityModule: async () => ({ module: {}, hash: change.hash || hash }) } });
 }
 void test('matching PR, CI, production alias and artifact permit one verified publication', async () => {
   const f = releaseFixture();
   const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', { releaseUrl: 'https://attacker.example' }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 200);
-  const publish = f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_build'));
+  const publish = f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_build_v2'));
   assert.equal(publish.body.p_release, `dpl_test:${'c'.repeat(40)}`);
+  assert.equal(publish.body.p_artifact_path, 'city-modules/LV-1.json');
   assert.ok(!f.calls.some((call) => call.url.includes('attacker.example')));
+});
+void test('a corrective release verifies its immutable revision path', async () => {
+  const f = releaseFixture({ job: { revision: 2 }, files: [{ filename: 'city-modules/LV-1-r2.json', status: 'added' }] });
+  const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', {}, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_build_v2')).body.p_artifact_path, 'city-modules/LV-1-r2.json');
 });
 for (const [label, change, expected] of [
   ['unmerged PR', { pr: { merged: false } }, 409],
@@ -199,11 +223,12 @@ for (const [label, change, expected] of [
   const f = releaseFixture(change);
   const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', {}, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, expected);
-  assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_publish_build')));
+  assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_publish_build_v2')));
 });
 
 void test('module HTML is served only with an opaque CSP and no caching', async () => {
-  const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet }, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html>module</html>' }, hash: 'b'.repeat(64) }) } });
+  const hash = 'b'.repeat(64);
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet }, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html>module</html>' }, hash }) } });
   const response = await f.load('app/api/modules/[id]/route.ts').GET(f.request('/api/modules/LV-1', {}, { signed: true, method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-security-policy'), /^sandbox allow-scripts;/);
@@ -211,7 +236,7 @@ void test('module HTML is served only with an opaque CSP and no caching', async 
   assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
 });
 void test('a modified published module cannot silently execute for a citizen', async () => {
-  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1' }]) : call.url.includes('landville_build_jobs?') ? json([{ state: 'RELEASED', content_hash: 'b'.repeat(64) }]) : undefined, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html>module</html>' }, hash: 'c'.repeat(64) }) } });
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ artifact_path: 'city-modules/LV-1.json', artifact_hash: 'b'.repeat(64) }]) : undefined, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html>module</html>' }, hash: 'c'.repeat(64) }) } });
   const response = await f.load('app/api/modules/[id]/route.ts').GET(f.request('/api/modules/LV-1', {}, { signed: true, method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 409);
 });
@@ -273,7 +298,7 @@ void test('Town history is public but always excludes private messages', async (
 });
 void test('published World previews are public, static and cannot run module scripts', async () => {
   const hash = 'b'.repeat(64);
-  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1' }]) : call.url.includes('landville_build_jobs?') ? json([{ state: 'RELEASED', content_hash: hash }]) : undefined, {}, {
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
     '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html><style>body{color:lime}</style><body>preview<script>globalThis.compromised=true</script></body></html>' }, hash }) },
   });
   const response = await f.load('app/api/modules/[id]/preview/route.ts').GET(f.request('/api/modules/LV-1/preview', {}, { method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });

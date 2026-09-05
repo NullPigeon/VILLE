@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { runWorker, artifactFor, extractOutput, reviewedArtifactFor } from '../scripts/build-worker.mjs';
-import { MODULE_CSP, validateModule, validateSpec, validProposalId } from '../lib/build-contract.ts';
+import { MODULE_CSP, artifactPathFor, validateModule, validateSpec, validProposalId } from '../lib/build-contract.ts';
 
 const html = '<!doctype html><html><head><title>Town counter</title></head><body><button id="count">Count</button><script>let count = 0; document.querySelector("button").onclick = () => { document.querySelector("button").textContent = String(++count); };</script></body></html>';
 const spec = { version: 1, runtime: 'sandbox-html', goal: 'A counter for the citizens of town.', acceptance: ['Clicking Count increases the displayed count.'], constraints: 'No persistent state.' };
-const work = { title: 'Town counter', job: { proposal_id: 'LV-1', lease_id: '11111111-1111-4111-8111-111111111111', attempt: 1, branch: 'codex/build-lv-1-1', spec } };
+const work = { title: 'Town counter', job: { proposal_id: 'LV-1', lease_id: '11111111-1111-4111-8111-111111111111', attempt: 1, revision: 1, branch: 'codex/build-lv-1-1', spec } };
 const sha = 'a'.repeat(40);
 const baseSha = 'b'.repeat(40);
 const env = { LANDVILLE_SITE_URL: 'https://town.example', LANDVILLE_WORKER_SECRET: 'w'.repeat(40), LANDVILLE_BUILDER_ENABLED: 'true', LANDVILLE_BUILDER_MODEL: 'configured-test-model', LANDVILLE_GITHUB_WRITE_TOKEN: 'github-test-only', OPENAI_API_KEY: 'openai-test-only' };
@@ -36,6 +36,9 @@ void test('module contract rejects traversal, alternate runtime and missing acce
   assert.throws(() => validateSpec({ ...spec, runtime: 'node' }));
   assert.throws(() => validateSpec({ ...spec, acceptance: [] }));
   assert.throws(() => validateSpec({ ...spec, acceptance: ['x'] }));
+  assert.equal(artifactPathFor('LV-1', 1), 'city-modules/LV-1.json');
+  assert.equal(artifactPathFor('LV-1', 2), 'city-modules/LV-1-r2.json');
+  assert.throws(() => artifactPathFor('LV-1', 100));
 });
 void test('artifact is deterministic and contains only the scoped module contract', () => {
   const first = artifactFor(work, { html, path: '../../app/api/auth/route.ts', command: 'exfiltrate' });
@@ -81,6 +84,12 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   assert.equal(ai.body.store, false); assert.equal(ai.body.text.format.strict, true);
   assert.deepEqual(ai.body.tools, [{ type: 'web_search_preview', search_context_size: 'low' }]);
   assert.ok(!JSON.stringify(ai.body).includes(env.LANDVILLE_GITHUB_WRITE_TOKEN));
+});
+void test('a corrective revision writes a new immutable artifact path', async () => {
+  const revised = { ...work, job: { ...work.job, attempt: 2, revision: 2, branch: 'codex/build-lv-1-2' } };
+  const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: revised }) : undefined);
+  assert.equal((await runWorker(env, f.http)).state, 'REVIEW');
+  assert.equal(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].path, 'city-modules/LV-1-r2.json');
 });
 void test('disabled builder only finalizes votes and makes no AI/GitHub requests', async () => {
   const f = harness();

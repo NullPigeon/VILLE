@@ -1,4 +1,5 @@
 import 'server-only';
+import { artifactPathFor } from '@/lib/build-contract';
 import { ApiError } from '@/lib/server/api';
 import { BUILD_REPOSITORY, githubRead, readJob } from '@/lib/server/builds';
 import { readCityModule } from '@/lib/server/city-module';
@@ -18,9 +19,14 @@ async function vercel<T>(path: string): Promise<T> {
 
 export async function publishVerifiedBuild(id: string, actor: string) {
   const job = await readJob(id);
+  const artifactPath = artifactPathFor(id, job.revision);
   if (job.state === 'RELEASED') {
-    const rows = await database(`landville_proposals?select=*&id=eq.${id}&limit=1`);
-    return (rows as unknown[])[0];
+    const [rows, objects] = await Promise.all([
+      database(`landville_proposals?select=*&id=eq.${id}&limit=1`),
+      database<Array<{ artifact_path: string; artifact_hash: string }>>(`landville_objects?select=artifact_path,artifact_hash&proposal_id=eq.${id}&limit=1`),
+    ]);
+    if (objects[0]?.artifact_path === artifactPath && objects[0]?.artifact_hash === job.content_hash) return (rows as unknown[])[0];
+    throw new ApiError(409, 'Published revision metadata does not match the builder job.');
   }
   if (job.state !== 'REVIEW' || !job.commit_sha || !job.content_hash || !job.pr_number) throw new ApiError(409, 'A completed builder PR is required.');
   const deploymentId = process.env.VERCEL_DEPLOYMENT_ID;
@@ -35,12 +41,12 @@ export async function publishVerifiedBuild(id: string, actor: string) {
     githubRead<Array<{ filename: string; status: string }>>(`pulls/${job.pr_number}/files?per_page=100`),
     vercel<{ id: string; projectId: string; target: string; readyState: string; gitSource?: { sha: string }; meta?: { githubCommitSha?: string } }>(`v13/deployments/${encodeURIComponent(deploymentId)}?withGitRepoInfo=true`),
     vercel<{ deploymentId: string; projectId: string; redirect?: string }>(`v4/aliases/${encodeURIComponent(origin.hostname)}`),
-    readCityModule(id),
+    readCityModule(id, artifactPath),
   ]);
   if (!pr.merged || pr.base.ref !== 'main' || pr.base.repo.full_name.toLowerCase() !== BUILD_REPOSITORY.toLowerCase() || pr.head.repo.full_name.toLowerCase() !== BUILD_REPOSITORY.toLowerCase() || pr.head.sha !== job.commit_sha || pr.head.ref !== job.branch) throw new ApiError(409, 'Merge the reviewed, unchanged builder PR into main first.');
-  if (files.length !== 1 || files[0].filename !== `city-modules/${id}.json` || files[0].status !== 'added') throw new ApiError(409, 'The builder PR contains changes outside its module.');
+  if (files.length !== 1 || files[0].filename !== artifactPath || files[0].status !== 'added') throw new ApiError(409, 'The builder PR contains changes outside its module revision.');
   if (!checks.check_runs.some((check) => check.name === 'City checks' && check.app.slug === 'github-actions' && check.status === 'completed' && check.conclusion === 'success')) throw new ApiError(409, 'The City checks workflow must pass on the exact builder commit.');
   if (deployment.id !== deploymentId || deployment.projectId !== projectId || deployment.target !== 'production' || deployment.readyState !== 'READY' || alias.deploymentId !== deploymentId || alias.projectId !== projectId || alias.redirect ||
     (deployment.gitSource?.sha || deployment.meta?.githubCommitSha) !== deployedSha || pr.merge_commit_sha !== deployedSha || artifact.hash !== job.content_hash) throw new ApiError(409, 'The active production deployment must match this merged PR and module artifact.');
-  return rpc('landville_publish_build', { p_id: id, p_actor: actor, p_sha: job.commit_sha, p_hash: artifact.hash, p_release: `${deploymentId}:${deployedSha}` });
+  return rpc('landville_publish_build_v2', { p_id: id, p_actor: actor, p_sha: job.commit_sha, p_hash: artifact.hash, p_artifact_path: artifactPath, p_release: `${deploymentId}:${deployedSha}` });
 }

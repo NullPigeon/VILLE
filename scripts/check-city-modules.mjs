@@ -1,12 +1,16 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import vm from 'node:vm';
-import { validateModule } from '../lib/build-contract.ts';
+import { artifactPathFor, validateModule } from '../lib/build-contract.ts';
 
 // Parse script syntax without executing it. Functional acceptance is human review.
 for (const file of await readdir('city-modules')) {
   if (!file.endsWith('.json')) continue;
-  const id = file.slice(0, -5);
+  const match = /^(LV-[1-9][0-9]{0,15})(?:-r([2-9][0-9]?))?\.json$/.exec(file);
+  if (!match) throw new Error(`Invalid city module filename: ${file}`);
+  const id = match[1];
+  const revision = match[2] ? Number(match[2]) : 1;
+  if (`city-modules/${file}` !== artifactPathFor(id, revision)) throw new Error(`Invalid city module revision path: ${file}`);
   const raw = await readFile(join('city-modules', file), 'utf8');
   if (raw.length > 150_000) throw new Error(`Oversized module ${id}`);
   const artifactModule = validateModule(JSON.parse(raw), id);

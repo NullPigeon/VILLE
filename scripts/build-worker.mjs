@@ -1,7 +1,7 @@
 // Trusted controller: model output is JSON data. No generated commands/imports.
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { validateModule, validateSpec, validProposalId } from '../lib/build-contract.ts';
+import { artifactPathFor, validateModule, validateSpec, validProposalId } from '../lib/build-contract.ts';
 
 const repository = 'NullPigeon/VILLE';
 const schema = { type: 'object', properties: { html: { type: 'string' } }, required: ['html'], additionalProperties: false };
@@ -44,7 +44,7 @@ export async function runWorker(env = process.env, http = fetch) {
   const { work } = await town({ action: tickOnly ? 'TICK' : 'CLAIM' });
   if (!work) return { state: 'IDLE' };
   const job = work.job;
-  if (!validProposalId(job.proposal_id) || !/^[0-9a-f-]{36}$/.test(job.lease_id) || !Number.isInteger(job.attempt) || job.attempt < 1 || job.attempt > 3 || job.branch !== `codex/build-${job.proposal_id.toLowerCase()}-${job.attempt}`) throw new Error('Invalid server job.');
+  if (!validProposalId(job.proposal_id) || !/^[0-9a-f-]{36}$/.test(job.lease_id) || !Number.isInteger(job.attempt) || job.attempt < 1 || job.attempt > 3 || !Number.isInteger(job.revision) || job.revision < 1 || job.revision > 99 || job.branch !== `codex/build-${job.proposal_id.toLowerCase()}-${job.attempt}`) throw new Error('Invalid server job.');
   try {
     const spec = validateSpec(job.spec);
     const base = await gh('git/ref/heads/main', undefined, 'GET');
@@ -66,13 +66,14 @@ export async function runWorker(env = process.env, http = fetch) {
     }, 'POST', 180_000);
     const reviewed = reviewedArtifactFor(work, extractOutput(review));
     const artifact = reviewed.artifact;
+    const artifactPath = artifactPathFor(job.proposal_id, job.revision);
     // Fixed path, fixed mode and exactly one file. Never accept a path from the model.
-    const tree = await gh('git/trees', { base_tree: commit.tree.sha, tree: [{ path: `city-modules/${job.proposal_id}.json`, mode: '100644', type: 'blob', content: artifact.content }] });
-    const created = await gh('git/commits', { message: `Build ${job.proposal_id}: sandbox city module`, tree: tree.sha, parents: [base.object.sha],
+    const tree = await gh('git/trees', { base_tree: commit.tree.sha, tree: [{ path: artifactPath, mode: '100644', type: 'blob', content: artifact.content }] });
+    const created = await gh('git/commits', { message: `Build ${job.proposal_id} revision ${job.revision}: sandbox city module`, tree: tree.sha, parents: [base.object.sha],
       author: { name: 'NullPigeon', email: '13721352+NullPigeon@users.noreply.github.com' } });
     await gh('git/refs', { ref: `refs/heads/${job.branch}`, sha: created.sha });
     const pr = await gh('pulls', { title: `Build ${job.proposal_id}: ${work.title}`, head: job.branch, base: 'main', draft: false,
-      body: `## Reviewed city module\n\nProposal: ${job.proposal_id}\n\nThe builder changed only city-modules/${job.proposal_id}.json. Generated code was not executed by the credentialed worker.\n\n### Human acceptance checks\n\n${spec.acceptance.map((item, index) => `- [ ] ${item}\n  - AI preflight: ${reviewed.report[index]}`).join('\n')}\n\nRequire City checks, inspect the source and test every acceptance check before merging. AI preflight is not approval. No automatic merge. After production deployment, use VERIFY PRODUCTION RELEASE in Build Control.\n\nArtifact SHA-256: ${artifact.hash}` });
+      body: `## Reviewed city module\n\nProposal: ${job.proposal_id}\nRevision: ${job.revision}\n\nThe builder changed only ${artifactPath}. Generated code was not executed by the credentialed worker.\n\n### Human acceptance checks\n\n${spec.acceptance.map((item, index) => `- [ ] ${item}\n  - AI preflight: ${reviewed.report[index]}`).join('\n')}\n\nRequire City checks, inspect the source and test every acceptance check before merging. AI preflight is not approval. No automatic merge. After production deployment, use VERIFY PRODUCTION RELEASE in Build Control.\n\nArtifact SHA-256: ${artifact.hash}` });
     // Retry only this idempotent receipt, not code generation or PR creation.
     let delivered = false;
     for (let attempt = 0; attempt < 3 && !delivered; attempt++) {
