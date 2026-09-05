@@ -271,6 +271,17 @@ void test('Town history is public but always excludes private messages', async (
   assert.equal(response.status, 200);
   assert.ok(f.calls[0].url.includes('channel=eq.TOWN&owner_wallet=is.null'));
 });
+void test('published World previews are public, static and cannot run module scripts', async () => {
+  const hash = 'b'.repeat(64);
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1' }]) : call.url.includes('landville_build_jobs?') ? json([{ state: 'RELEASED', content_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html><style>body{color:lime}</style><body>preview<script>globalThis.compromised=true</script></body></html>' }, hash }) },
+  });
+  const response = await f.load('app/api/modules/[id]/preview/route.ts').GET(f.request('/api/modules/LV-1/preview', {}, { method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.doesNotMatch(await response.text(), /<script/i);
+  assert.match(response.headers.get('content-security-policy'), /^sandbox;.*script-src 'none'/);
+  assert.equal(f.calls.filter((call) => call.url.includes('landville_objects?')).length, 1);
+});
 
 void test('Town state settles expired votes without claiming or running a build', async () => {
   const f = fixture((call) => call.url.endsWith('/rpc/landville_claim_build') ? json(null) : undefined, {

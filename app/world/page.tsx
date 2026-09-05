@@ -32,16 +32,18 @@ export default function WorldPage() {
     >
       <section className="world-canvas world-stage world-blank-canvas" aria-label="Interactive empty LANDVILLE world">
         {objects.map((object) => (
-          <button
+          <article
             key={object.id}
-            className={selectedId === object.id ? 'world-beacon selected' : 'world-beacon'}
+            className={selectedId === object.id ? 'world-object-card selected' : 'world-object-card'}
             style={{ left: `${object.x}%`, top: `${object.y}%` }}
-            onClick={() => inspectObject(object.id)}
-            aria-label={`Inspect ${object.title}`}
           >
-            <span className="world-beacon-icon"><Building2 /></span>
-            <span className="world-beacon-label"><strong>{object.title}</strong><small>{object.creator}</small></span>
-          </button>
+            <div className="world-object-preview" aria-hidden="true">
+              <Building2 />
+              <iframe title={`${object.title} static preview`} src={`/api/modules/${encodeURIComponent(object.id)}/preview`} sandbox="" loading="lazy" referrerPolicy="no-referrer" tabIndex={-1} />
+            </div>
+            <div className="world-object-label"><strong>{object.title}</strong><small>{object.creator}</small></div>
+            <button onClick={() => inspectObject(object.id)} aria-label={`Inspect ${object.title}`} />
+          </article>
         ))}
 
         {drawerOpen && <button className="world-drawer-scrim" onClick={() => setDrawerOpen(false)} aria-label="Close object menu" />}
