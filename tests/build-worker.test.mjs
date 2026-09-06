@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runWorker, artifactFor, extractOutput, reviewedArtifactFor } from '../scripts/build-worker.mjs';
+import { runWorker, artifactFor, extractOutput, materializeGeneratedAsset, reviewedArtifactFor } from '../scripts/build-worker.mjs';
 import { MODULE_CSP, artifactPathFor, validateModule, validateSpec, validProposalId } from '../lib/build-contract.ts';
 
 const html = '<!doctype html><html><head><title>Town counter</title></head><body><button id="count">Count</button><script>let count = 0; document.querySelector("button").onclick = () => { document.querySelector("button").textContent = String(++count); };</script></body></html>';
@@ -10,6 +10,10 @@ const sha = 'a'.repeat(40);
 const baseSha = 'b'.repeat(40);
 const env = { LANDVILLE_SITE_URL: 'https://town.example', LANDVILLE_WORKER_SECRET: 'w'.repeat(40), LANDVILLE_BUILDER_ENABLED: 'true', LANDVILLE_BUILDER_MODEL: 'configured-test-model', LANDVILLE_GITHUB_WRITE_TOKEN: 'github-test-only', OPENAI_API_KEY: 'openai-test-only' };
 const acceptanceReport = ['The Count control increments the visible total in the inline script.'];
+const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
+const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport };
+const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==' };
+const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 function harness(override = () => undefined) {
   const calls = [];
@@ -19,7 +23,7 @@ function harness(override = () => undefined) {
     const other = override(call, calls);
     if (other) return other;
     if (url.endsWith('/api/internal/builds')) return json(call.body.action === 'CLAIM' ? { work } : { work: null });
-    if (url.includes('api.openai.com')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(calls.filter((entry) => entry.url.includes('api.openai.com')).length === 1 ? { html } : { html, acceptanceReport }) }] }] });
+    if (url.includes('api.openai.com')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(calls.filter((entry) => entry.url.includes('api.openai.com')).length === 1 ? { html } : reviewResult) }] }] });
     if (url.endsWith('git/ref/heads/main')) return json({ object: { sha: baseSha } });
     if (url.endsWith(`git/commits/${baseSha}`)) return json({ tree: { sha: baseSha } });
     if (url.endsWith('git/trees')) return json({ sha: baseSha });
@@ -49,8 +53,15 @@ void test('artifact is deterministic and contains only the scoped module contrac
   assert.match(first.hash, /^[a-f0-9]{64}$/);
 });
 void test('reviewed artifacts require one evidence statement per acceptance check', () => {
-  assert.equal(reviewedArtifactFor(work, { html, acceptanceReport }).report[0], acceptanceReport[0]);
-  assert.throws(() => reviewedArtifactFor(work, { html, acceptanceReport: [] }));
+  assert.equal(reviewedArtifactFor(work, reviewResult).report[0], acceptanceReport[0]);
+  assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, acceptanceReport: [] }));
+  assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, designGate: 'FAIL' }));
+});
+void test('one generated image is materialized only at the fixed marker', () => {
+  const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
+  assert.match(materializeGeneratedAsset(marked, 'dGVzdA=='), /src="data:image\/png;base64,dGVzdA=="/);
+  assert.throws(() => materializeGeneratedAsset(html, 'dGVzdA=='));
+  assert.throws(() => materializeGeneratedAsset(marked, null));
 });
 void test('frames, forms, refresh and cross-proposal artifacts are rejected', () => {
   const record = JSON.parse(artifactFor(work, { html }).content);
@@ -69,7 +80,7 @@ void test('incomplete output and refusals do not become modules', () => {
 });
 void test('worker creates one scoped commit and PR, never merges or writes main', async () => {
   const f = harness();
-  assert.deepEqual(await runWorker(env, f.http), { state: 'REVIEW', id: 'LV-1', pr: 42 });
+  assert.deepEqual(await worker(env, f.http), { state: 'REVIEW', id: 'LV-1', pr: 42 });
   const tree = f.calls.find((call) => call.url.endsWith('git/trees')).body;
   assert.equal(tree.tree.length, 1);
   assert.equal(tree.tree[0].path, 'city-modules/LV-1.json');
@@ -82,31 +93,51 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   const ai = f.calls.find((call) => call.url.includes('api.openai.com'));
   assert.equal(f.calls.filter((call) => call.url.includes('api.openai.com')).length, 2);
   assert.equal(ai.body.store, false); assert.equal(ai.body.text.format.strict, true);
-  assert.deepEqual(ai.body.tools, [{ type: 'web_search_preview', search_context_size: 'low' }]);
+  assert.deepEqual(ai.body.tools, [{ type: 'web_search_preview', search_context_size: 'medium' }, { type: 'image_generation' }]);
+  assert.equal(ai.body.input[0].content[1].type, 'input_image');
+  assert.ok(ai.body.input[0].content[0].text.includes('LANDVILLE test context'));
   assert.ok(!JSON.stringify(ai.body).includes(env.LANDVILLE_GITHUB_WRITE_TOKEN));
+});
+void test('generated artwork is shown to the reviewer and embedded only after review', async () => {
+  const markedHtml = html.replace('<body>', '<body><img data-landville-generated-asset alt="Town artwork">');
+  const image = Buffer.alloc(100, 1).toString('base64');
+  let aiCalls = 0;
+  const f = harness((call) => {
+    if (!call.url.includes('api.openai.com')) return undefined;
+    aiCalls += 1;
+    return aiCalls === 1
+      ? json({ status: 'completed', output: [{ type: 'image_generation_call', result: image }, { content: [{ type: 'output_text', text: JSON.stringify({ html: markedHtml }) }] }] })
+      : json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ ...reviewResult, html: markedHtml }) }] }] });
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  const reviewCall = f.calls.filter((call) => call.url.includes('api.openai.com'))[1];
+  assert.equal(reviewCall.body.input[0].content.filter((item) => item.type === 'input_image').length, 2);
+  const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
+  assert.match(artifact.html, new RegExp(`src="data:image/png;base64,${image}"`));
+  assert.doesNotMatch(artifact.html, /data-landville-generated-asset/);
 });
 void test('a corrective revision writes a new immutable artifact path', async () => {
   const revised = { ...work, job: { ...work.job, attempt: 2, revision: 2, branch: 'codex/build-lv-1-2' } };
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: revised }) : undefined);
-  assert.equal((await runWorker(env, f.http)).state, 'REVIEW');
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
   assert.equal(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].path, 'city-modules/LV-1-r2.json');
 });
 void test('disabled builder only finalizes votes and makes no AI/GitHub requests', async () => {
   const f = harness();
-  assert.deepEqual(await runWorker({ ...env, LANDVILLE_BUILDER_ENABLED: 'false', OPENAI_API_KEY: '' }, f.http), { state: 'IDLE' });
+  assert.deepEqual(await worker({ ...env, LANDVILLE_BUILDER_ENABLED: 'false', OPENAI_API_KEY: '' }, f.http), { state: 'IDLE' });
   assert.equal(f.calls.length, 1); assert.equal(f.calls[0].body.action, 'TICK');
 });
 void test('idle queue makes no paid model request', async () => {
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: null }) : undefined);
-  assert.equal((await runWorker(env, f.http)).state, 'IDLE'); assert.equal(f.calls.length, 1);
+  assert.equal((await worker(env, f.http)).state, 'IDLE'); assert.equal(f.calls.length, 1);
 });
 void test('missing credentials fail before claiming work', async () => {
   const f = harness();
-  await assert.rejects(runWorker({ ...env, OPENAI_API_KEY: '' }, f.http)); assert.equal(f.calls.length, 0);
+  await assert.rejects(worker({ ...env, OPENAI_API_KEY: '' }, f.http)); assert.equal(f.calls.length, 0);
 });
 void test('model failure records a failed attempt, never a fake successful build', async () => {
   const f = harness((call) => call.url.includes('api.openai.com') ? json({ secret: 'must not leak' }, 429) : undefined);
-  await assert.rejects(runWorker(env, f.http), /operator review/);
+  await assert.rejects(worker(env, f.http), /operator review/);
   assert.equal(f.calls.at(-1).body.action, 'FAIL');
   assert.ok(!f.calls.some((call) => call.url.endsWith('git/trees')));
   assert.ok(!JSON.stringify(f.calls.at(-1).body).includes('must not leak'));
@@ -114,17 +145,17 @@ void test('model failure records a failed attempt, never a fake successful build
 void test('receipt retries do not create duplicate commits or PRs', async () => {
   let attempts = 0;
   const f = harness((call) => call.body?.action === 'COMPLETE' && attempts++ < 2 ? json({}, 503) : undefined);
-  assert.equal((await runWorker(env, f.http)).state, 'REVIEW');
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
   assert.equal(f.calls.filter((call) => call.url.endsWith('pulls')).length, 1);
   assert.equal(f.calls.filter((call) => call.body?.action === 'COMPLETE').length, 3);
 });
 void test('invalid module output never reaches GitHub writes', async () => {
   const f = harness((call) => call.url.includes('api.openai.com') ? json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: '{"html":"fake"}' }] }] }) : undefined);
-  await assert.rejects(runWorker(env, f.http));
+  await assert.rejects(worker(env, f.http));
   assert.ok(!f.calls.some((call) => call.url.includes('api.github.com') && call.method === 'POST'));
 });
 void test('untrusted job cannot choose a repository branch', async () => {
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: { ...work, job: { ...work.job, branch: 'main' } } }) : undefined);
-  await assert.rejects(runWorker(env, f.http), /Invalid server job/);
+  await assert.rejects(worker(env, f.http), /Invalid server job/);
   assert.equal(f.calls.length, 1);
 });

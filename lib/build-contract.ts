@@ -8,6 +8,8 @@ export type BuildJob = {
 };
 export type CityModule = { version: 1; proposalId: string; title: string; html: string; acceptance: string[] };
 
+export const MAX_MODULE_HTML_LENGTH = 7_500_000;
+
 export function validProposalId(id: unknown): id is string { return typeof id === 'string' && /^LV-[1-9][0-9]{0,15}$/.test(id); }
 export function artifactPathFor(id: string, revision: number) {
   if (!validProposalId(id) || !Number.isInteger(revision) || revision < 1 || revision > 99) throw new Error('Invalid city module revision.');
@@ -23,7 +25,7 @@ export function validateSpec(value: unknown): BuildSpec {
 export function validateModule(value: unknown, id: string): CityModule {
   const artifactModule = value as CityModule;
   if (!validProposalId(id) || !artifactModule || artifactModule.version !== 1 || artifactModule.proposalId !== id || typeof artifactModule.title !== 'string' || artifactModule.title.length < 4 || artifactModule.title.length > 80 ||
-    typeof artifactModule.html !== 'string' || artifactModule.html.length < 100 || artifactModule.html.length > 100_000 || !/<html[\s>]/i.test(artifactModule.html) || !/<\/html\s*>/i.test(artifactModule.html) ||
+    typeof artifactModule.html !== 'string' || artifactModule.html.length < 100 || artifactModule.html.length > MAX_MODULE_HTML_LENGTH || !/<html[\s>]/i.test(artifactModule.html) || !/<\/html\s*>/i.test(artifactModule.html) ||
     !Array.isArray(artifactModule.acceptance) || artifactModule.acceptance.length < 1 || artifactModule.acceptance.length > 10 || artifactModule.acceptance.some((item) => typeof item !== 'string' || item.length > 300)) throw new Error('Invalid city module artifact.');
   // This check is hygiene, not the security boundary. The HTTP CSP + opaque iframe are.
   if (/<(?:iframe|object|embed|base|form)\b/i.test(artifactModule.html) || /http-equiv\s*=\s*["']?refresh/i.test(artifactModule.html)) throw new Error('Unsupported module capability.');
