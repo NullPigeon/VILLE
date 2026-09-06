@@ -82,7 +82,7 @@ export async function runWorker(env = process.env, http = fetch, contextLoader =
       input: builderInput(JSON.stringify(project), context),
       tools: [{ type: 'web_search_preview', search_context_size: 'medium' }, { type: 'image_generation' }], tool_choice: 'auto',
       text: { format: { type: 'json_schema', name: 'city_module', strict: true, schema } },
-    }, 'POST', 180_000);
+    }, 'POST', 300_000);
     const draft = extractOutput(response);
     artifactFor(work, draft);
     const generatedAsset = draft.generatedImage ? `data:image/png;base64,${draft.generatedImage}` : null;
@@ -92,7 +92,7 @@ export async function runWorker(env = process.env, http = fetch, contextLoader =
       input: builderInput(JSON.stringify({ ...project, draftHtml: draft.html, generatedArtworkSupplied: Boolean(generatedAsset) }), context, generatedAsset ? [generatedAsset] : []),
       tools: [{ type: 'image_generation' }], tool_choice: 'auto',
       text: { format: { type: 'json_schema', name: 'reviewed_city_module', strict: true, schema: reviewSchema } },
-    }, 'POST', 180_000);
+    }, 'POST', 300_000);
     const reviewedOutput = extractOutput(review);
     const reviewed = reviewedArtifactFor(work, reviewedOutput, reviewedOutput.generatedImage || draft.generatedImage);
     const artifact = reviewed.artifact;
