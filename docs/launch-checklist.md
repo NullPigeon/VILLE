@@ -124,7 +124,7 @@ Redeploy the latest main commit after setting variables and applying migration 0
 To propose a build, select **PREPARE MY PROPOSAL** on your own public message, review
 the editable draft and explicitly confirm. Discussion alone never opens voting.
 Every citizen can propose without tokens, with at most two active requests. The
-12-hour vote rule remains.
+2-hour vote rule remains.
 
 ## 4. Builder is a separate activation
 

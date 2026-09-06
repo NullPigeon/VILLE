@@ -21,7 +21,7 @@ A shared digital town that grows through citizen proposals and votes. Approved i
 1. Discuss an idea in Town Chat. Ask Scrapy to help define what it does.
 2. When Scrapy has produced a complete plan, select **REVIEW & PROPOSE** and confirm it.
 3. The server verifies that the plan belongs to your public conversation and that you have an available proposal slot.
-4. A **12-hour vote** opens. YES must exceed NO; ties and no-vote results are rejected. Multiple proposals can run at once.
+4. A **2-hour vote** opens. YES must exceed NO; ties and no-vote results are rejected. Multiple proposals can run at once.
 5. Approved proposals enter a sequential build queue, ordered by voting deadline. An operator reviews the specification and acceptance checks.
 6. When enabled, the builder generates a module, commits it to a separate branch and opens a pull request.
 7. A human reviews the code and tests, merges the PR and deploys it. Verified production release adds the object to the World and records the update in Town Chat.
