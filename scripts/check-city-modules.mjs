@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import vm from 'node:vm';
-import { artifactPathFor, validateModule } from '../lib/build-contract.ts';
+import { artifactPathFor, MAX_MODULE_ARTIFACT_LENGTH, validateModule } from '../lib/build-contract.ts';
 
 // Parse script syntax without executing it. Functional acceptance is human review.
 for (const file of await readdir('city-modules')) {
@@ -12,7 +12,7 @@ for (const file of await readdir('city-modules')) {
   const revision = match[2] ? Number(match[2]) : 1;
   if (`city-modules/${file}` !== artifactPathFor(id, revision)) throw new Error(`Invalid city module revision path: ${file}`);
   const raw = await readFile(join('city-modules', file), 'utf8');
-  if (raw.length > 150_000) throw new Error(`Oversized module ${id}`);
+  if (raw.length > MAX_MODULE_ARTIFACT_LENGTH) throw new Error(`Oversized module ${id}`);
   const artifactModule = validateModule(JSON.parse(raw), id);
   for (const match of artifactModule.html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
     if (/\bsrc\s*=|\btype\s*=/i.test(match[1])) throw new Error(`Only classic inline scripts are supported: ${id}`);

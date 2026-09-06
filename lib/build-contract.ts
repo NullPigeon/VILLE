@@ -9,6 +9,7 @@ export type BuildJob = {
 export type CityModule = { version: 1; proposalId: string; title: string; html: string; acceptance: string[] };
 
 export const MAX_MODULE_HTML_LENGTH = 7_500_000;
+export const MAX_MODULE_ARTIFACT_LENGTH = MAX_MODULE_HTML_LENGTH + 10_000;
 
 export function validProposalId(id: unknown): id is string { return typeof id === 'string' && /^LV-[1-9][0-9]{0,15}$/.test(id); }
 export function artifactPathFor(id: string, revision: number) {
