@@ -13,7 +13,7 @@ jobs:
     # Opt-in only; pushing this workflow alone does not start paid AI requests.
     if: vars.LANDVILLE_SCHEDULER_ENABLED == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
         with:
