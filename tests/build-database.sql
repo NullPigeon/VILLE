@@ -18,6 +18,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/009_versioned_module_rebuilds.sql
 \ir ../supabase/migrations/20260906071102_reference_grounded_builder_recovery.sql
 \ir ../supabase/migrations/20260906072931_recover_lv1_image_timeout.sql
+\ir ../supabase/migrations/20260906075437_rebind_lv1_crop_review.sql
 
 do $$ begin
   if (select citizen_number from public.landville_citizens where wallet='0x' || repeat('e',40)) <> 2 then
