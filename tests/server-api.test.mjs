@@ -164,6 +164,28 @@ void test('released rebuild keeps the voted specification locked', async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(f.calls.at(-1).body, { p_id: 'LV-1', p_actor: wallet });
 });
+void test('a merged but unreleased revision can be rebuilt without publishing it', async () => {
+  const review = { proposal_id: 'LV-1', state: 'REVIEW', attempt: 2, revision: 2, pr_number: 8 };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([review]);
+    if (call.url.endsWith('/pulls/8')) return json({ state: 'closed', merged: true });
+    if (call.url.endsWith('/rpc/landville_prepare_build')) return json({ ...review, state: 'READY' });
+    return undefined;
+  }, { LANDVILLE_ADMIN_WALLETS: wallet, LANDVILLE_GITHUB_READ_TOKEN: 'read-only-test' });
+  const response = await f.load('app/api/admin/build-jobs/[id]/route.ts').POST(f.request('/api/admin/build-jobs/LV-1', { action: 'RETRY' }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.deepEqual(f.calls.at(-1).body, { p_id: 'LV-1', p_actor: wallet, p_spec: null, p_retry: true });
+});
+void test('an open builder PR must be closed or merged before rebuilding', async () => {
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ proposal_id: 'LV-1', state: 'REVIEW', attempt: 2, revision: 2, pr_number: 8 }]);
+    if (call.url.endsWith('/pulls/8')) return json({ state: 'open', merged: false });
+    return undefined;
+  }, { LANDVILLE_ADMIN_WALLETS: wallet, LANDVILLE_GITHUB_READ_TOKEN: 'read-only-test' });
+  const response = await f.load('app/api/admin/build-jobs/[id]/route.ts').POST(f.request('/api/admin/build-jobs/LV-1', { action: 'RETRY' }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 409);
+  assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_prepare_build')));
+});
 void test('only an admin can preview the exact deployed review artifact', async () => {
   const hash = 'b'.repeat(64);
   const f = fixture((call) => call.url.includes('landville_build_jobs?') ? json([{ state: 'REVIEW', revision: 2, content_hash: hash }]) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet }, {
