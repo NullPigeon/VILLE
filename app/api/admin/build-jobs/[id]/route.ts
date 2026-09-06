@@ -23,7 +23,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (previous.state === 'REVIEW') {
         if (!previous.pr_number) throw new ApiError(409, 'No previous PR to reconcile.');
         const pr = await githubRead<{ state: string; merged: boolean }>(`pulls/${previous.pr_number}`);
-        if (pr.state !== 'closed' || pr.merged) throw new ApiError(409, 'Close the unmerged previous PR before rebuilding.');
+        if (pr.state !== 'closed') throw new ApiError(409, 'Close or merge the previous PR before rebuilding.');
       }
     }
     if (action === 'PREPARE') {
