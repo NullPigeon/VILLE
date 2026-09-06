@@ -28,7 +28,11 @@ export async function GET(request: NextRequest) {
         storage = 'reachable; chat provenance and citizen profile columns available';
       } catch { storage = 'unavailable: check credentials and migrations 001–007'; }
     }
-    return NextResponse.json({ storage, sessionConfigured: walletSessionConfigured(), ai: { ...mayorConfiguration(), verified: false },
+    return NextResponse.json({
+      storage,
+      sessionConfigured: walletSessionConfigured(),
+      privyConfigured: Boolean(process.env.NEXT_PUBLIC_PRIVY_APP_ID?.trim() && process.env.PRIVY_APP_SECRET?.trim()),
+      ai: { ...mayorConfiguration(), verified: false },
       builderEnabled: process.env.LANDVILLE_BUILDER_ENABLED === 'true',
       builderConfigurationPresent: Boolean((process.env.LANDVILLE_WORKER_SECRET?.length || 0) >= 32 &&
         process.env.LANDVILLE_BUILD_ACTOR && isAdmin(process.env.LANDVILLE_BUILD_ACTOR) &&

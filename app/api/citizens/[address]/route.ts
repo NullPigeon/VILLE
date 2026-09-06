@@ -9,9 +9,9 @@ import { citizenLabel } from '@/lib/citizen-identity';
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ address: string }> }) {
   try {
     const wallet = (await params).address.toLowerCase();
-    if (!isAddress(wallet)) throw new ApiError(400, 'Invalid wallet address.');
+    if (!isAddress(wallet)) throw new ApiError(400, 'Invalid citizen identity.');
     const citizens = await database<CitizenRow[]>(`landville_citizens?wallet=eq.${wallet}&limit=1`);
-    if (!citizens[0]) throw new ApiError(404, 'No citizen account exists for this wallet yet.');
+    if (!citizens[0]) throw new ApiError(404, 'No citizen account exists for this identity yet.');
     const [proposals, votes, town] = await Promise.all([
       allRows<ProposalRow>(`landville_proposals?creator_wallet=eq.${wallet}&order=created_at.desc,id.desc`),
       allRows<{ proposal_id: string }>(`landville_votes?select=proposal_id&wallet=eq.${wallet}&order=proposal_id.asc`),

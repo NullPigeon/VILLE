@@ -1,5 +1,5 @@
 export const CITIZEN_AVATARS = ['fingerprint', 'hammer', 'radio', 'rocket'] as const;
-export type CitizenIdentity = { wallet: string; citizenNumber: number | null; username: string | null; bio: string; avatar: string };
+export type CitizenIdentity = { wallet: string; linkedWallet: string | null; citizenNumber: number | null; username: string | null; bio: string; avatar: string };
 export function citizenLabel(citizen?: Pick<CitizenIdentity, 'citizenNumber' | 'username'> | null) {
   return citizen?.username ? `@${citizen.username}` : citizen?.citizenNumber ? `Citizen #${citizen.citizenNumber}` : 'Citizen';
 }

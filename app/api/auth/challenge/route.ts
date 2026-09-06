@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     '',
     `Origin: ${request.nextUrl.origin}`,
     `Wallet: ${address}`,
-    'Purpose: prove this citizen file belongs to you.',
+    'Purpose: sign in or attach this wallet to your citizen file.',
     'This request does not create a transaction or spend funds.',
     `Robinhood Chain ID: ${activeRobinhoodChain.id}`,
     `Nonce: ${nonce}`,

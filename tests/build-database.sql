@@ -19,6 +19,50 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260906071102_reference_grounded_builder_recovery.sql
 \ir ../supabase/migrations/20260906072931_recover_lv1_image_timeout.sql
 \ir ../supabase/migrations/20260906075437_rebind_lv1_crop_review.sql
+\ir ../supabase/migrations/20260906123502_allow_two_active_proposals.sql
+\ir ../supabase/migrations/20260906130910_email_otp_citizen_accounts.sql
+
+do $$
+declare
+  email_citizen public.landville_citizens;
+  migrated_email_citizen public.landville_citizens;
+  wallet_citizen public.landville_citizens;
+begin
+  email_citizen := public.landville_claim_privy_citizen(
+    'did:privy:emailcitizen1', 'email@example.com', null, null, '0x' || repeat('9',40));
+  if email_citizen.email <> 'email@example.com' or email_citizen.linked_wallet is not null then
+    raise exception 'Email-first citizen was not created correctly';
+  end if;
+  email_citizen := public.landville_link_citizen_wallet(email_citizen.wallet, '0x' || repeat('8',40));
+  if email_citizen.linked_wallet <> '0x' || repeat('8',40) then raise exception 'Wallet link failed'; end if;
+  begin
+    perform public.landville_link_citizen_wallet(email_citizen.wallet, '0x' || repeat('7',40));
+    raise exception 'Linked wallet was replaceable';
+  exception when raise_exception then if sqlerrm <> 'LINKED_WALLET_IMMUTABLE' then raise; end if; end;
+
+  insert into public.landville_citizens(wallet, email)
+    values ('0x' || repeat('5',40), 'existing@example.com');
+  migrated_email_citizen := public.landville_claim_privy_citizen(
+    'did:privy:existingemail', 'existing@example.com', null, null, '0x' || repeat('4',40));
+  if migrated_email_citizen.wallet <> '0x' || repeat('5',40)
+     or migrated_email_citizen.privy_user_id <> 'did:privy:existingemail' then
+    raise exception 'Existing email citizen was not migrated to Privy';
+  end if;
+
+  wallet_citizen := public.landville_claim_privy_citizen(
+    'did:privy:walletcitizen2', 'wallet@example.com', '0x' || repeat('e',40), '0x' || repeat('e',40), '0x' || repeat('6',40));
+  if wallet_citizen.wallet <> '0x' || repeat('e',40) or wallet_citizen.email <> 'wallet@example.com' then
+    raise exception 'Existing wallet history was not preserved';
+  end if;
+  begin
+    update public.landville_citizens set email='changed@example.com' where wallet=wallet_citizen.wallet;
+    raise exception 'Attached email was replaceable';
+  exception when raise_exception then if sqlerrm <> 'IMMUTABLE_EMAIL_IDENTITY' then raise; end if; end;
+  if has_function_privilege('authenticated','public.landville_claim_privy_citizen(text,text,text,text,text)','EXECUTE') or
+     has_table_privilege('authenticated','public.landville_citizens','SELECT') then
+    raise exception 'Private account identity was exposed to browser roles';
+  end if;
+end $$;
 
 do $$ begin
   if (select citizen_number from public.landville_citizens where wallet='0x' || repeat('e',40)) <> 2 then
@@ -73,7 +117,8 @@ begin
     update public.landville_citizens set username='Test_Builder' where wallet=actor;
     raise exception 'Noncanonical username accepted';
   exception when check_violation then null; end;
-  if (select count(distinct citizen_number) from public.landville_citizens) <> 5 then raise exception 'Citizen numbers collided'; end if;
+  if (select count(distinct citizen_number) from public.landville_citizens) <>
+     (select count(*) from public.landville_citizens) then raise exception 'Citizen numbers collided'; end if;
 end $$;
 do $$
 declare actor text := '0x' || repeat('a',40); request_id uuid := gen_random_uuid(); result public.landville_messages;

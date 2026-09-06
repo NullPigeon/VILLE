@@ -15,6 +15,8 @@ Use separate credentials and a separate database for Preview/staging.
 | `SUPABASE_URL` | `https://eflesgktanzbkuuvhicu.supabase.co` | Config |
 | `SUPABASE_SECRET_KEY` | The project's server secret key | Secret |
 | `WALLET_SESSION_SECRET` | A cryptographically random value, at least 32 characters | Secret |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | The LANDVILLE app ID from Privy | Config (public) |
+| `PRIVY_APP_SECRET` | The LANDVILLE app secret from Privy | Secret |
 | `OPENAI_API_KEY` | A valid API project key with access and billing available | Secret |
 | `OPENAI_MODEL` | `gpt-5.4-mini` (current application default) | Config |
 | `ROBINHOOD_MAINNET_RPC_URL` | `https://rpc.mainnet.chain.robinhood.com`, or a compatible dedicated mainnet RPC | Config, or Secret if it embeds credentials |
@@ -45,6 +47,26 @@ The AI model reference is [OpenAI's model documentation](https://developers.open
 A key being present does not verify model access, quota or a successful response.
 
 ## 2. Database upgrade before deploying this chat release
+
+For Privy email/wallet accounts, apply `20260906130910_email_otp_citizen_accounts.sql`
+before deploying the matching application commit. It preserves existing citizen
+wallet keys and history, adds private Privy/email identifiers, and lets email-first
+citizens attach one verified external wallet later.
+
+In the Privy dashboard, enable **Email** and **Wallet** login methods and add the
+production LANDVILLE domain to the allowed origins. Privy sends and verifies the
+one-time email code; Supabase Auth and custom SMTP are not used by this flow.
+LANDVILLE verifies the Privy access token server-side before issuing its own
+HTTP-only application session.
+
+After applying the migration, verify the private columns and functions exist:
+
+```sql
+select column_name from information_schema.columns
+where table_schema = 'public' and table_name = 'landville_citizens'
+  and column_name in ('privy_user_id','email','linked_wallet')
+order by column_name;
+```
 
 For the citizen cabinet / two-action chat update, if 001–005 are already installed,
 apply **006_citizen_profiles.sql**, then **007_chat_recipient.sql** once each before
@@ -101,7 +123,8 @@ Redeploy the latest main commit after setting variables and applying migration 0
 
 To propose a build, select **PREPARE MY PROPOSAL** on your own public message, review
 the editable draft and explicitly confirm. Discussion alone never opens voting.
-The existing token threshold, one-active-request limit and 12-hour vote rules remain.
+Every citizen can propose without tokens, with at most two active requests. The
+12-hour vote rule remains.
 
 ## 4. Builder is a separate activation
 

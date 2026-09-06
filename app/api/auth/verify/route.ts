@@ -1,9 +1,10 @@
 import { isAddress, verifyMessage } from 'viem';
 import { NextRequest, NextResponse } from 'next/server';
 import { apiFailure, jsonBody, requireMutation } from '@/lib/server/api';
-import { registerCitizen } from '@/lib/server/database';
+import { citizenForLinkedWallet, linkCitizenWallet, registerCitizen } from '@/lib/server/database';
 import {
   CHALLENGE_COOKIE,
+  readWalletSession,
   readWalletChallenge,
   sealWalletSession,
   SESSION_COOKIE,
@@ -31,12 +32,23 @@ export async function POST(request: NextRequest) {
   }).catch(() => false);
   if (!valid) return NextResponse.json({ error: 'Wallet signature is invalid.' }, { status: 401 });
 
-  await registerCitizen(address);
+  const current = readWalletSession(request.cookies.get(SESSION_COOKIE)?.value);
+  let citizen;
+  if (current?.method === 'email') {
+    citizen = await linkCitizenWallet(current.address, address);
+  } else {
+    citizen = await citizenForLinkedWallet(address);
+    if (!citizen) {
+      await registerCitizen(address);
+      citizen = await citizenForLinkedWallet(address) || { wallet: address, linked_wallet: address, privy_user_id: null, email: null };
+    }
+  }
+  const method = current?.method === 'email' ? 'email' : 'wallet';
 
-  const response = NextResponse.json({ address }, { headers: { 'Cache-Control': 'private, no-store' } });
+  const response = NextResponse.json({ address: citizen.wallet, linkedWallet: citizen.linked_wallet, email: citizen.email, method }, { headers: { 'Cache-Control': 'private, no-store' } });
   response.cookies.set(
     SESSION_COOKIE,
-    sealWalletSession({ address, expiresAt: Date.now() + 7 * 24 * 60 * 60_000 }),
+    sealWalletSession({ address: citizen.wallet, method, ...(method === 'email' && citizen.email ? { email: citizen.email } : {}), expiresAt: Date.now() + 7 * 24 * 60 * 60_000 }),
     { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 604_800, path: '/' },
   );
   response.cookies.delete(CHALLENGE_COOKIE);

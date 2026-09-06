@@ -10,7 +10,7 @@ export class ApiError extends Error {
 
 export function requireWallet(request: NextRequest) {
   const session = readWalletSession(request.cookies.get(SESSION_COOKIE)?.value);
-  if (!session) throw new ApiError(401, 'Connect and sign your wallet first.');
+  if (!session) throw new ApiError(401, 'Create or sign in to your citizen account first.');
   return session.address;
 }
 

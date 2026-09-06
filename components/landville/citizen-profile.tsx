@@ -17,6 +17,7 @@ import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import type { CitizenRecord } from '@/lib/landville-data';
 import styles from './citizen-profile.module.css';
 import { SCRAPY_TOKEN, scrapyAccess, scrapyTokenExplorerUrl } from '@/lib/scrapy-token';
+import { EmailOtpForm } from '@/components/landville/email-otp-form';
 
 export function CitizenProfile({ identity }: { identity?: string }) {
   const { voted } = useLandville();
@@ -56,32 +57,35 @@ export function CitizenProfile({ identity }: { identity?: string }) {
     finally { setChecking(false); }
   }
 
-  return <ProductShell title={isOwnWallet ? 'MY CABINET' : requestedWallet ? 'CITIZEN FILE' : 'BECOME A CITIZEN'} eyebrow="YOUR WALLET / YOUR IDEAS / YOUR TOWN">
+  return <ProductShell title={isOwnWallet ? 'MY CABINET' : requestedWallet ? 'CITIZEN FILE' : 'BECOME A CITIZEN'} eyebrow="YOUR ACCOUNT / YOUR IDEAS / YOUR TOWN">
     <div className={styles.page}>
       <section className={styles.intro}>
-        {requestedWallet ? <div>{recordError ? <p role="alert">{recordError}</p> : citizen ? isOwnWallet ? <ProfileEditor key={requestedWallet} citizen={citizen} onSaved={(profile) => setCitizen((previous) => previous?.wallet === profile.wallet ? { ...previous, ...profile } : previous)} /> : <section className={styles.passport}><span className={styles.label}>PUBLIC CITIZEN FILE</span><h3>{citizenLabel(citizen)}</h3><p>{citizen.bio || 'This citizen has not added a bio yet.'}</p><p>Proposals, votes and builds below belong to this wallet.</p></section> : <p>Loading citizen profile…</p>}</div> : <div className={styles.manifesto}>
+        {requestedWallet ? <div>{recordError ? <p role="alert">{recordError}</p> : citizen ? isOwnWallet ? <ProfileEditor key={requestedWallet} citizen={citizen} onSaved={(profile) => setCitizen((previous) => previous?.wallet === profile.wallet ? { ...previous, ...profile } : previous)} /> : <section className={styles.passport}><span className={styles.label}>PUBLIC CITIZEN FILE</span><h3>{citizenLabel(citizen)}</h3><p>{citizen.bio || 'This citizen has not added a bio yet.'}</p><p>Proposals, votes and builds belong to this citizen identity.</p></section> : <p>Loading citizen profile…</p>}</div> : <div className={styles.manifesto}>
           <span className={styles.label}><Fingerprint /> LANDVILLE CITIZENSHIP</span>
           <h2>{requestedWallet ? <>A WALLET.<br />A VOICE.<br /><em>A PLACE HERE.</em></> : <>THIS TOWN<br />WON’T BUILD<br /><em>ITSELF.</em></>}</h2>
           <p>You are not a spectator. You are a citizen: bring an idea, argue for it, vote on what belongs here.</p>
-          <p className={styles.scrapyNote}>“Bring a wallet. The personality is your problem.” <span>— SCRAPY</span></p>
+          <p className={styles.scrapyNote}>“Bring an email. Bring a wallet if you want power.” <span>— SCRAPY</span></p>
         </div>}
         <div className={styles.passport}>
-          <span className={styles.label}><ShieldCheck /> {isOwnWallet ? 'WALLET SIGNED' : requestedWallet ? 'ADDRESS VIEW' : 'YOUR CITIZEN FILE'}</span>
+          <span className={styles.label}><ShieldCheck /> {isOwnWallet ? 'CITIZEN VERIFIED' : requestedWallet ? 'PUBLIC CITIZEN' : 'YOUR CITIZEN FILE'}</span>
           <CitizenAvatar avatar={citizen?.avatar} className={styles.fingerprint} />
           {requestedWallet ? <>
             <h3>{citizen ? citizenLabel(citizen) : shortWallet(requestedWallet)}</h3>
-            {citizen?.citizenNumber && <span className={styles.label}>PERMANENT CITIZEN #{citizen.citizenNumber}</span>}<p className={styles.address}>{requestedWallet}</p>
-            <p>{isOwnWallet ? 'This wallet is your citizen account. Your activity stays with it across devices.' : citizen ? 'Public citizen record. Private archived conversations are never shown here.' : 'Looking up this address in the citizen registry.'}</p>
+            {citizen?.citizenNumber && <span className={styles.label}>PERMANENT CITIZEN #{citizen.citizenNumber}</span>}<p className={styles.address}>{citizen?.linkedWallet || (isOwnWallet ? 'NO WALLET LINKED' : 'EMAIL-BACKED CITIZEN')}</p>
+            <p>{isOwnWallet ? 'Your email or verified wallet opens this same citizen account. Your history stays attached to the citizen.' : citizen ? 'Public citizen record. Private email and archived conversations are never shown here.' : 'Looking up this citizen in the registry.'}</p>
+            {isOwnWallet && wallet.email && <p className={styles.caption}>PERMANENT EMAIL LOGIN · {wallet.email}</p>}
             {citizen && <p className={styles.caption}>CITIZEN SINCE {new Date(citizen.joinedAt).toLocaleDateString()}</p>}
             <div className={styles.actions}>
-              <a className="lv-button" href={`${activeRobinhoodChain.explorerUrl}/address/${requestedWallet}`} target="_blank" rel="noreferrer">VIEW WALLET <ArrowUpRight /></a>
+              {citizen?.linkedWallet && <a className="lv-button" href={`${activeRobinhoodChain.explorerUrl}/address/${citizen.linkedWallet}`} target="_blank" rel="noreferrer">VIEW WALLET <ArrowUpRight /></a>}
+              {isOwnWallet && !wallet.linkedWallet && <Button className="lv-button primary" disabled={wallet.status === 'CONNECTING'} onClick={() => wallet.connectWallet().catch(() => undefined)}><Wallet /> {wallet.status === 'CONNECTING' ? 'CHECK YOUR WALLET…' : 'LINK WALLET'}</Button>}
               {isOwnWallet ? <Button className="lv-button" onClick={() => wallet.disconnectWallet().catch(() => setNotice('Could not sign out. Try again.'))}><LogOut /> SIGN OUT</Button> : <Link className="lv-button" href="/citizens">MY CITIZEN FILE <ArrowUpRight /></Link>}
             </div>
           </> : <>
             <h3>WHO ARE YOU IN LANDVILLE?</h3>
-            <p>Your wallet identifies you. Your proposals, votes and builds give your citizen file a history.</p>
-            <Button className="lv-button primary" disabled={wallet.status === 'CONNECTING'} onClick={() => wallet.connectWallet().catch(() => undefined)}><Wallet /> {wallet.status === 'CONNECTING' ? 'CHECK YOUR WALLET…' : 'CREATE ACCOUNT / SIGN IN'}</Button>
-            <p className={styles.caption}>Use an EVM browser wallet. Sign a message to prove ownership. No payment, transaction or SCRAPY required to sign in.</p>
+            <p>Start with a permanent email login, or continue with an EVM wallet. You can attach a wallet to an email account later.</p>
+            <EmailOtpForm />
+            <Button className="lv-button" disabled={wallet.status === 'CONNECTING'} onClick={() => wallet.connectWallet().catch(() => undefined)}><Wallet /> {wallet.status === 'CONNECTING' ? 'CHECK YOUR WALLET…' : 'CONTINUE WITH WALLET'}</Button>
+            <p className={styles.caption}>Wallet sign-in uses a message signature. It never creates a transaction or spends funds.</p>
           </>}
           <span className={styles.network}>ROBINHOOD MAINNET · {activeRobinhoodChain.id}</span>
         </div>
@@ -89,15 +93,17 @@ export function CitizenProfile({ identity }: { identity?: string }) {
 
       {(notice || wallet.error) && <p className={styles.error} role="alert">{notice || wallet.error}</p>}
 
+      {isOwnWallet && !wallet.email && <EmailOtpForm attach />}
+
       {!requestedWallet && <section className={styles.roles} aria-label="What citizens can do">
         <article><MessageCircle /><span className={styles.label}>01 / JOIN THE CONVERSATION</span><h3>A voice in the town.</h3><p>Everyone shares Town Chat history. Your account gets 10 messages a day without SCRAPY, or 50 with a positive balance, in public Town Chat. Resets at 00:00 UTC.</p><Link href="/chat">OPEN TOWN CHAT <ArrowUpRight /></Link></article>
-        <article><Vote /><span className={styles.label}>02 / DECIDE WHAT BELONGS</span><h3>One wallet. A starting vote.</h3><p>One base vote, plus one for every full 250,000 SCRAPY. Holdings are verified on mainnet when you vote.</p><Link href="/proposals">EXPLORE PROPOSALS <ArrowUpRight /></Link></article>
+        <article><Vote /><span className={styles.label}>02 / DECIDE WHAT BELONGS</span><h3>One citizen. A starting vote.</h3><p>Every citizen gets one base vote. Link a wallet for one additional vote per full 250,000 SCRAPY.</p><Link href="/proposals">EXPLORE PROPOSALS <ArrowUpRight /></Link></article>
         <article><Hammer /><span className={styles.label}>03 / LEAVE SOMETHING BEHIND</span><h3>Give an idea a home.</h3><p>Any citizen may submit through a proposal-ready Scrapy plan in Town Chat. Keep up to two active proposals; a third unlocks after one is built or rejected.</p><Link href="/chat">DISCUSS IN TOWN CHAT <ArrowUpRight /></Link></article>
       </section>}
 
       {isOwnWallet && <section className={styles.holdings} aria-label="Mainnet voting power">
-        <div><span className={styles.label}>{SCRAPY_TOKEN.ticker} / MAINNET HOLDINGS</span><h3>{wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY · ${wallet.snapshot.weight} votes` : 'Your balance hasn’t been checked yet.'}</h3><p>{wallet.snapshot ? `${tokenAccess?.dailyMessageLimit} messages per UTC day · proposal access is open to every citizen. Snapshot at block ${wallet.snapshot.blockNumber}.` : 'Sign-in is complete. Proposals need no token balance; checking holdings only calculates chat access and voting power.'}</p><a className={styles.contract} href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">{SCRAPY_TOKEN.address} <ArrowUpRight /></a></div>
-        <div className={styles.actions}><Button className="lv-button" disabled={checking} onClick={checkHoldings}>{checking ? 'CHECKING…' : 'CHECK VOTING POWER'}</Button><Button className="lv-button" onClick={() => wallet.addScrapyToken().then(() => setNotice('$SCRAPY added to wallet.')).catch((error: Error) => setNotice(error.message))}><WalletCards /> ADD $SCRAPY TO WALLET</Button></div>
+        <div><span className={styles.label}>{SCRAPY_TOKEN.ticker} / MAINNET HOLDINGS</span><h3>{wallet.linkedWallet ? wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY · ${wallet.snapshot.weight} votes` : 'Your balance hasn’t been checked yet.' : 'Link a wallet to add token power.'}</h3><p>{wallet.linkedWallet && wallet.snapshot ? `${tokenAccess?.dailyMessageLimit} messages per UTC day · proposal access is open to every citizen. Snapshot at block ${wallet.snapshot.blockNumber}.` : 'Your citizen account already has base access. A linked wallet adds SCRAPY voting power and holder chat access.'}</p><a className={styles.contract} href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">{SCRAPY_TOKEN.address} <ArrowUpRight /></a></div>
+        <div className={styles.actions}>{wallet.linkedWallet ? <><Button className="lv-button" disabled={checking} onClick={checkHoldings}>{checking ? 'CHECKING…' : 'CHECK VOTING POWER'}</Button><Button className="lv-button" onClick={() => wallet.addScrapyToken().then(() => setNotice('$SCRAPY added to wallet.')).catch((error: Error) => setNotice(error.message))}><WalletCards /> ADD $SCRAPY TO WALLET</Button></> : <Button className="lv-button primary" onClick={() => wallet.connectWallet().catch(() => undefined)}><Wallet /> LINK WALLET</Button>}</div>
       </section>}
 
       {requestedWallet && <section className={styles.records}>

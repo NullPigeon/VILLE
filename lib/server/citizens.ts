@@ -1,9 +1,9 @@
 import 'server-only';
 import { database } from '@/lib/server/database';
 import type { CitizenIdentity } from '@/lib/citizen-identity';
-export type CitizenRow = { wallet: string; joined_at: string; citizen_number?: number; username?: string | null; bio?: string; avatar?: string };
+export type CitizenRow = { wallet: string; linked_wallet?: string | null; joined_at: string; citizen_number?: number; username?: string | null; bio?: string; avatar?: string };
 export function citizenIdentity(row: CitizenRow): CitizenIdentity {
-  return { wallet: row.wallet, citizenNumber: row.citizen_number ?? null, username: row.username ?? null, bio: row.bio || '', avatar: row.avatar || 'fingerprint' };
+  return { wallet: row.wallet, linkedWallet: row.linked_wallet === undefined ? row.wallet : row.linked_wallet, citizenNumber: row.citizen_number ?? null, username: row.username ?? null, bio: row.bio || '', avatar: row.avatar || 'fingerprint' };
 }
 export async function citizenIdentities(wallets: string[]) {
   const unique = [...new Set(wallets.filter((wallet) => /^0x[0-9a-f]{40}$/.test(wallet)))];
