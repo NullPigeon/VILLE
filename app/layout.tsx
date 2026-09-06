@@ -8,6 +8,7 @@ import './world-constructor.css';
 import { LandvilleProvider } from '@/components/landville/provider';
 import { WalletProvider } from '@/components/landville/wallet-provider';
 import { MayorPresence } from '@/components/landville/mayor-presence';
+import { PrivyAuthProvider } from '@/components/landville/privy-auth-provider';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
@@ -33,7 +34,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body><WalletProvider><LandvilleProvider>{children}<MayorPresence /></LandvilleProvider></WalletProvider></body>
+      <body>
+        <PrivyAuthProvider>
+          <WalletProvider>
+            <LandvilleProvider>
+              {children}
+              <MayorPresence />
+            </LandvilleProvider>
+          </WalletProvider>
+        </PrivyAuthProvider>
+      </body>
     </html>
   );
 }

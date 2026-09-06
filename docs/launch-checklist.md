@@ -15,6 +15,8 @@ Use separate credentials and a separate database for Preview/staging.
 | `SUPABASE_URL` | `https://eflesgktanzbkuuvhicu.supabase.co` | Config |
 | `SUPABASE_SECRET_KEY` | The project's server secret key | Secret |
 | `WALLET_SESSION_SECRET` | A cryptographically random value, at least 32 characters | Secret |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | The LANDVILLE app ID from Privy | Config (public) |
+| `PRIVY_APP_SECRET` | The LANDVILLE app secret from Privy | Secret |
 | `OPENAI_API_KEY` | A valid API project key with access and billing available | Secret |
 | `OPENAI_MODEL` | `gpt-5.4-mini` (current application default) | Config |
 | `ROBINHOOD_MAINNET_RPC_URL` | `https://rpc.mainnet.chain.robinhood.com`, or a compatible dedicated mainnet RPC | Config, or Secret if it embeds credentials |
@@ -46,23 +48,23 @@ A key being present does not verify model access, quota or a successful response
 
 ## 2. Database upgrade before deploying this chat release
 
-For email OTP accounts, apply `20260906130910_email_otp_citizen_accounts.sql`
+For Privy email/wallet accounts, apply `20260906130910_email_otp_citizen_accounts.sql`
 before deploying the matching application commit. It preserves existing citizen
-wallet keys and history, adds private email/Auth identifiers, and lets email-first
-citizens attach one verified wallet later.
+wallet keys and history, adds private Privy/email identifiers, and lets email-first
+citizens attach one verified external wallet later.
 
-In Supabase Dashboard open **Authentication → Email Templates → Magic Link** and
-make the message display the six-digit `{{ .Token }}` value. Keep email sign-ups
-enabled. For production delivery configure a project SMTP provider; the built-in
-sender is suitable only for limited testing. LANDVILLE never exposes the Supabase
-secret key or Auth session token to the browser.
+In the Privy dashboard, enable **Email** and **Wallet** login methods and add the
+production LANDVILLE domain to the allowed origins. Privy sends and verifies the
+one-time email code; Supabase Auth and custom SMTP are not used by this flow.
+LANDVILLE verifies the Privy access token server-side before issuing its own
+HTTP-only application session.
 
 After applying the migration, verify the private columns and functions exist:
 
 ```sql
 select column_name from information_schema.columns
 where table_schema = 'public' and table_name = 'landville_citizens'
-  and column_name in ('auth_user_id','email','linked_wallet')
+  and column_name in ('privy_user_id','email','linked_wallet')
 order by column_name;
 ```
 

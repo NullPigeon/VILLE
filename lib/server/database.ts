@@ -10,13 +10,14 @@ const databaseErrors: Record<string, [number, string]> = {
   INVALID_BUILD_SPEC: [400, 'The build specification must match the approved proposal.'],
   HOLD_CHECK_REQUIRED: [409, 'Messages beyond the first 10 require verified SCRAPY holdings.'],
   ACCOUNT_REQUIRED: [401, 'Create or sign in to your citizen account first.'],
-  INVALID_EMAIL_IDENTITY: [400, 'The verified email identity is invalid.'],
+  INVALID_PRIVY_IDENTITY: [400, 'The verified Privy identity is invalid.'],
   EMAIL_IDENTITY_CONFLICT: [409, 'That email is already attached to another citizen account.'],
-  EMAIL_ACCOUNT_REQUIRED: [409, 'Sign in by email before linking a wallet.'],
   INVALID_LINKED_WALLET: [400, 'A valid EVM wallet is required.'],
   LINKED_WALLET_IN_USE: [409, 'That wallet is already attached to another citizen account. Sign in with that wallet instead.'],
   LINKED_WALLET_IMMUTABLE: [409, 'This citizen account already has a wallet attached.'],
   IMMUTABLE_EMAIL_IDENTITY: [409, 'The email attached to this citizen account cannot be changed.'],
+  IMMUTABLE_PRIVY_IDENTITY: [409, 'This citizen account is already attached to another Privy identity.'],
+  PRIVY_ACCOUNT_REQUIRED: [409, 'Sign in with Privy before linking a wallet.'],
   ACTIVE_PROPOSAL_EXISTS: [409, 'You already have an active proposal. Submit another after it is built or rejected.'],
   ACTIVE_PROPOSAL_LIMIT: [409, 'You already have two active proposals. At least one must be built or rejected before submitting another.'],
   BUILD_ALREADY_RUNNING: [409, 'Another build is running. Finish or reject it before starting the next.'],
@@ -35,7 +36,7 @@ const databaseErrors: Record<string, [number, string]> = {
   INVALID_VOTING_RULES: [503, 'Voting rules are not configured.'],
 };
 
-// Server-only HTTP adapter. Supabase Auth verifies email OTPs, while all table
+// Server-only HTTP adapter. Privy verifies users, while all Supabase table
 // access remains behind this service-only application API.
 export async function database<T>(path: string, init: RequestInit = {}): Promise<T> {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -73,7 +74,7 @@ export async function enforceRate(wallet: string, action: string, limit: number)
   if (!allowed) throw new ApiError(429, 'Too many requests. Wait a minute and try again.');
 }
 
-export type CitizenAccountRow = { wallet: string; linked_wallet: string | null; auth_user_id: string | null; email: string | null };
+export type CitizenAccountRow = { wallet: string; linked_wallet: string | null; privy_user_id: string | null; email: string | null };
 
 export async function registerCitizen(wallet: string) {
   await database('landville_citizens?on_conflict=wallet', {
@@ -82,19 +83,25 @@ export async function registerCitizen(wallet: string) {
 }
 
 export async function citizenAccount(wallet: string) {
-  const rows = await database<CitizenAccountRow[]>(`landville_citizens?select=wallet,linked_wallet,auth_user_id,email&wallet=eq.${wallet}&limit=1`);
+  const rows = await database<CitizenAccountRow[]>(`landville_citizens?select=wallet,linked_wallet,privy_user_id,email&wallet=eq.${wallet}&limit=1`);
   return rows[0] || null;
 }
 
 export async function citizenForLinkedWallet(wallet: string) {
-  const rows = await database<CitizenAccountRow[]>(`landville_citizens?select=wallet,linked_wallet,auth_user_id,email&linked_wallet=eq.${wallet}&limit=1`);
+  const rows = await database<CitizenAccountRow[]>(`landville_citizens?select=wallet,linked_wallet,privy_user_id,email&linked_wallet=eq.${wallet}&limit=1`);
   return rows[0] || null;
 }
 
-export async function claimEmailCitizen(authUserId: string, email: string, existingCitizen: string | null) {
-  const identity = `0x${createHash('sha256').update(`landville:email:${authUserId}`).digest('hex').slice(0, 40)}`;
-  return rpc<CitizenAccountRow>('landville_claim_email_citizen', {
-    p_auth_user_id: authUserId, p_email: email, p_existing_citizen: existingCitizen, p_new_citizen: identity,
+export async function citizenForPrivyUser(privyUserId: string) {
+  const rows = await database<CitizenAccountRow[]>(`landville_citizens?select=wallet,linked_wallet,privy_user_id,email&privy_user_id=eq.${encodeURIComponent(privyUserId)}&limit=1`);
+  return rows[0] || null;
+}
+
+export async function claimPrivyCitizen(privyUserId: string, email: string | null, linkedWallet: string | null, existingCitizen: string | null) {
+  const identity = `0x${createHash('sha256').update(`landville:privy:${privyUserId}`).digest('hex').slice(0, 40)}`;
+  return rpc<CitizenAccountRow>('landville_claim_privy_citizen', {
+    p_privy_user_id: privyUserId, p_email: email, p_linked_wallet: linkedWallet,
+    p_existing_citizen: existingCitizen, p_new_citizen: identity,
   });
 }
 

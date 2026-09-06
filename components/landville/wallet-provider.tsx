@@ -8,6 +8,7 @@ import type { VotingPowerSnapshot } from '@/lib/governance';
 import { addRobinhoodNetwork } from '@/lib/robinhood-chain';
 import { SCRAPY_TOKEN } from '@/lib/scrapy-token';
 import { readJsonResponse } from '@/lib/http-response';
+import { usePrivyAuth } from '@/components/landville/privy-auth-provider';
 
 type WalletStatus = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -44,6 +45,18 @@ async function fetchSnapshot() {
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const {
+    authenticated: privyAuthenticated,
+    configured: privyConfigured,
+    getAccessToken,
+    identityVersion,
+    linkWallet: linkPrivyWallet,
+    loginWithWallet,
+    logout: logoutPrivy,
+    ready: privyReady,
+    sendEmailCode: sendPrivyEmailCode,
+    verifyEmailCode: verifyPrivyEmailCode,
+  } = usePrivyAuth();
   const [address, setAddress] = useState('');
   const [linkedWallet, setLinkedWallet] = useState('');
   const [email, setEmail] = useState('');
@@ -62,6 +75,41 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<WalletStatus>('DISCONNECTED');
   const [snapshot, setSnapshot] = useState<VotingPowerSnapshot | null>(null);
   const [error, setError] = useState('');
+
+  const applySession = useCallback((session: AccountSession) => {
+    if (!session.address) throw new Error('Privy did not return a LANDVILLE citizen account.');
+    currentAddress.current = session.address;
+    setAddress(session.address);
+    setLinkedWallet(session.linkedWallet || '');
+    setEmail(session.email || '');
+    setAuthMethod(session.method || 'wallet');
+    setSnapshot(null);
+    setStatus('CONNECTED');
+    void fetchSnapshot().then((current) => {
+      if (currentAddress.current === current.wallet) setSnapshot(current);
+    }).catch(() => undefined);
+    return session.address;
+  }, []);
+
+  const syncPrivySession = useCallback(async () => {
+    const token = await getAccessToken();
+    if (!token) throw new Error('Privy session is not ready. Try again.');
+    const response = await fetch('/api/auth/privy', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const result = await readJsonResponse<AccountSession & { error?: string }>(response, 'Privy sign-in');
+    if (!response.ok) throw new Error(result.error || 'Privy sign-in failed.');
+    return applySession(result);
+  }, [applySession, getAccessToken]);
+
+  useEffect(() => {
+    if (!privyConfigured || !privyReady || !privyAuthenticated || !identityVersion) return;
+    void syncPrivySession().catch((caught: unknown) => {
+      setError(caught instanceof Error ? caught.message : 'Privy sign-in failed.');
+    });
+  }, [identityVersion, privyAuthenticated, privyConfigured, privyReady, syncPrivySession]);
 
   useEffect(() => {
     let active = true;
@@ -101,22 +149,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       refreshProfile,
       async sendEmailCode(requestedEmail) {
         setError('');
-        const response = await fetch('/api/auth/email/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: requestedEmail }) });
-        const result = await readJsonResponse<{ error?: string }>(response, 'Email sign-in');
-        if (!response.ok) throw new Error(result.error || 'Could not send the email code.');
+        await sendPrivyEmailCode(requestedEmail.trim().toLowerCase());
       },
-      async verifyEmailCode(requestedEmail, token) {
+      async verifyEmailCode(_requestedEmail, token) {
         setStatus('CONNECTING'); setError('');
         try {
-          const response = await fetch('/api/auth/email/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: requestedEmail, token }) });
-          const result = await readJsonResponse<AccountSession & { error?: string }>(response, 'Email verification');
-          if (!response.ok || !result.address) throw new Error(result.error || 'Email verification failed.');
-          currentAddress.current = result.address;
-          setAddress(result.address); setLinkedWallet(result.linkedWallet || ''); setEmail(result.email || requestedEmail.toLowerCase());
-          setAuthMethod('email'); setSnapshot(null); setStatus('CONNECTED');
-          void fetchSnapshot().then((current) => { if (currentAddress.current === current.wallet) setSnapshot(current); }).catch(() => undefined);
-          router.push(`/citizens/${result.address}`);
-          return result.address;
+          await verifyPrivyEmailCode(token);
+          const citizen = await syncPrivySession();
+          router.push(`/citizens/${citizen}`);
+          return citizen;
         } catch (caught) {
           const message = caught instanceof Error ? caught.message : 'Email verification failed.';
           setError(message); setStatus(address ? 'CONNECTED' : 'ERROR'); throw new Error(message);
@@ -126,48 +167,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setStatus('CONNECTING');
         setError('');
         try {
-          const provider = (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
-          if (!provider) throw new Error('NO_WALLET');
-
-          const accounts = (await provider.request({ method: 'eth_requestAccounts' })) as string[];
-          const account = accounts[0]?.toLowerCase();
-          if (!account) throw new Error('NO_ACCOUNT');
-
-          await addRobinhoodNetwork();
-          const challengeResponse = await fetch(
-            `/api/auth/challenge?address=${encodeURIComponent(account)}`,
-            { cache: 'no-store' },
-          );
-          const challenge = await readJsonResponse<{ message?: string; error?: string }>(challengeResponse, 'Wallet sign-in challenge');
-          if (!challengeResponse.ok || !challenge.message) {
-            throw new Error(challenge.error || 'Could not create wallet challenge.');
-          }
-
-          const signature = (await provider.request({
-            method: 'personal_sign',
-            params: [challenge.message, account],
-          })) as string;
-          const verifyResponse = await fetch('/api/auth/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: account, signature }),
-          });
-          const verified = await readJsonResponse<AccountSession & { error?: string }>(verifyResponse, 'Wallet verification');
-          if (!verifyResponse.ok || !verified.address) {
-            throw new Error(verified.error || 'Wallet verification failed.');
-          }
-
-          currentAddress.current = verified.address;
-          setAddress(verified.address);
-          setLinkedWallet(verified.linkedWallet || account);
-          setEmail(verified.email || email);
-          setAuthMethod(verified.method || 'wallet');
-          setSnapshot(null);
-          setStatus('CONNECTED');
-          void fetchSnapshot().then((current) => { if (currentAddress.current === current.wallet) setSnapshot(current); }).catch(() => undefined);
-          router.push(`/citizens/${verified.address}`);
-          // Citizen identity and chat access never depend on token holdings or RPC availability.
-          return verified.address;
+          if (!privyConfigured) throw new Error('PRIVY SIGN-IN IS NOT CONFIGURED');
+          if (privyAuthenticated) linkPrivyWallet();
+          else loginWithWallet();
+          return address;
         } catch (caught) {
           const message = caught instanceof Error ? caught.message : 'Wallet connection failed.';
           const readable =
@@ -208,6 +211,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       async disconnectWallet() {
         const response = await fetch('/api/auth/session', { method: 'DELETE' });
         if (!response.ok) throw new Error('Could not sign out. Try again.');
+        if (privyAuthenticated) await logoutPrivy();
         setAddress('');
         currentAddress.current = '';
         setLinkedWallet('');
@@ -218,7 +222,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setStatus('DISCONNECTED');
       },
     }),
-    [address, linkedWallet, email, authMethod, error, snapshot, status, profile, refreshProfile, router],
+    [
+      address, linkedWallet, email, authMethod, error, snapshot, status, profile,
+      refreshProfile, router, privyAuthenticated, privyConfigured, linkPrivyWallet,
+      loginWithWallet, logoutPrivy, sendPrivyEmailCode, syncPrivySession, verifyPrivyEmailCode,
+    ],
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

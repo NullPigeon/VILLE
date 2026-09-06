@@ -17,7 +17,10 @@
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
+    "@privy-io/node": "0.34.0",
+    "@privy-io/react-auth": "3.40.0",
     "@shadcn/react": "0.3.0",
+    "@stripe/stripe-js": "1.54.2",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",

@@ -9,7 +9,7 @@ A shared digital town that grows through citizen proposals and votes. Approved i
 ## What citizens can do
 
 - **Explore:** anyone can view the World, public profiles, proposals and Town Chat.
-- **Join:** enter an email and verify a one-time code, or sign a message with an EVM wallet. No transaction or SCRAPY is required.
+- **Join:** enter an email and verify a one-time code, or connect an EVM wallet through Privy. No transaction or SCRAPY is required.
 - **Make a profile:** keep a permanent citizen number; choose a unique username, bio and avatar icon. Scrapy is #1. Human citizens start at #2.
 - **Talk:** SEND posts to other citizens without an AI reply. ASK SCRAPY requests a public AI reply in the same shared history.
 - **Propose:** discuss an idea with Scrapy, review its proposal-ready plan and explicitly submit it for voting.
@@ -80,7 +80,7 @@ The project still needs an explicit policy for multiple wallets and moving token
 
 ## Development and operations
 
-Next.js, React, TypeScript, Supabase email OTP authentication, EVM wallet signatures and server-side AI requests.
+Next.js, React, TypeScript, Privy email/wallet authentication, Supabase storage and server-side AI requests.
 
 ```sh
 npm ci

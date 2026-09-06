@@ -456,6 +456,7 @@ void test('readiness is admin-only, reveals no secrets and never calls AI on GET
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.ai.verified, false); assert.equal(body.ai.configured, true);
+  assert.equal(body.privyConfigured, false);
   assert.ok(!JSON.stringify(body).includes('private-secret-test'));
   assert.ok(f.calls.some((call) => call.url.includes('ai_source')));
   assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com')));
@@ -615,62 +616,53 @@ void test('signature verification creates a citizen before issuing a session', a
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
 });
 
-void test('email sign-in sends and verifies a six-digit OTP without exposing the secret key', async () => {
-  const authUserId = randomUUID();
+void test('verified Privy email creates a citizen without exposing provider credentials', async () => {
+  const privyUserId = 'did:privy:emailcitizen1';
   const email = 'citizen@example.com';
   const emailCitizen = `0x${'e'.repeat(40)}`;
   const f = fixture((call) => {
-    if (call.url.endsWith('/auth/v1/otp')) return json({});
-    if (call.url.endsWith('/auth/v1/verify')) return json({ user: { id: authUserId, email } });
-    if (call.url.endsWith('/rpc/landville_claim_email_citizen')) return json({ wallet: emailCitizen, linked_wallet: null, auth_user_id: authUserId, email });
+    if (call.url.includes('privy_user_id=eq.')) return json([]);
+    if (call.url.endsWith('/rpc/landville_claim_privy_citizen')) return json({ wallet: emailCitizen, linked_wallet: null, privy_user_id: privyUserId, email });
     return undefined;
-  });
-  const start = await f.load('app/api/auth/email/start/route.ts').POST(f.request('/api/auth/email/start', { email: ` ${email.toUpperCase()} ` }));
-  assert.equal(start.status, 200);
-  const otp = f.calls.find((call) => call.url.endsWith('/auth/v1/otp'));
-  assert.deepEqual(otp.body, { email, create_user: true });
-  assert.equal(otp.headers.get('apikey'), 'sb_secret_test_only');
-  assert.equal(otp.headers.has('authorization'), false);
-
-  const verified = await f.load('app/api/auth/email/verify/route.ts').POST(f.request('/api/auth/email/verify', { email, token: '123456' }));
+  }, {}, { '@/lib/server/privy': { verifyPrivyIdentity: async () => ({ id: privyUserId, email, linkedWallets: [] }) } });
+  const verified = await f.load('app/api/auth/privy/route.ts').POST(f.request('/api/auth/privy', {}, { headers: { Authorization: 'Bearer verified-by-test-double' } }));
   assert.equal(verified.status, 200);
-  const claimed = f.calls.find((call) => call.url.endsWith('/rpc/landville_claim_email_citizen'));
-  assert.equal(claimed.body.p_auth_user_id, authUserId); assert.equal(claimed.body.p_existing_citizen, null);
+  const claimed = f.calls.find((call) => call.url.endsWith('/rpc/landville_claim_privy_citizen'));
+  assert.equal(claimed.body.p_privy_user_id, privyUserId); assert.equal(claimed.body.p_existing_citizen, null);
   const session = f.session.readWalletSession(verified.cookies.get(f.session.SESSION_COOKIE).value);
   assert.equal(session.address, emailCitizen); assert.equal(session.method, 'email'); assert.equal(session.email, email);
+  assert.ok(!f.calls.some((call) => call.url.includes('auth.privy.io')));
 });
 
-void test('a signed wallet citizen can permanently attach a verified email', async () => {
-  const authUserId = randomUUID();
+void test('a signed legacy wallet citizen can attach its first Privy identity', async () => {
+  const privyUserId = 'did:privy:legacywallet';
   const email = 'owner@example.com';
   const f = fixture((call) => {
-    if (call.url.endsWith('/auth/v1/verify')) return json({ user: { id: authUserId, email } });
-    if (call.url.endsWith('/rpc/landville_claim_email_citizen')) return json({ wallet, linked_wallet: wallet, auth_user_id: authUserId, email });
+    if (call.url.includes('privy_user_id=eq.')) return json([]);
+    if (call.url.endsWith('/rpc/landville_claim_privy_citizen')) return json({ wallet, linked_wallet: wallet, privy_user_id: privyUserId, email });
     return undefined;
-  });
-  const response = await f.load('app/api/auth/email/verify/route.ts').POST(f.request('/api/auth/email/verify', { email, token: '123456' }, { signed: true }));
+  }, {}, { '@/lib/server/privy': { verifyPrivyIdentity: async () => ({ id: privyUserId, email, linkedWallets: [wallet] }) } });
+  const response = await f.load('app/api/auth/privy/route.ts').POST(f.request('/api/auth/privy', {}, { signed: true, headers: { Authorization: 'Bearer verified-by-test-double' } }));
   assert.equal(response.status, 200);
-  const claim = f.calls.find((call) => call.url.endsWith('/rpc/landville_claim_email_citizen'));
+  const claim = f.calls.find((call) => call.url.endsWith('/rpc/landville_claim_privy_citizen'));
   assert.equal(claim.body.p_existing_citizen, wallet);
   assert.equal(f.session.readWalletSession(response.cookies.get(f.session.SESSION_COOKIE).value).method, 'email');
 });
 
-void test('an email citizen links a wallet only after signing its challenge', async () => {
-  const account = privateKeyToAccount(generatePrivateKey());
+void test('a wallet verified by Privy is used as the citizen voting wallet', async () => {
+  const privyUserId = 'did:privy:walletcitizen';
+  const linkedWallet = `0x${'8'.repeat(40)}`;
   const emailCitizen = `0x${'e'.repeat(40)}`;
-  const email = 'citizen@example.com';
-  const f = fixture((call) => call.url.endsWith('/rpc/landville_link_citizen_wallet')
-    ? json({ wallet: emailCitizen, linked_wallet: account.address.toLowerCase(), auth_user_id: randomUUID(), email })
-    : undefined);
-  const message = 'LANDVILLE link-wallet test. No transaction.';
-  const challenge = f.session.sealWalletChallenge({ address: account.address.toLowerCase(), message, expiresAt: Date.now() + 60000 });
-  const emailSession = f.session.sealWalletSession({ address: emailCitizen, method: 'email', email, expiresAt: Date.now() + 60000 });
-  const signature = await account.signMessage({ message });
-  const response = await f.load('app/api/auth/verify/route.ts').POST(f.request('/api/auth/verify', { address: account.address, signature }, { headers: { Cookie: `${f.session.CHALLENGE_COOKIE}=${challenge}; ${f.session.SESSION_COOKIE}=${emailSession}` } }));
+  const f = fixture((call) => {
+    if (call.url.includes('privy_user_id=eq.')) return json([]);
+    if (call.url.endsWith('/rpc/landville_claim_privy_citizen')) return json({ wallet: emailCitizen, linked_wallet: linkedWallet, privy_user_id: privyUserId, email: null });
+    return undefined;
+  }, {}, { '@/lib/server/privy': { verifyPrivyIdentity: async () => ({ id: privyUserId, email: null, linkedWallets: [linkedWallet] }) } });
+  const response = await f.load('app/api/auth/privy/route.ts').POST(f.request('/api/auth/privy', {}, { headers: { Authorization: 'Bearer verified-by-test-double' } }));
   assert.equal(response.status, 200);
-  const link = f.calls.find((call) => call.url.endsWith('/rpc/landville_link_citizen_wallet'));
-  assert.deepEqual(link.body, { p_citizen: emailCitizen, p_linked_wallet: account.address.toLowerCase() });
-  assert.ok(!f.calls.some((call) => call.method === 'POST' && call.url.includes('landville_citizens?')));
+  const claim = f.calls.find((call) => call.url.endsWith('/rpc/landville_claim_privy_citizen'));
+  assert.equal(claim.body.p_linked_wallet, linkedWallet);
+  assert.equal((await response.json()).linkedWallet, linkedWallet);
 });
 
 void test('absent Supabase configuration never falls back to local records', async () => {

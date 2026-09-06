@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     citizen = await citizenForLinkedWallet(address);
     if (!citizen) {
       await registerCitizen(address);
-      citizen = await citizenForLinkedWallet(address) || { wallet: address, linked_wallet: address, auth_user_id: null, email: null };
+      citizen = await citizenForLinkedWallet(address) || { wallet: address, linked_wallet: address, privy_user_id: null, email: null };
     }
   }
   const method = current?.method === 'email' ? 'email' : 'wallet';

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { readJsonResponse } from '@/lib/http-response';
 
-type Status = { storage: string; sessionConfigured: boolean; ai: { configured: boolean; model: string }; builderEnabled: boolean; builderConfigurationPresent: boolean };
+type Status = { storage: string; sessionConfigured: boolean; privyConfigured: boolean; ai: { configured: boolean; model: string }; builderEnabled: boolean; builderConfigurationPresent: boolean };
 export function ReadinessPanel() {
   const [status, setStatus] = useState<Status | null>(null);
   const [result, setResult] = useState('');
@@ -26,7 +26,7 @@ export function ReadinessPanel() {
     <p>Configuration checks never reveal secret values. A configured key is not proof that AI works.</p>
     <div className="build-actions"><button className="lv-button" disabled={busy} onClick={() => void check(false)}>CHECK CONFIGURATION</button><button className="lv-button" disabled={busy} onClick={() => void check(true)}>TEST LIVE AI · API COST</button></div>
     <p>The live test makes one small billable API request, at most once per minute per operator. It does not post to chat. No tests run automatically.</p>
-    {status && <dl><dt>SUPABASE</dt><dd>{status.storage}</dd><dt>WALLET SESSION SECRET</dt><dd>{status.sessionConfigured ? 'Configured' : 'Missing or too short'}</dd><dt>SCRAPY AI</dt><dd>{status.ai.configured ? 'Key present; run live test' : 'Key missing'} · {status.ai.model}</dd><dt>BUILDER</dt><dd>{status.builderEnabled ? 'Enabled' : 'Disabled'} · {status.builderConfigurationPresent ? 'Coordinator settings present, not verified' : 'Coordinator settings incomplete'}</dd></dl>}
+    {status && <dl><dt>SUPABASE</dt><dd>{status.storage}</dd><dt>PRIVY LOGIN</dt><dd>{status.privyConfigured ? 'App ID and server secret present' : 'App ID or server secret missing'}</dd><dt>WALLET SESSION SECRET</dt><dd>{status.sessionConfigured ? 'Configured' : 'Missing or too short'}</dd><dt>SCRAPY AI</dt><dd>{status.ai.configured ? 'Key present; run live test' : 'Key missing'} · {status.ai.model}</dd><dt>BUILDER</dt><dd>{status.builderEnabled ? 'Enabled' : 'Disabled'} · {status.builderConfigurationPresent ? 'Coordinator settings present, not verified' : 'Coordinator settings incomplete'}</dd></dl>}
     {result && <output>{result}</output>}
   </section>;
 }
