@@ -112,7 +112,8 @@ begin
     update public.landville_citizens set username='Test_Builder' where wallet=actor;
     raise exception 'Noncanonical username accepted';
   exception when check_violation then null; end;
-  if (select count(distinct citizen_number) from public.landville_citizens) <> 5 then raise exception 'Citizen numbers collided'; end if;
+  if (select count(distinct citizen_number) from public.landville_citizens) <>
+     (select count(*) from public.landville_citizens) then raise exception 'Citizen numbers collided'; end if;
 end $$;
 do $$
 declare actor text := '0x' || repeat('a',40); request_id uuid := gen_random_uuid(); result public.landville_messages;
