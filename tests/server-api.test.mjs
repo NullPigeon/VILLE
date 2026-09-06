@@ -222,14 +222,21 @@ void test('matching PR, CI, production alias and artifact permit one verified pu
   assert.ok(!f.calls.some((call) => call.url.includes('attacker.example')));
 });
 void test('a corrective release verifies its immutable revision path', async () => {
-  const f = releaseFixture({ job: { revision: 2 }, files: [{ filename: 'city-modules/LV-1-r2.json', status: 'added' }] });
+  const f = releaseFixture({ job: { revision: 2 }, files: [{ filename: 'city-modules/LV-1-r2.json', status: 'modified' }] });
   const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', {}, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 200);
   assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_build_v2')).body.p_artifact_path, 'city-modules/LV-1-r2.json');
 });
+void test('a builder branch synchronized with main verifies checks on its current head', async () => {
+  const head = 'd'.repeat(40);
+  const f = releaseFixture({ pr: { head: { sha: head, ref: 'codex/build-lv-1-1', repo: { full_name: 'NullPigeon/VILLE' } } } });
+  const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', {}, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.ok(f.calls.some((call) => call.url.includes(`/commits/${head}/check-runs`)));
+});
 for (const [label, change, expected] of [
   ['unmerged PR', { pr: { merged: false } }, 409],
-  ['modified PR head', { pr: { head: { sha: 'd'.repeat(40), ref: 'codex/build-lv-1-1', repo: { full_name: 'NullPigeon/VILLE' } } } }, 409],
+  ['wrong builder branch', { pr: { head: { sha: 'd'.repeat(40), ref: 'codex/other', repo: { full_name: 'NullPigeon/VILLE' } } } }, 409],
   ['extra repository changes', { files: [{ filename: '.github/workflows/evil.yml', status: 'added' }] }, 409],
   ['missing checks', { checks: [] }, 409],
   ['failed CI', { checks: [{ name: 'City checks', status: 'completed', conclusion: 'failure', app: { slug: 'github-actions' } }] }, 409],
