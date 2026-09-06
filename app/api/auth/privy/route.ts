@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiFailure, requireMutation } from '@/lib/server/api';
-import { citizenForPrivyUser, claimPrivyCitizen } from '@/lib/server/database';
+import { citizenForLinkedWallet, citizenForPrivyUser, claimPrivyCitizen, mergePrivyCitizenWithWallet } from '@/lib/server/database';
 import { verifyPrivyIdentity } from '@/lib/server/privy';
 import { readWalletSession, sealWalletSession, SESSION_COOKIE } from '@/lib/wallet-session';
 
@@ -8,11 +8,17 @@ export async function POST(request: NextRequest) {
   try {
     requireMutation(request);
     const identity = await verifyPrivyIdentity(request.headers.get('authorization'));
-    const existing = await citizenForPrivyUser(identity.id);
+    let existing = await citizenForPrivyUser(identity.id);
     const currentSession = readWalletSession(request.cookies.get(SESSION_COOKIE)?.value);
     const linkedWallet = existing?.linked_wallet && identity.linkedWallets.includes(existing.linked_wallet)
       ? existing.linked_wallet
       : identity.linkedWallets[0] || null;
+    if (existing && !existing.linked_wallet && linkedWallet) {
+      const walletCitizen = await citizenForLinkedWallet(linkedWallet);
+      if (walletCitizen && walletCitizen.wallet !== existing.wallet) {
+        existing = await mergePrivyCitizenWithWallet(identity.id, linkedWallet);
+      }
+    }
     const citizen = await claimPrivyCitizen(
       identity.id,
       identity.email,

@@ -17,6 +17,7 @@ const databaseErrors: Record<string, [number, string]> = {
   LINKED_WALLET_IMMUTABLE: [409, 'This citizen account already has a wallet attached.'],
   IMMUTABLE_EMAIL_IDENTITY: [409, 'The email attached to this citizen account cannot be changed.'],
   IMMUTABLE_PRIVY_IDENTITY: [409, 'This citizen account is already attached to another Privy identity.'],
+  ACCOUNT_MERGE_CONFLICT: [409, 'These login methods have conflicting citizen activity. Contact LANDVILLE support before retrying.'],
   PRIVY_ACCOUNT_REQUIRED: [409, 'Sign in with Privy before linking a wallet.'],
   ACTIVE_PROPOSAL_EXISTS: [409, 'You already have an active proposal. Submit another after it is built or rejected.'],
   ACTIVE_PROPOSAL_LIMIT: [409, 'You already have two active proposals. At least one must be built or rejected before submitting another.'],
@@ -107,6 +108,13 @@ export async function claimPrivyCitizen(privyUserId: string, email: string | nul
 
 export function linkCitizenWallet(citizen: string, wallet: string) {
   return rpc<CitizenAccountRow>('landville_link_citizen_wallet', { p_citizen: citizen, p_linked_wallet: wallet });
+}
+
+export function mergePrivyCitizenWithWallet(privyUserId: string, linkedWallet: string) {
+  return rpc<CitizenAccountRow>('landville_merge_privy_wallet_citizens', {
+    p_privy_user_id: privyUserId,
+    p_linked_wallet: linkedWallet,
+  });
 }
 
 export async function assertCitizen(wallet: string) {

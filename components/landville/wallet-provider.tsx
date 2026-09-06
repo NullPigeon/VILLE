@@ -24,6 +24,7 @@ type WalletContextValue = {
   refreshProfile(): Promise<void>;
   sendEmailCode(email: string): Promise<void>;
   verifyEmailCode(email: string, token: string): Promise<string>;
+  linkEmail(): void;
   connectWallet(): Promise<string>;
   refreshVotingPower(): Promise<VotingPowerSnapshot>;
   addScrapyToken(): Promise<void>;
@@ -50,6 +51,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     configured: privyConfigured,
     getAccessToken,
     identityVersion,
+    linkEmail: linkPrivyEmail,
     linkWallet: linkPrivyWallet,
     loginWithWallet,
     logout: logoutPrivy,
@@ -84,6 +86,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setEmail(session.email || '');
     setAuthMethod(session.method || 'wallet');
     setSnapshot(null);
+    setError('');
     setStatus('CONNECTED');
     void fetchSnapshot().then((current) => {
       if (currentAddress.current === current.wallet) setSnapshot(current);
@@ -163,6 +166,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setError(message); setStatus(address ? 'CONNECTED' : 'ERROR'); throw new Error(message);
         }
       },
+      linkEmail() {
+        setError('');
+        linkPrivyEmail();
+      },
       async connectWallet() {
         setStatus('CONNECTING');
         setError('');
@@ -225,7 +232,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [
       address, linkedWallet, email, authMethod, error, snapshot, status, profile,
       refreshProfile, router, privyAuthenticated, privyConfigured, linkPrivyWallet,
-      loginWithWallet, logoutPrivy, sendPrivyEmailCode, syncPrivySession, verifyPrivyEmailCode,
+      linkPrivyEmail, loginWithWallet, logoutPrivy, sendPrivyEmailCode, syncPrivySession, verifyPrivyEmailCode,
     ],
   );
 
