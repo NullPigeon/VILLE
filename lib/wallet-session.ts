@@ -11,13 +11,15 @@ type ChallengePayload = {
   expiresAt: number;
 };
 
-type SessionPayload = {
+export type SessionPayload = {
   address: string;
+  method?: 'wallet' | 'email';
+  email?: string;
   expiresAt: number;
 };
 
 export class WalletSessionConfigurationError extends Error {
-  constructor() { super('Wallet sign-in is not configured. The site operator must set WALLET_SESSION_SECRET to at least 32 random characters in Production, then redeploy.'); }
+  constructor() { super('Account sign-in is not configured. The site operator must set WALLET_SESSION_SECRET to at least 32 random characters in Production, then redeploy.'); }
 }
 
 export function walletSessionConfigured() {
@@ -66,13 +68,17 @@ function readCookie(value: string | undefined, purpose: CookiePurpose): Challeng
     const record = decoded as Record<string, unknown>;
     if (typeof record.address !== 'string' || !/^0x[0-9a-f]{40}$/.test(record.address) ||
       typeof record.expiresAt !== 'number' || !Number.isSafeInteger(record.expiresAt) || record.expiresAt <= Date.now()) return null;
-    const allowed = purpose === 'challenge' ? ['address', 'expiresAt', 'message'] : ['address', 'expiresAt'];
+    const allowed = purpose === 'challenge' ? ['address', 'expiresAt', 'message'] : ['address', 'expiresAt', 'method', 'email'];
     if (Object.keys(record).some((key) => !allowed.includes(key))) return null;
     if (purpose === 'challenge') {
       if (typeof record.message !== 'string' || !record.message || record.message.length > 2048) return null;
       return { address: record.address, expiresAt: record.expiresAt, message: record.message };
     }
-    return { address: record.address, expiresAt: record.expiresAt };
+    const method = record.method === undefined ? 'wallet' : record.method;
+    if (method !== 'wallet' && method !== 'email') return null;
+    if (record.email !== undefined && (typeof record.email !== 'string' || record.email.length > 254)) return null;
+    if (method === 'email' && (typeof record.email !== 'string' || !record.email)) return null;
+    return { address: record.address, method, ...(record.email ? { email: record.email } : {}), expiresAt: record.expiresAt };
   } catch {
     return null;
   }

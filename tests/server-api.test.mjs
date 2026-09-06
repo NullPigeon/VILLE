@@ -105,7 +105,11 @@ void test('wallet cookies reject legacy signatures, wrong purposes, tampering an
     { ...value, expiresAt: Date.now() - 1 },
     { ...value, message: 'An unsigned challenge is not a session' },
     { ...value, isAdmin: true },
+    { ...value, method: 'email' },
+    { ...value, method: 'password' },
   ]) assert.equal(f.session.readWalletSession(f.session.sealWalletSession(invalid)), null);
+  const emailSession = f.session.readWalletSession(f.session.sealWalletSession({ ...value, method: 'email', email: 'citizen@example.com' }));
+  assert.equal(emailSession.method, 'email'); assert.equal(emailSession.email, 'citizen@example.com');
 });
 
 void test('session responses are private and never cacheable', async () => {
@@ -597,16 +601,76 @@ void test('daily limit is a real error, not a fake successful reply', async () =
 
 void test('signature verification creates a citizen before issuing a session', async () => {
   const account = privateKeyToAccount(generatePrivateKey());
-  const f = fixture((call) => call.method === 'POST' && call.url.includes('landville_citizens?') ? new Response(null, { status: 204 }) : undefined);
+  const f = fixture((call) => call.url.includes('linked_wallet=eq.') ? json([]) : call.method === 'POST' && call.url.includes('landville_citizens?') ? new Response(null, { status: 204 }) : undefined);
   const message = 'LANDVILLE isolated test sign-in. No transaction.';
   const challenge = f.session.sealWalletChallenge({ address: account.address.toLowerCase(), message, expiresAt: Date.now() + 60000 });
   const signature = await account.signMessage({ message });
   const response = await f.load('app/api/auth/verify/route.ts').POST(f.request('/api/auth/verify', { address: account.address, signature }, { headers: { Cookie: `${f.session.CHALLENGE_COOKIE}=${challenge}` } }));
   assert.equal(response.status, 200);
-  assert.equal(f.calls[0].body.wallet, account.address.toLowerCase());
+  const registration = f.calls.find((call) => call.method === 'POST' && call.url.includes('landville_citizens?'));
+  assert.equal(registration.body.wallet, account.address.toLowerCase());
+  assert.equal(registration.body.linked_wallet, account.address.toLowerCase());
   assert.ok(response.headers.get('set-cookie').includes('HttpOnly'));
   assert.equal(f.session.readWalletSession(response.cookies.get(f.session.SESSION_COOKIE).value).address, account.address.toLowerCase());
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
+});
+
+void test('email sign-in sends and verifies a six-digit OTP without exposing the secret key', async () => {
+  const authUserId = randomUUID();
+  const email = 'citizen@example.com';
+  const emailCitizen = `0x${'e'.repeat(40)}`;
+  const f = fixture((call) => {
+    if (call.url.endsWith('/auth/v1/otp')) return json({});
+    if (call.url.endsWith('/auth/v1/verify')) return json({ user: { id: authUserId, email } });
+    if (call.url.endsWith('/rpc/landville_claim_email_citizen')) return json({ wallet: emailCitizen, linked_wallet: null, auth_user_id: authUserId, email });
+    return undefined;
+  });
+  const start = await f.load('app/api/auth/email/start/route.ts').POST(f.request('/api/auth/email/start', { email: ` ${email.toUpperCase()} ` }));
+  assert.equal(start.status, 200);
+  const otp = f.calls.find((call) => call.url.endsWith('/auth/v1/otp'));
+  assert.deepEqual(otp.body, { email, create_user: true });
+  assert.equal(otp.headers.get('apikey'), 'sb_secret_test_only');
+  assert.equal(otp.headers.has('authorization'), false);
+
+  const verified = await f.load('app/api/auth/email/verify/route.ts').POST(f.request('/api/auth/email/verify', { email, token: '123456' }));
+  assert.equal(verified.status, 200);
+  const claimed = f.calls.find((call) => call.url.endsWith('/rpc/landville_claim_email_citizen'));
+  assert.equal(claimed.body.p_auth_user_id, authUserId); assert.equal(claimed.body.p_existing_citizen, null);
+  const session = f.session.readWalletSession(verified.cookies.get(f.session.SESSION_COOKIE).value);
+  assert.equal(session.address, emailCitizen); assert.equal(session.method, 'email'); assert.equal(session.email, email);
+});
+
+void test('a signed wallet citizen can permanently attach a verified email', async () => {
+  const authUserId = randomUUID();
+  const email = 'owner@example.com';
+  const f = fixture((call) => {
+    if (call.url.endsWith('/auth/v1/verify')) return json({ user: { id: authUserId, email } });
+    if (call.url.endsWith('/rpc/landville_claim_email_citizen')) return json({ wallet, linked_wallet: wallet, auth_user_id: authUserId, email });
+    return undefined;
+  });
+  const response = await f.load('app/api/auth/email/verify/route.ts').POST(f.request('/api/auth/email/verify', { email, token: '123456' }, { signed: true }));
+  assert.equal(response.status, 200);
+  const claim = f.calls.find((call) => call.url.endsWith('/rpc/landville_claim_email_citizen'));
+  assert.equal(claim.body.p_existing_citizen, wallet);
+  assert.equal(f.session.readWalletSession(response.cookies.get(f.session.SESSION_COOKIE).value).method, 'email');
+});
+
+void test('an email citizen links a wallet only after signing its challenge', async () => {
+  const account = privateKeyToAccount(generatePrivateKey());
+  const emailCitizen = `0x${'e'.repeat(40)}`;
+  const email = 'citizen@example.com';
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_link_citizen_wallet')
+    ? json({ wallet: emailCitizen, linked_wallet: account.address.toLowerCase(), auth_user_id: randomUUID(), email })
+    : undefined);
+  const message = 'LANDVILLE link-wallet test. No transaction.';
+  const challenge = f.session.sealWalletChallenge({ address: account.address.toLowerCase(), message, expiresAt: Date.now() + 60000 });
+  const emailSession = f.session.sealWalletSession({ address: emailCitizen, method: 'email', email, expiresAt: Date.now() + 60000 });
+  const signature = await account.signMessage({ message });
+  const response = await f.load('app/api/auth/verify/route.ts').POST(f.request('/api/auth/verify', { address: account.address, signature }, { headers: { Cookie: `${f.session.CHALLENGE_COOKIE}=${challenge}; ${f.session.SESSION_COOKIE}=${emailSession}` } }));
+  assert.equal(response.status, 200);
+  const link = f.calls.find((call) => call.url.endsWith('/rpc/landville_link_citizen_wallet'));
+  assert.deepEqual(link.body, { p_citizen: emailCitizen, p_linked_wallet: account.address.toLowerCase() });
+  assert.ok(!f.calls.some((call) => call.method === 'POST' && call.url.includes('landville_citizens?')));
 });
 
 void test('absent Supabase configuration never falls back to local records', async () => {

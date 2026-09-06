@@ -13,11 +13,16 @@ type WalletStatus = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
 type WalletContextValue = {
   address: string;
+  linkedWallet: string;
+  email: string;
+  authMethod: 'wallet' | 'email' | '';
   status: WalletStatus;
   snapshot: VotingPowerSnapshot | null;
   error: string;
   profile: CitizenIdentity | null;
   refreshProfile(): Promise<void>;
+  sendEmailCode(email: string): Promise<void>;
+  verifyEmailCode(email: string, token: string): Promise<string>;
   connectWallet(): Promise<string>;
   refreshVotingPower(): Promise<VotingPowerSnapshot>;
   addScrapyToken(): Promise<void>;
@@ -29,6 +34,7 @@ type EthereumProvider = {
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
+type AccountSession = { address?: string | null; linkedWallet?: string | null; email?: string | null; method?: 'wallet' | 'email' };
 
 async function fetchSnapshot() {
   const response = await fetch('/api/governance/snapshot', { cache: 'no-store' });
@@ -39,6 +45,9 @@ async function fetchSnapshot() {
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [address, setAddress] = useState('');
+  const [linkedWallet, setLinkedWallet] = useState('');
+  const [email, setEmail] = useState('');
+  const [authMethod, setAuthMethod] = useState<WalletContextValue['authMethod']>('');
   const currentAddress = useRef(address);
   currentAddress.current = address;
   const [profile, setProfile] = useState<CitizenIdentity | null>(null);
@@ -57,10 +66,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     fetch('/api/auth/session', { cache: 'no-store' })
-      .then((response) => readJsonResponse<{ address?: string | null }>(response, 'Wallet session'))
-      .then(async (session: { address?: string | null }) => {
+      .then((response) => readJsonResponse<AccountSession>(response, 'Citizen session'))
+      .then(async (session) => {
         if (!active || !session.address) return;
+        currentAddress.current = session.address;
         setAddress(session.address);
+        setLinkedWallet(session.linkedWallet || '');
+        setEmail(session.email || '');
+        setAuthMethod(session.method || 'wallet');
         setStatus('CONNECTED');
         try {
           const current = await fetchSnapshot();
@@ -78,11 +91,37 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<WalletContextValue>(
     () => ({
       address,
+      linkedWallet,
+      email,
+      authMethod,
       status,
       snapshot,
       error,
       profile: profile?.wallet === address ? profile : null,
       refreshProfile,
+      async sendEmailCode(requestedEmail) {
+        setError('');
+        const response = await fetch('/api/auth/email/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: requestedEmail }) });
+        const result = await readJsonResponse<{ error?: string }>(response, 'Email sign-in');
+        if (!response.ok) throw new Error(result.error || 'Could not send the email code.');
+      },
+      async verifyEmailCode(requestedEmail, token) {
+        setStatus('CONNECTING'); setError('');
+        try {
+          const response = await fetch('/api/auth/email/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: requestedEmail, token }) });
+          const result = await readJsonResponse<AccountSession & { error?: string }>(response, 'Email verification');
+          if (!response.ok || !result.address) throw new Error(result.error || 'Email verification failed.');
+          currentAddress.current = result.address;
+          setAddress(result.address); setLinkedWallet(result.linkedWallet || ''); setEmail(result.email || requestedEmail.toLowerCase());
+          setAuthMethod('email'); setSnapshot(null); setStatus('CONNECTED');
+          void fetchSnapshot().then((current) => { if (currentAddress.current === current.wallet) setSnapshot(current); }).catch(() => undefined);
+          router.push(`/citizens/${result.address}`);
+          return result.address;
+        } catch (caught) {
+          const message = caught instanceof Error ? caught.message : 'Email verification failed.';
+          setError(message); setStatus(address ? 'CONNECTED' : 'ERROR'); throw new Error(message);
+        }
+      },
       async connectWallet() {
         setStatus('CONNECTING');
         setError('');
@@ -113,12 +152,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ address: account, signature }),
           });
-          const verified = await readJsonResponse<{ address?: string; error?: string }>(verifyResponse, 'Wallet verification');
+          const verified = await readJsonResponse<AccountSession & { error?: string }>(verifyResponse, 'Wallet verification');
           if (!verifyResponse.ok || !verified.address) {
             throw new Error(verified.error || 'Wallet verification failed.');
           }
 
+          currentAddress.current = verified.address;
           setAddress(verified.address);
+          setLinkedWallet(verified.linkedWallet || account);
+          setEmail(verified.email || email);
+          setAuthMethod(verified.method || 'wallet');
           setSnapshot(null);
           setStatus('CONNECTED');
           void fetchSnapshot().then((current) => { if (currentAddress.current === current.wallet) setSnapshot(current); }).catch(() => undefined);
@@ -152,6 +195,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         }
       },
       async addScrapyToken() {
+        if (!linkedWallet) throw new Error('LINK A WALLET TO THIS CITIZEN ACCOUNT FIRST');
         const provider = (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
         if (!provider) throw new Error('NO EVM WALLET FOUND');
         await addRobinhoodNetwork();
@@ -165,12 +209,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const response = await fetch('/api/auth/session', { method: 'DELETE' });
         if (!response.ok) throw new Error('Could not sign out. Try again.');
         setAddress('');
+        currentAddress.current = '';
+        setLinkedWallet('');
+        setEmail('');
+        setAuthMethod('');
         setSnapshot(null);
         setError('');
         setStatus('DISCONNECTED');
       },
     }),
-    [address, error, snapshot, status, profile, refreshProfile, router],
+    [address, linkedWallet, email, authMethod, error, snapshot, status, profile, refreshProfile, router],
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

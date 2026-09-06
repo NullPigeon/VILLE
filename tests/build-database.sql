@@ -3,6 +3,8 @@ create role anon;
 create role authenticated;
 create role service_role bypassrls;
 grant usage on schema public to service_role;
+create schema auth;
+create table auth.users (id uuid primary key);
 \ir ../supabase/migrations/001_landville_chat.sql
 \ir ../supabase/migrations/002_landville_server.sql
 \ir ../supabase/migrations/003_proposal_lifecycle.sql
@@ -19,6 +21,43 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260906071102_reference_grounded_builder_recovery.sql
 \ir ../supabase/migrations/20260906072931_recover_lv1_image_timeout.sql
 \ir ../supabase/migrations/20260906075437_rebind_lv1_crop_review.sql
+\ir ../supabase/migrations/20260906123502_allow_two_active_proposals.sql
+\ir ../supabase/migrations/20260906130910_email_otp_citizen_accounts.sql
+
+insert into auth.users(id) values
+  ('10000000-0000-4000-8000-000000000001'),
+  ('10000000-0000-4000-8000-000000000002');
+do $$
+declare
+  email_citizen public.landville_citizens;
+  wallet_citizen public.landville_citizens;
+begin
+  email_citizen := public.landville_claim_email_citizen(
+    '10000000-0000-4000-8000-000000000001', 'email@example.com', null, '0x' || repeat('9',40));
+  if email_citizen.email <> 'email@example.com' or email_citizen.linked_wallet is not null then
+    raise exception 'Email-first citizen was not created correctly';
+  end if;
+  email_citizen := public.landville_link_citizen_wallet(email_citizen.wallet, '0x' || repeat('8',40));
+  if email_citizen.linked_wallet <> '0x' || repeat('8',40) then raise exception 'Wallet link failed'; end if;
+  begin
+    perform public.landville_link_citizen_wallet(email_citizen.wallet, '0x' || repeat('7',40));
+    raise exception 'Linked wallet was replaceable';
+  exception when raise_exception then if sqlerrm <> 'LINKED_WALLET_IMMUTABLE' then raise; end if; end;
+
+  wallet_citizen := public.landville_claim_email_citizen(
+    '10000000-0000-4000-8000-000000000002', 'wallet@example.com', '0x' || repeat('e',40), '0x' || repeat('6',40));
+  if wallet_citizen.wallet <> '0x' || repeat('e',40) or wallet_citizen.email <> 'wallet@example.com' then
+    raise exception 'Existing wallet history was not preserved';
+  end if;
+  begin
+    update public.landville_citizens set email='changed@example.com' where wallet=wallet_citizen.wallet;
+    raise exception 'Attached email was replaceable';
+  exception when raise_exception then if sqlerrm <> 'IMMUTABLE_EMAIL_IDENTITY' then raise; end if; end;
+  if has_function_privilege('authenticated','public.landville_claim_email_citizen(uuid,text,text,text)','EXECUTE') or
+     has_table_privilege('authenticated','public.landville_citizens','SELECT') then
+    raise exception 'Private account identity was exposed to browser roles';
+  end if;
+end $$;
 
 do $$ begin
   if (select citizen_number from public.landville_citizens where wallet='0x' || repeat('e',40)) <> 2 then

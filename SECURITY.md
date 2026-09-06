@@ -14,8 +14,10 @@ or private database records. This is a design boundary, not a security guarantee
   database passwords. Knowing the URL must not grant access to protected tables.
 - Database access uses server-only credentials. Migrations enable row-level security
   and restrict browser roles. Signing into LANDVILLE does not grant direct database access.
-- Wallet signatures establish identity; the application does not request seed phrases
-  or private keys. Admin permission comes from the server's wallet allowlist.
+- Email codes are verified by Supabase Auth and exchanged for a LANDVILLE-only,
+  HTTP-only signed session. Emails are private, unique and immutable after attachment.
+  Wallet signatures establish wallet ownership; the application does not request seed
+  phrases or private keys. Admin permission still comes from the server's wallet allowlist.
 - Town Chat, public profiles and proposals are public product data. The legacy Workshop
   archive is restricted to its signed-in owner and is not copied into Town Chat.
 - Production wallet-session signing refuses a missing or short secret. The development

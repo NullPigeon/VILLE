@@ -26,12 +26,12 @@ export default function ProposalsPage() {
 
   async function checkPower() {
     if (checkingPower) return;
+    if (!wallet.address) { setActionMessage('CREATE OR SIGN IN TO YOUR CITIZEN ACCOUNT FIRST'); return; }
     setCheckingPower(true);
     setActionMessage('CHECKING MAINNET SCRAPY HOLD…');
     try {
-      if (!wallet.address) await wallet.connectWallet();
       const power = await wallet.refreshVotingPower();
-      setActionMessage(`${power.weight} VOTES VERIFIED ON MAINNET · BLOCK ${power.blockNumber}`);
+      setActionMessage(power.source === 'chain' ? `${power.weight} VOTES VERIFIED ON MAINNET · BLOCK ${power.blockNumber}` : '1 BASE VOTE · LINK A WALLET TO ADD SCRAPY POWER');
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : 'Could not check holdings.');
     } finally {
@@ -54,7 +54,7 @@ export default function ProposalsPage() {
 
   return <ProductShell title="PROPOSALS" eyebrow="IMAGINE / HOLD / VOTE" actions={<Link className="lv-button primary" href="/chat"><Bot /> DISCUSS WITH SCRAPY</Link>}>
     <p className="admin-warning">WANT TO BUILD SOMETHING? Open Town Chat, discuss the idea with Scrapy, and refine it until REVIEW &amp; PROPOSE appears. Proposals cannot be submitted directly from this page. <Link href="/chat">GO TO TOWN CHAT →</Link></p>
-    <section className="governance-rule"><div><small>VOTING RULE / MAINNET</small><strong>{BASE_VOTE_WEIGHT} BASE VOTE + 1 PER {TOKENS_PER_VOTE.toLocaleString('en-US')} SCRAPY</strong><span>No tokens required to vote. Each full 250,000 SCRAPY adds one vote. Your balance is checked at voting time.</span><a href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">{SCRAPY_TOKEN.ticker} · {shortWallet(SCRAPY_TOKEN.address)} · VERIFIED CONTRACT</a></div><div><small>YOUR LAST VERIFIED POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? `${shortWallet(wallet.address)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} SCRAPY` : 'Connect and sign your wallet. No transaction.'}</span></div><button className="lv-button" onClick={checkPower} disabled={checkingPower}>{checkingPower ? 'CHECKING…' : wallet.address ? 'REFRESH HOLD' : 'CONNECT + CHECK HOLD'}</button></section>
+    <section className="governance-rule"><div><small>VOTING RULE / MAINNET</small><strong>{BASE_VOTE_WEIGHT} BASE VOTE + 1 PER {TOKENS_PER_VOTE.toLocaleString('en-US')} SCRAPY</strong><span>No tokens required to vote. Each full 250,000 SCRAPY in a linked wallet adds one vote.</span><a href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">{SCRAPY_TOKEN.ticker} · {shortWallet(SCRAPY_TOKEN.address)} · VERIFIED CONTRACT</a></div><div><small>YOUR LAST VERIFIED POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? wallet.linkedWallet ? `${shortWallet(wallet.linkedWallet)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} SCRAPY` : 'EMAIL CITIZEN · NO WALLET LINKED' : 'Create or sign in to a citizen account.'}</span></div><button className="lv-button" onClick={checkPower} disabled={checkingPower}>{checkingPower ? 'CHECKING…' : wallet.address ? wallet.linkedWallet ? 'REFRESH HOLD' : 'CHECK BASE POWER' : 'SIGN IN TO CHECK'}</button></section>
     {actionMessage && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>{actionMessage}</div>}
     <p className="admin-warning">Each proposal has its own {VOTING_HOURS}-hour vote. YES must exceed NO; ties and zero votes are rejected. Approved proposals are built one at a time, in voting-deadline order.</p>
     {activeProposals.length > 0 && <p className="admin-warning">YOUR ACTIVE PROPOSALS ({activeProposals.length}/2): {activeProposals.map((proposal, index) => <span key={proposal.id}>{index > 0 && ' · '}<Link href={`#${proposal.id}`}>{proposal.id} · {proposal.title}</Link> ({proposal.status})</span>)}. {activeProposals.length >= 2 ? 'At least one must be built or rejected before you can submit a third.' : 'You may submit one more through Town Chat.'}</p>}

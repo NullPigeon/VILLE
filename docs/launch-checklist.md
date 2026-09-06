@@ -46,6 +46,26 @@ A key being present does not verify model access, quota or a successful response
 
 ## 2. Database upgrade before deploying this chat release
 
+For email OTP accounts, apply `20260906130910_email_otp_citizen_accounts.sql`
+before deploying the matching application commit. It preserves existing citizen
+wallet keys and history, adds private email/Auth identifiers, and lets email-first
+citizens attach one verified wallet later.
+
+In Supabase Dashboard open **Authentication → Email Templates → Magic Link** and
+make the message display the six-digit `{{ .Token }}` value. Keep email sign-ups
+enabled. For production delivery configure a project SMTP provider; the built-in
+sender is suitable only for limited testing. LANDVILLE never exposes the Supabase
+secret key or Auth session token to the browser.
+
+After applying the migration, verify the private columns and functions exist:
+
+```sql
+select column_name from information_schema.columns
+where table_schema = 'public' and table_name = 'landville_citizens'
+  and column_name in ('auth_user_id','email','linked_wallet')
+order by column_name;
+```
+
 For the citizen cabinet / two-action chat update, if 001–005 are already installed,
 apply **006_citizen_profiles.sql**, then **007_chat_recipient.sql** once each before
 deploying. No new environment variables are required. Migration 006 numbers existing
@@ -101,7 +121,8 @@ Redeploy the latest main commit after setting variables and applying migration 0
 
 To propose a build, select **PREPARE MY PROPOSAL** on your own public message, review
 the editable draft and explicitly confirm. Discussion alone never opens voting.
-The existing token threshold, one-active-request limit and 12-hour vote rules remain.
+Every citizen can propose without tokens, with at most two active requests. The
+12-hour vote rule remains.
 
 ## 4. Builder is a separate activation
 

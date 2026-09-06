@@ -4,9 +4,20 @@ import { calculateVoteWeight, type VotingPowerSnapshot } from '@/lib/governance'
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import { ApiError } from '@/lib/server/api';
 import { formatTokenAmount, SCRAPY_TOKEN, SCRAPY_TOKEN_ADDRESS_LOWER } from '@/lib/scrapy-token';
+import { citizenAccount } from '@/lib/server/database';
 
 export async function readVotingSnapshot(wallet: string): Promise<VotingPowerSnapshot> {
   const tokenAddress = SCRAPY_TOKEN_ADDRESS_LOWER;
+  const account = await citizenAccount(wallet);
+  if (!account) throw new ApiError(401, 'Create or sign in to your citizen account first.');
+  if (!account.linked_wallet) {
+    return {
+      wallet, chainId: activeRobinhoodChain.id, tokenAddress, tokenDecimals: SCRAPY_TOKEN.decimals,
+      tokenBalance: '0', tokenBalanceFormatted: '0', weight: 1, blockNumber: '0',
+      capturedAt: new Date().toISOString(), source: 'unlinked',
+    };
+  }
+  const balanceWallet = account.linked_wallet;
   const chain = defineChain({
     id: activeRobinhoodChain.id, name: activeRobinhoodChain.name, nativeCurrency: activeRobinhoodChain.nativeCurrency,
     rpcUrls: { default: { http: [process.env.ROBINHOOD_MAINNET_RPC_URL || activeRobinhoodChain.rpcUrl] } },
@@ -16,7 +27,7 @@ export async function readVotingSnapshot(wallet: string): Promise<VotingPowerSna
     if (await client.getChainId() !== activeRobinhoodChain.id) throw new ApiError(503, 'Governance RPC must connect to Robinhood mainnet (4663).');
     const blockNumber = await client.getBlockNumber({ cacheTime: 0 });
     const [balance, decimals] = await Promise.all([
-      client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: 'balanceOf', args: [wallet as `0x${string}`], blockNumber }),
+      client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: 'balanceOf', args: [balanceWallet as `0x${string}`], blockNumber }),
       client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: 'decimals', blockNumber }),
     ]);
     if (decimals !== SCRAPY_TOKEN.decimals) throw new ApiError(502, 'SCRAPY token decimals do not match the verified contract.');

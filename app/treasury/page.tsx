@@ -72,9 +72,9 @@ export default function TreasuryPage() {
         <header className="lv-panel-head"><h2><WalletCards /> YOUR TOKEN ACCESS</h2><span>{wallet.address ? 'SIGNED CITIZEN' : 'ACCOUNT REQUIRED'}</span></header>
         <div className="chain-card">
           {wallet.address ? <>
-            <div className="chain-status"><i /><div><b>{wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY` : 'BALANCE NOT CHECKED'}</b><small>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES AT BLOCK ${wallet.snapshot.blockNumber}` : 'MAINNET SNAPSHOT REQUIRED'}</small></div></div>
+            <div className="chain-status"><i /><div><b>{wallet.linkedWallet ? wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY` : 'BALANCE NOT CHECKED' : 'NO WALLET LINKED'}</b><small>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES${wallet.snapshot.source === 'chain' ? ` AT BLOCK ${wallet.snapshot.blockNumber}` : ' · BASE ACCESS'}` : wallet.linkedWallet ? 'MAINNET SNAPSHOT REQUIRED' : 'LINK A WALLET FOR TOKEN POWER'}</small></div></div>
             <div className="chain-facts"><div><span>DAILY MESSAGES</span><b>{access?.dailyMessageLimit ?? '—'}</b></div><div><span>PROPOSALS</span><b>ALL CITIZENS</b></div><div><span>BASE VOTE</span><b>1</b></div><div><span>HOLDER BONUS</span><b>{wallet.snapshot ? Math.max(0, wallet.snapshot.weight - 1) : '—'}</b></div></div>
-            <button className="lv-button" onClick={() => wallet.refreshVotingPower().catch(() => undefined)}><RefreshCw /> REFRESH HOLDINGS</button>
+            {wallet.linkedWallet ? <button className="lv-button" onClick={() => wallet.refreshVotingPower().catch(() => undefined)}><RefreshCw /> REFRESH HOLDINGS</button> : <button className="lv-button primary" onClick={() => wallet.connectWallet().catch(() => undefined)}><WalletCards /> LINK WALLET</button>}
           </> : <><p className="chain-note">Create a citizen account to read your SCRAPY balance, calculate voting power and unlock holder access.</p><Link className="lv-button primary" href="/citizens">CREATE ACCOUNT <ArrowUpRight /></Link></>}
         </div>
       </aside>
