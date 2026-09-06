@@ -15,10 +15,13 @@ migrations/concurrency, and the full Next.js build. Functional acceptance remain
 an explicit human task, not an AI self-reported pass.
 
 This is a bounded module coding agent, **not an unrestricted full-stack coding agent**.
-Modules run in an opaque iframe with an HTTP sandbox CSP. No network, wallet,
-shared storage, cookies, server imports, dependencies, forms or parent access.
-State is transient and the UI says so. A persistent board, streaming radio,
-marketplace or external integration needs a separately reviewed backend capability.
+Modules run in an opaque iframe with an HTTP sandbox CSP. They have no direct
+network, wallet, shared storage, cookies, server imports, dependencies, forms or
+parent DOM access. A narrow host bridge can relay documented, reviewed capabilities:
+V3 starts with read-only DEX Screener search/pair/token JSON for authenticated
+citizens. Arbitrary URLs and writes remain blocked. Other state is transient and
+the UI says so. A persistent board, streaming radio, marketplace or transaction
+integration needs a separately reviewed backend/host capability.
 Do not approve a spec outside this runtime; reject it with an explanation or keep
 the queue paused for engineering work. No fake persistent functionality.
 

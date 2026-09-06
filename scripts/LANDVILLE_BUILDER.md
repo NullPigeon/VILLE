@@ -82,7 +82,9 @@ than imitate a random cyberpunk poster.
 ## Capability boundary
 
 The generated artifact is one self-contained sandboxed HTML document. It may use
-inline CSS, inline SVG, transient JavaScript and one worker-injected generated image.
-It cannot call runtime networks, wallets, storage, cookies, parent/opener APIs,
-servers or external links. Refuse specifications that require those capabilities;
-do not simulate them with fake data.
+inline CSS, inline SVG, transient JavaScript, one worker-injected generated image
+and the explicitly documented LANDVILLE postMessage capability bridge. The bridge
+currently provides read-only DEX Screener market data with loading/error states.
+It cannot directly call runtime networks, wallets, storage, cookies, parent DOM or
+opener APIs, servers or external links. Never invent live data. Refuse specifications
+that require capabilities absent from the supplied runtime guide; do not simulate them.

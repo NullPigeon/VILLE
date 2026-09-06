@@ -16,6 +16,7 @@ const sourcePaths = [
   'city-modules/README.md',
   'lib/build-contract.ts',
   'lib/mayor-prompt.ts',
+  'lib/module-runtime.ts',
   'lib/landville-data.ts',
   'lib/governance.ts',
   'lib/proposal-lifecycle.ts',
