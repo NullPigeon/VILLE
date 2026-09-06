@@ -12,8 +12,8 @@ const env = { LANDVILLE_SITE_URL: 'https://town.example', LANDVILLE_WORKER_SECRE
 const acceptanceReport = ['The Count control increments the visible total in the inline script.'];
 const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
 const intentReport = ['The requested subject is present.', 'The requested story and tone are present.', 'The requested interaction is implemented.'];
-const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport };
-const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [] };
+const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
+const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.' };
 const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==', subjectReferences: [], creativeDirection: null };
 const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
@@ -63,6 +63,7 @@ void test('reviewed artifacts require one evidence statement per acceptance chec
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, acceptanceReport: [] }));
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, designGate: 'FAIL' }));
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, intentGate: 'FAIL' }));
+  assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, scrapyGate: 'FAIL' }));
 });
 void test('one generated image is materialized only at the fixed marker', () => {
   const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
@@ -108,6 +109,7 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   assert.match(buildAi.body.input[0].content[0].text, /approvedArchitecture/);
   const reviewAi = f.calls.filter((call) => call.url.includes('api.openai.com'))[2];
   assert.deepEqual(reviewAi.body.tools, [{ type: 'image_generation' }]);
+  assert.match(f.calls.find((call) => call.url.endsWith('pulls')).body.body, /Scrapy character gate/);
   assert.ok(!JSON.stringify(ai.body).includes(env.LANDVILLE_GITHUB_WRITE_TOKEN));
 });
 void test('generated artwork is shown to the reviewer and embedded only after review', async () => {
