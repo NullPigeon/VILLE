@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BASE_VOTE_WEIGHT, calculateVoteWeight } from '../lib/governance.ts';
+import { calculateVoteWeight } from '../lib/governance.ts';
 
 const cases = [
   [0n, 1],
@@ -27,10 +27,3 @@ for (const decimals of [0, 6, 18]) {
     });
   }
 }
-
-void test('base vote does not satisfy the existing build-request token-bonus gate', () => {
-  assert.equal(BASE_VOTE_WEIGHT, 1);
-  assert.equal(calculateVoteWeight(0n, 18) > BASE_VOTE_WEIGHT, false);
-  assert.equal(calculateVoteWeight(249_999n * 10n ** 18n, 18) > BASE_VOTE_WEIGHT, false);
-  assert.equal(calculateVoteWeight(250_000n * 10n ** 18n, 18) > BASE_VOTE_WEIGHT, true);
-});

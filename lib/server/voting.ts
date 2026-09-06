@@ -29,6 +29,6 @@ export async function readVotingSnapshot(wallet: string): Promise<VotingPowerSna
     };
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError(502, 'Could not read SCRAPY from mainnet. No vote or build request was recorded.');
+    throw new ApiError(502, 'Could not read SCRAPY from mainnet. No vote or proposal snapshot was recorded.');
   }
 }

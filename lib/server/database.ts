@@ -10,6 +10,7 @@ const databaseErrors: Record<string, [number, string]> = {
   HOLD_CHECK_REQUIRED: [409, 'Messages beyond the first 10 require verified SCRAPY holdings.'],
   ACCOUNT_REQUIRED: [401, 'Create your citizen account by signing in with your wallet.'],
   ACTIVE_PROPOSAL_EXISTS: [409, 'You already have an active proposal. Submit another after it is built or rejected.'],
+  ACTIVE_PROPOSAL_LIMIT: [409, 'You already have two active proposals. At least one must be built or rejected before submitting another.'],
   BUILD_ALREADY_RUNNING: [409, 'Another build is running. Finish or reject it before starting the next.'],
   BUILD_QUEUE_ORDER: [409, 'An earlier approved proposal is waiting. Finalize and build proposals in voting-deadline order.'],
   DAILY_MESSAGE_LIMIT: [429, 'Daily message limit reached: 10 without SCRAPY, 50 with SCRAPY, in Town Chat. Resets at 00:00 UTC.'],

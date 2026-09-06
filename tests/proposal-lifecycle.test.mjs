@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { activeProposalForWallet, getBuildQueue, hasWinningVote, nextBuildId, VOTING_HOURS } from '../lib/proposal-lifecycle.ts';
+import { activeProposalForWallet, activeProposalsForWallet, getBuildQueue, hasWinningVote, nextBuildId, VOTING_HOURS } from '../lib/proposal-lifecycle.ts';
 
 const wallet = `0x${'a'.repeat(40)}`;
 const other = `0x${'b'.repeat(40)}`;
@@ -9,7 +9,7 @@ const proposal = (id, status = 'LIVE', offset = -1000, yes = 2, no = 1) => ({ id
 
 void test('each proposal gets an independent 12-hour window', () => assert.equal(VOTING_HOURS, 12));
 for (const status of ['LIVE', 'PASSED', 'BUILDING']) {
-  void test(`${status} blocks another request, regardless of its age`, () => {
+  void test(`${status} counts as active, regardless of its age`, () => {
     const record = { ...proposal('LV-1', status), createdAt: '2025-01-01' };
     assert.equal(activeProposalForWallet([record], wallet), record);
     assert.equal(activeProposalForWallet([record], wallet.toUpperCase()), record);
@@ -17,6 +17,11 @@ for (const status of ['LIVE', 'PASSED', 'BUILDING']) {
     assert.equal(activeProposalForWallet([record], ''), undefined);
   });
 }
+void test('a citizen may keep two active proposals', () => {
+  const records = [proposal('LV-1', 'LIVE'), proposal('LV-2', 'PASSED'), proposal('LV-3', 'BUILT'), { ...proposal('LV-4'), creatorWallet: other }];
+  assert.deepEqual(activeProposalsForWallet(records, wallet).map((item) => item.id), ['LV-1', 'LV-2']);
+  assert.deepEqual(activeProposalsForWallet(records, other).map((item) => item.id), ['LV-4']);
+});
 for (const status of ['REJECTED', 'BUILT']) {
   void test(`${status} releases the citizen's slot immediately`, () => assert.equal(activeProposalForWallet([proposal('LV-1', status)], wallet), undefined));
 }
