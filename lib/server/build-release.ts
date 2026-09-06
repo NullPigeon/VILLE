@@ -35,16 +35,16 @@ export async function publishVerifiedBuild(id: string, actor: string) {
   if (process.env.VERCEL_ENV !== 'production' || !deploymentId || !deployedSha || !projectId) throw new ApiError(503, 'Verify publication from the production Vercel deployment.');
   const origin = new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost');
   if (origin.protocol !== 'https:') throw new ApiError(503, 'Configure the production HTTPS site URL.');
-  const [pr, checks, files, deployment, alias, artifact] = await Promise.all([
-    githubRead<{ merged: boolean; merge_commit_sha: string; head: { sha: string; ref: string; repo: { full_name: string } }; base: { ref: string; repo: { full_name: string } } }>(`pulls/${job.pr_number}`),
-    githubRead<{ check_runs: Array<{ name: string; status: string; conclusion: string; app: { slug: string } }> }>(`commits/${job.commit_sha}/check-runs?per_page=100`),
+  const pr = await githubRead<{ merged: boolean; merge_commit_sha: string; head: { sha: string; ref: string; repo: { full_name: string } }; base: { ref: string; repo: { full_name: string } } }>(`pulls/${job.pr_number}`);
+  const [checks, files, deployment, alias, artifact] = await Promise.all([
+    githubRead<{ check_runs: Array<{ name: string; status: string; conclusion: string; app: { slug: string } }> }>(`commits/${pr.head.sha}/check-runs?per_page=100`),
     githubRead<Array<{ filename: string; status: string }>>(`pulls/${job.pr_number}/files?per_page=100`),
     vercel<{ id: string; projectId: string; target: string; readyState: string; gitSource?: { sha: string }; meta?: { githubCommitSha?: string } }>(`v13/deployments/${encodeURIComponent(deploymentId)}?withGitRepoInfo=true`),
     vercel<{ deploymentId: string; projectId: string; redirect?: string }>(`v4/aliases/${encodeURIComponent(origin.hostname)}`),
     readCityModule(id, artifactPath),
   ]);
-  if (!pr.merged || pr.base.ref !== 'main' || pr.base.repo.full_name.toLowerCase() !== BUILD_REPOSITORY.toLowerCase() || pr.head.repo.full_name.toLowerCase() !== BUILD_REPOSITORY.toLowerCase() || pr.head.sha !== job.commit_sha || pr.head.ref !== job.branch) throw new ApiError(409, 'Merge the reviewed, unchanged builder PR into main first.');
-  if (files.length !== 1 || files[0].filename !== artifactPath || files[0].status !== 'added') throw new ApiError(409, 'The builder PR contains changes outside its module revision.');
+  if (!pr.merged || pr.base.ref !== 'main' || pr.base.repo.full_name.toLowerCase() !== BUILD_REPOSITORY.toLowerCase() || pr.head.repo.full_name.toLowerCase() !== BUILD_REPOSITORY.toLowerCase() || pr.head.ref !== job.branch) throw new ApiError(409, 'Merge the reviewed, unchanged builder PR into main first.');
+  if (files.length !== 1 || files[0].filename !== artifactPath || !['added', 'modified'].includes(files[0].status)) throw new ApiError(409, 'The builder PR contains changes outside its module revision.');
   if (!checks.check_runs.some((check) => check.name === 'City checks' && check.app.slug === 'github-actions' && check.status === 'completed' && check.conclusion === 'success')) throw new ApiError(409, 'The City checks workflow must pass on the exact builder commit.');
   if (deployment.id !== deploymentId || deployment.projectId !== projectId || deployment.target !== 'production' || deployment.readyState !== 'READY' || alias.deploymentId !== deploymentId || alias.projectId !== projectId || alias.redirect ||
     (deployment.gitSource?.sha || deployment.meta?.githubCommitSha) !== deployedSha || pr.merge_commit_sha !== deployedSha || artifact.hash !== job.content_hash) throw new ApiError(409, 'The active production deployment must match this merged PR and module artifact.');
