@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, CircleDollarSign, Crown, Home, Menu, MessageCircle, User, Vote, Wallet, Wrench, X } from 'lucide-react';
+import { Building2, CircleDollarSign, Crown, Home, Menu, MessageCircle, User, Vote, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { shortWallet } from '@/lib/governance';
@@ -32,10 +32,10 @@ export function ProductShell({ title, eyebrow, actions, children, immersive = fa
       <div className="rail-brand"><Link href="/">LANDVILLE</Link><button onClick={() => setOpen(false)} aria-label="Close navigation"><X /></button></div>
       <div className="rail-salvage"><Wrench /><span>SALVAGE ACCESS</span><b>LV-01</b></div>
       <nav>{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href === '/citizens' ? profileHref : href} className={pathname.startsWith(href) ? 'active' : ''} onClick={() => setOpen(false)}><Icon /> <span>{label === 'PROFILE' ? wallet.address ? 'MY PROFILE' : 'CREATE ACCOUNT' : label}</span></Link>)}{town.isAdmin && <Link href="/admin" onClick={() => setOpen(false)}><Wrench /><span>BUILD CONTROL</span></Link>}</nav>
-      <div className="rail-wallet">{wallet.address?<Link href={profileHref} onClick={() => setOpen(false)}><span><Crown /></span><div><b>{citizenLabel(wallet.profile)}</b><small>{wallet.linkedWallet ? shortWallet(wallet.linkedWallet) : 'EMAIL CITIZEN'} · ×{wallet.snapshot?.weight ?? '—'} POWER</small></div></Link>:<Link href="/citizens" onClick={() => setOpen(false)}><Wallet /><span>CREATE / SIGN IN</span></Link>}{wallet.error&&<small className="rail-wallet-error">{wallet.error}</small>}</div>
+      {wallet.address && <div className="rail-wallet"><Link href={profileHref} onClick={() => setOpen(false)}><span className="rail-wallet-icon"><Crown /></span><div><b>{citizenLabel(wallet.profile)}</b><small>{wallet.linkedWallet ? shortWallet(wallet.linkedWallet) : 'EMAIL CITIZEN'} · ×{wallet.snapshot?.weight ?? '—'} POWER</small></div></Link></div>}
       <Link className="rail-token" href="/treasury" onClick={() => setOpen(false)}><CircleDollarSign /><div><span>{SCRAPY_TOKEN.ticker}</span><b>{wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY` : 'OFFICIAL TOKEN'}</b><small>{wallet.snapshot ? `×${wallet.snapshot.weight} VOTES · ${tokenAccess?.dailyMessageLimit} MSG/DAY` : `${shortWallet(SCRAPY_TOKEN.address)} · MAINNET`}</small></div></Link>
       <div className="rail-scrap-note"><i /> ROBINHOOD MAINNET<br />CIVIC LINE / {activeRobinhoodChain.id}</div>
-      <output className="rail-wallet-error">{town.status === 'ready' ? 'SHARED TOWN CONNECTED' : town.status === 'loading' ? 'CONNECTING TO TOWN…' : town.error}</output>
+      <output className={`rail-town-status ${town.status}`}><i />{town.status === 'ready' ? 'TOWN ONLINE' : town.status === 'loading' ? 'CONNECTING TO TOWN…' : 'TOWN CONNECTION ERROR'}</output>
     </aside>
     {open&&<button className="product-rail-scrim" onClick={() => setOpen(false)} aria-label="Close navigation" />}
     <div className="product-main">
