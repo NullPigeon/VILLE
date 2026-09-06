@@ -7,7 +7,7 @@ const other = `0x${'b'.repeat(40)}`;
 const now = Date.parse('2026-09-03T12:00:00Z');
 const proposal = (id, status = 'LIVE', offset = -1000, yes = 2, no = 1) => ({ id, status, creatorWallet: wallet, yes, no, closesAt: new Date(now + offset).toISOString() });
 
-void test('each proposal gets an independent 12-hour window', () => assert.equal(VOTING_HOURS, 12));
+void test('each proposal gets an independent 2-hour window', () => assert.equal(VOTING_HOURS, 2));
 for (const status of ['LIVE', 'PASSED', 'BUILDING']) {
   void test(`${status} counts as active, regardless of its age`, () => {
     const record = { ...proposal('LV-1', status), createdAt: '2025-01-01' };

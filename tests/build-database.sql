@@ -21,6 +21,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260906075437_rebind_lv1_crop_review.sql
 \ir ../supabase/migrations/20260906123502_allow_two_active_proposals.sql
 \ir ../supabase/migrations/20260906130910_email_otp_citizen_accounts.sql
+\ir ../supabase/migrations/20260906183000_two_hour_votes.sql
 
 do $$
 declare
@@ -154,7 +155,7 @@ begin
       'blockNumber','1234','capturedAt',clock_timestamp()
     );
     proposal := public.landville_create_proposal(test_wallet,request,'Launch module','A launch voting-window test module.','UTILITY','THE DUMP',snapshot);
-    expected_hours := case when test_index <= 3 then 1 else 12 end;
+    expected_hours := 2;
     if proposal.closes_at < proposal.created_at + make_interval(hours => expected_hours) - interval '2 seconds'
        or proposal.closes_at > proposal.created_at + make_interval(hours => expected_hours) + interval '2 seconds'
     then raise exception 'Incorrect launch vote window for %', proposal.id; end if;

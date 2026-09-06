@@ -299,7 +299,7 @@ void test('proposal snapshot, author and governance rules come from the server, 
   assert.equal(call.body.p_request_id, proposalRequestId); assert.equal(call.body.p_title, proposal.title); assert.equal(call.body.p_summary, proposal.summary);
   assert.equal(call.body.p_wallet, wallet); assert.equal(call.body.p_snapshot.weight, 2);
   assert.equal(call.body.p_quorum_votes, undefined); assert.equal(call.body.p_approval_percent, undefined);
-  assert.equal(call.body.p_voting_hours, undefined, 'The database owns the fixed 12-hour deadline');
+  assert.equal(call.body.p_voting_hours, undefined, 'The database owns the fixed 2-hour deadline');
   assert.equal(call.body.p_snapshot.wallet, wallet); assert.equal(f.balanceReads, 1);
   assert.equal(call.headers.get('authorization'), null, 'Modern secret key must not be used as a JWT');
 });

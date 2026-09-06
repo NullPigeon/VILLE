@@ -91,7 +91,7 @@ last fifteen minutes. An expired lease fails closed and blocks the queue for rev
 ## 4. First real build
 
 1. Start with a small, transient module such as a counter or mini-game. Run its real
-   12-hour vote; do not falsify votes or create production sample citizens.
+   2-hour vote; do not falsify votes or create production sample citizens.
 2. Sign in as an operator at `/admin`. Review the passed goal; write concrete
    acceptance checks and confirm it fits the sandbox runtime.
 3. Set `LANDVILLE_BUILDER_ENABLED=true` in **both Vercel and Actions**, redeploy the

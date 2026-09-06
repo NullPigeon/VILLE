@@ -68,7 +68,7 @@ export default function AdminPage() {
   return <ProductShell title="BUILD CONTROL" eyebrow="REVIEW → BUILD → PR → VERIFIED RELEASE">
     {!isAdmin ? <section className="lv-panel chat-sidebar-body"><h2>ADMIN ACCESS REQUIRED</h2><p>{status === 'loading' ? 'Checking access…' : 'Sign in with an authorized operator wallet.'}</p><Link className="lv-button" href="/citizens">MY PROFILE / SIGN IN</Link></section> : <>
       <ReadinessPanel />
-      <p className="admin-warning">Votes close after 12 hours. YES must exceed NO. Review a sandbox-compatible specification, then the enabled worker builds one module at a time. Review its PR, wait for City checks, test the acceptance checklist and merge manually. Only a verified production release adds the object to the World.</p>
+      <p className="admin-warning">Votes close after 2 hours. YES must exceed NO. Review a sandbox-compatible specification, then the enabled worker builds one module at a time. Review its PR, wait for City checks, test the acceptance checklist and merge manually. Only a verified production release adds the object to the World.</p>
       <p className="admin-warning">V1 modules cannot access wallets, shared storage or external APIs. Keep the approved goal unchanged. Do not send unsupported work to the automatic builder.</p>
       {jobError && <p role="alert" className="admin-warning">{jobError} <button onClick={() => void loadJobs()}>RETRY LOAD</button></p>}
       <section className="lv-panel"><header className="lv-panel-head"><h2>BUILD QUEUE</h2><span>{queue.length} PROPOSALS</span></header><div style={{ overflowX: 'auto' }}><table className="build-table"><thead><tr><th>PROPOSAL</th><th>VOTES / DEADLINE</th><th>BUILDER</th><th>ACTION</th></tr></thead><tbody>{queue.map((proposal) => {
