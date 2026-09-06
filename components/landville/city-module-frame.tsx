@@ -17,7 +17,7 @@ export function CityModuleFrame({ id }: { id: string }) {
       active.add(request.requestId);
       try {
         const response = await fetch(`/api/modules/${encodeURIComponent(id)}/data`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request.input),
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capability: request.capability, input: request.input }),
         });
         const result = await response.json().catch(() => ({ error: 'Invalid capability response.' }));
         target.postMessage({ type: MODULE_CAPABILITY_RESPONSE, requestId: request.requestId, ok: response.ok, ...(response.ok ? { data: result } : { error: result.error || 'Live data request failed.' }) }, '*');

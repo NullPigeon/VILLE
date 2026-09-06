@@ -108,6 +108,7 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   assert.deepEqual(buildAi.body.tools, [{ type: 'web_search_preview', search_context_size: 'medium' }, { type: 'image_generation' }]);
   assert.match(buildAi.body.input[0].content[0].text, /approvedArchitecture/);
   assert.match(buildAi.body.input[0].content[0].text, /market\.dexscreener/);
+  assert.match(buildAi.body.input[0].content[0].text, /chain\.robinhood/);
   const reviewAi = f.calls.filter((call) => call.url.includes('api.openai.com'))[2];
   assert.deepEqual(reviewAi.body.tools, [{ type: 'image_generation' }]);
   assert.match(f.calls.find((call) => call.url.endsWith('pulls')).body.body, /Scrapy character gate/);

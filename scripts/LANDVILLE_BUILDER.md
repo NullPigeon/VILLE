@@ -84,7 +84,10 @@ than imitate a random cyberpunk poster.
 The generated artifact is one self-contained sandboxed HTML document. It may use
 inline CSS, inline SVG, transient JavaScript, one worker-injected generated image
 and the explicitly documented LANDVILLE postMessage capability bridge. The bridge
-currently provides read-only DEX Screener market data with loading/error states.
-It cannot directly call runtime networks, wallets, storage, cookies, parent DOM or
-opener APIs, servers or external links. Never invent live data. Refuse specifications
-that require capabilities absent from the supplied runtime guide; do not simulate them.
+currently provides read-only DEX Screener market data and bounded, read-only
+Robinhood mainnet JSON-RPC calls with loading/error states. This is enough for
+honest live explorers, token screens, contract reads and quote displays; it is not
+transaction execution. It cannot connect wallets, sign, send transactions, write
+contracts, access storage or cookies, inspect the parent DOM/opener, call arbitrary
+servers or open external links. Never invent live data. Refuse specifications that
+require capabilities absent from the supplied runtime guide; do not simulate them.
