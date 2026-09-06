@@ -40,11 +40,22 @@ useful interaction. It should be understandable within two seconds.
 - Prefer real product information when the approved sandbox can provide it. Never
   invent live prices, balances, availability, transactions or persistence.
 
+## Voted creative intent
+
+Before drawing, identify three immutable parts of the approved request: the actual
+subject, the central joke/story/tone, and the requested interaction. All three must
+survive the implementation. A polished substitute is still a failed build if it
+loses the named person, turns an absurd request into a solemn poster, or replaces a
+requested interaction with a label. When a trusted subject reference is attached,
+use it to ground identity and include its compact credit in the finished module.
+If the voted request explicitly asks for comedy, weirdness or ceremonial nonsense,
+make that idea visually obvious rather than sanitizing it.
+
 ## Avoid
 
 - generic hacker UI, Matrix rain, random scanlines or glitch bars
 - centered avatar inside a neon targeting circle
-- gratuitous words such as CEREMONIAL, NODE, RELIC, SIGNAL or PROTOCOL
+- unrequested decorative jargon such as NODE, RELIC, SIGNAL or PROTOCOL
 - rounded SaaS cards, glassmorphism, purple/blue gradients, emojis or stock icons
 - giant title treatment that competes with the actual object
 - fake dashboards, placeholder data or controls that only pretend to work

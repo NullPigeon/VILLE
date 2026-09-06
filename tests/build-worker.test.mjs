@@ -11,8 +11,9 @@ const baseSha = 'b'.repeat(40);
 const env = { LANDVILLE_SITE_URL: 'https://town.example', LANDVILLE_WORKER_SECRET: 'w'.repeat(40), LANDVILLE_BUILDER_ENABLED: 'true', LANDVILLE_BUILDER_MODEL: 'configured-test-model', LANDVILLE_GITHUB_WRITE_TOKEN: 'github-test-only', OPENAI_API_KEY: 'openai-test-only' };
 const acceptanceReport = ['The Count control increments the visible total in the inline script.'];
 const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
-const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport };
-const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==' };
+const intentReport = ['The requested subject is present.', 'The requested story and tone are present.', 'The requested interaction is implemented.'];
+const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport };
+const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==', subjectReferences: [], creativeDirection: null };
 const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 function harness(override = () => undefined) {
@@ -56,6 +57,7 @@ void test('reviewed artifacts require one evidence statement per acceptance chec
   assert.equal(reviewedArtifactFor(work, reviewResult).report[0], acceptanceReport[0]);
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, acceptanceReport: [] }));
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, designGate: 'FAIL' }));
+  assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, intentGate: 'FAIL' }));
 });
 void test('one generated image is materialized only at the fixed marker', () => {
   const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
@@ -94,8 +96,10 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   assert.equal(f.calls.filter((call) => call.url.includes('api.openai.com')).length, 2);
   assert.equal(ai.body.store, false); assert.equal(ai.body.text.format.strict, true);
   assert.deepEqual(ai.body.tools, [{ type: 'web_search_preview', search_context_size: 'medium' }, { type: 'image_generation' }]);
-  assert.equal(ai.body.input[0].content[1].type, 'input_image');
+  assert.equal(ai.body.input[0].content.find((item) => item.type === 'input_image').type, 'input_image');
   assert.ok(ai.body.input[0].content[0].text.includes('LANDVILLE test context'));
+  const reviewAi = f.calls.filter((call) => call.url.includes('api.openai.com'))[1];
+  assert.deepEqual(reviewAi.body.tools, [{ type: 'image_generation' }]);
   assert.ok(!JSON.stringify(ai.body).includes(env.LANDVILLE_GITHUB_WRITE_TOKEN));
 });
 void test('generated artwork is shown to the reviewer and embedded only after review', async () => {
@@ -115,6 +119,32 @@ void test('generated artwork is shown to the reviewer and embedded only after re
   const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
   assert.match(artifact.html, new RegExp(`src="data:image/png;base64,${image}"`));
   assert.doesNotMatch(artifact.html, /data-landville-generated-asset/);
+});
+void test('trusted subject references and creative direction reach both model passes', async () => {
+  const groundedContext = { ...builderContext, creativeDirection: 'Keep the voted visual joke.', subjectReferences: [{ label: 'Known subject', imageUrl: 'https://upload.wikimedia.org/reference.jpg', sourceUrl: 'https://commons.wikimedia.org/reference', credit: 'Photographer, CC BY-SA 4.0' }] };
+  const f = harness();
+  assert.equal((await runWorker(env, f.http, async (proposalId) => { assert.equal(proposalId, 'LV-1'); return groundedContext; })).state, 'REVIEW');
+  for (const call of f.calls.filter((entry) => entry.url.includes('api.openai.com'))) {
+    const input = call.body.input[0].content;
+    assert.ok(input.some((item) => item.type === 'input_image' && item.image_url === groundedContext.subjectReferences[0].imageUrl));
+    assert.match(input[0].text, /Keep the voted visual joke/);
+  }
+});
+void test('reviewer-generated correction replaces the first-pass artwork', async () => {
+  const markedHtml = html.replace('<body>', '<body><img data-landville-generated-asset alt="Town artwork">');
+  const draftImage = Buffer.alloc(100, 1).toString('base64');
+  const correctedImage = Buffer.alloc(100, 2).toString('base64');
+  let aiCalls = 0;
+  const f = harness((call) => {
+    if (!call.url.includes('api.openai.com')) return undefined;
+    aiCalls += 1;
+    const outputText = { content: [{ type: 'output_text', text: JSON.stringify(aiCalls === 1 ? { html: markedHtml } : { ...reviewResult, html: markedHtml }) }] };
+    return json({ status: 'completed', output: [{ type: 'image_generation_call', result: aiCalls === 1 ? draftImage : correctedImage }, outputText] });
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
+  assert.match(artifact.html, new RegExp(correctedImage));
+  assert.doesNotMatch(artifact.html, new RegExp(draftImage));
 });
 void test('a corrective revision writes a new immutable artifact path', async () => {
   const revised = { ...work, job: { ...work.job, attempt: 2, revision: 2, branch: 'codex/build-lv-1-2' } };

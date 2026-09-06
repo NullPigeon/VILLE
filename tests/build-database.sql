@@ -16,6 +16,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/007_chat_recipient.sql
 \ir ../supabase/migrations/008_launch_vote_window.sql
 \ir ../supabase/migrations/009_versioned_module_rebuilds.sql
+\ir ../supabase/migrations/20260906071102_reference_grounded_builder_recovery.sql
 
 do $$ begin
   if (select citizen_number from public.landville_citizens where wallet='0x' || repeat('e',40)) <> 2 then
@@ -182,6 +183,10 @@ begin
   perform public.landville_finish_build('LV-2',(work->'job'->>'lease_id')::uuid,null,null,null,'Generation failed');
   perform public.landville_prepare_build('LV-2',actor,null,true);
   work := public.landville_claim_build(actor);
+  perform public.landville_finish_build('LV-2',(work->'job'->>'lease_id')::uuid,null,null,null,'Generation failed');
+  perform public.landville_prepare_build('LV-2',actor,null,true);
+  work := public.landville_claim_build(actor);
+  if (work->'job'->>'attempt')::integer <> 4 then raise exception 'Fourth recovery attempt was not available'; end if;
   perform public.landville_finish_build('LV-2',(work->'job'->>'lease_id')::uuid,null,null,null,'Generation failed');
   begin
     perform public.landville_prepare_build('LV-2',actor,null,true);
