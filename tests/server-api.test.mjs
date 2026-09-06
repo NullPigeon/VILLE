@@ -315,7 +315,8 @@ void test('vote API never trusts a submitted weight or wallet', async () => {
 void test('signed non-admin cannot advance builds', async () => {
   const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: other });
   const response = await f.load('app/api/admin/builds/[id]/route.ts').PATCH(f.request('/api/admin/builds/LV-1', { action: 'PUBLISH' }, { signed: true, method: 'PATCH' }), { params: Promise.resolve({ id: 'LV-1' }) });
-  assert.equal(response.status, 403); assert.equal(f.calls.length, 0);
+  assert.equal(response.status, 403); assert.equal(f.calls.length, 1);
+  assert.ok(f.calls[0].url.includes('landville_citizens?select=wallet,linked_wallet'));
 });
 
 void test('admin publication rejects external URLs and privileged routes', async () => {
@@ -449,7 +450,7 @@ void test('readiness is admin-only, reveals no secrets and never calls AI on GET
   for (const signed of [false, true]) {
     const f = fixture(() => undefined);
     const response = await f.load('app/api/admin/readiness/route.ts').GET(f.request('/api/admin/readiness', {}, { method: 'GET', signed }));
-    assert.equal(response.status, signed ? 403 : 401); assert.equal(f.calls.length, 0);
+    assert.equal(response.status, signed ? 403 : 401); assert.equal(f.calls.length, signed ? 1 : 0);
   }
   const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet, OPENAI_API_KEY: 'private-secret-test' });
   const response = await f.load('app/api/admin/readiness/route.ts').GET(f.request('/api/admin/readiness', {}, { method: 'GET', signed: true }));
@@ -460,6 +461,18 @@ void test('readiness is admin-only, reveals no secrets and never calls AI on GET
   assert.ok(!JSON.stringify(body).includes('private-secret-test'));
   assert.ok(f.calls.some((call) => call.url.includes('ai_source')));
   assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com')));
+});
+
+void test('an email-backed citizen inherits admin access from its linked operator wallet', async () => {
+  const emailCitizen = `0x${'8'.repeat(40)}`;
+  const f = fixture((call) => {
+    if (call.url.includes(`wallet=eq.${emailCitizen}`)) return json([{ wallet: emailCitizen, linked_wallet: wallet, privy_user_id: 'did:privy:operator', email: 'operator@example.com' }]);
+    if (call.url.includes('landville_citizens?select=wallet,linked_wallet')) return json([]);
+    return undefined;
+  }, { LANDVILLE_ADMIN_WALLETS: wallet });
+  const builds = f.load('@/lib/server/builds');
+  assert.equal(await builds.isBuildAdminCitizen(emailCitizen), true);
+  assert.equal(await builds.isBuildAdminCitizen(other), false);
 });
 
 void test('live AI test is explicit, rate-limited and does not post to chat', async () => {

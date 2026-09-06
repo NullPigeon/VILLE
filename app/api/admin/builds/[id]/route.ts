@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiError, apiFailure, isAdmin, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
-import { assertCitizen, enforceRate, rpc } from '@/lib/server/database';
+import { ApiError, apiFailure, jsonBody, requireMutation } from '@/lib/server/api';
+import { requireBuildAdmin } from '@/lib/server/builds';
+import { enforceRate, rpc } from '@/lib/server/database';
 import { proposalRecord, type ProposalRow } from '@/lib/server/records';
 import { field, oneOf, proposalId } from '@/lib/server/validation';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     requireMutation(request);
-    const actor = requireWallet(request);
-    if (!isAdmin(actor)) throw new ApiError(403, 'This wallet does not have build administrator access.');
-    await assertCitizen(actor);
+    const actor = await requireBuildAdmin(request);
     const id = proposalId((await params).id);
     const body = await jsonBody(request);
     const action = oneOf(body.action, ['FINALIZE','START_BUILD','PUBLISH','REJECT']);
