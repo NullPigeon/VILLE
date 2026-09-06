@@ -20,13 +20,13 @@ void test('large token values format without unsafe Number conversion', () => {
 });
 
 void test('zero-token citizens retain base access', () => {
-  assert.deepEqual(scrapyAccess(0n), { holder: false, buildEligible: false, dailyMessageLimit: 10 });
+  assert.deepEqual(scrapyAccess(0n), { holder: false, buildEligible: true, dailyMessageLimit: 10 });
 });
 
-void test('a positive balance unlocks holder messages but not a build request', () => {
-  assert.deepEqual(scrapyAccess(1n), { holder: true, buildEligible: false, dailyMessageLimit: 50 });
+void test('a positive balance unlocks holder messages while proposals remain public', () => {
+  assert.deepEqual(scrapyAccess(1n), { holder: true, buildEligible: true, dailyMessageLimit: 50 });
 });
 
-void test('250,000 SCRAPY unlocks build requests', () => {
+void test('250,000 SCRAPY keeps proposal access and adds voting power elsewhere', () => {
   assert.deepEqual(scrapyAccess(250_000n * 10n ** 18n), { holder: true, buildEligible: true, dailyMessageLimit: 50 });
 });

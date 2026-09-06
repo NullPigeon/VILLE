@@ -6,7 +6,7 @@ export const SCRAPY_TOKEN = {
   decimals: 18,
   chainId: 4663,
   tokensPerVote: 250_000,
-  minimumBuildRequest: 250_000,
+  minimumBuildRequest: 0,
 } as const;
 
 export const SCRAPY_TOKEN_ADDRESS_LOWER = SCRAPY_TOKEN.address.toLowerCase() as `0x${string}`;
@@ -25,13 +25,11 @@ export function formatTokenAmount(rawBalance: bigint | string, decimals: number 
   return fraction ? `${grouped}.${fraction}` : grouped;
 }
 
-export function scrapyAccess(rawBalance: bigint | string, decimals: number = SCRAPY_TOKEN.decimals) {
+export function scrapyAccess(rawBalance: bigint | string, _decimals: number = SCRAPY_TOKEN.decimals) {
   const raw = typeof rawBalance === 'bigint' ? rawBalance : BigInt(rawBalance);
-  const tokenUnit = 10n ** BigInt(decimals);
-  const buildMinimum = BigInt(SCRAPY_TOKEN.minimumBuildRequest) * tokenUnit;
   return {
     holder: raw > 0n,
-    buildEligible: raw >= buildMinimum,
+    buildEligible: true,
     dailyMessageLimit: raw > 0n ? 50 : 10,
   } as const;
 }

@@ -14,9 +14,20 @@ const root = path.resolve(import.meta.dirname, '..');
 const wallet = `0x${'a'.repeat(40)}`;
 const other = `0x${'b'.repeat(40)}`;
 const snapshot = { wallet, chainId: 4663, tokenAddress: `0x${'c'.repeat(40)}`, tokenDecimals: 18, tokenBalance: '250000000000000000000000', tokenBalanceFormatted: '250,000', weight: 2, blockNumber: '1234', capturedAt: new Date().toISOString(), source: 'chain' };
-const proposal = { id: 'LV-1', request_id: randomUUID(), creator_wallet: wallet, title: 'Town radio', summary: 'A public radio for the town.', category: 'UTILITY', district: 'THE DUMP', status: 'LIVE', build_tier: 'PENDING_REVIEW', eligibility_snapshot: snapshot, yes: 0, no: 0, created_at: new Date().toISOString(), closes_at: new Date(Date.now() + 43_200_000).toISOString() };
+const proposalRequestId = randomUUID();
+const proposalSourceCitizen = { id: `citizen-${proposalRequestId}`, body: 'Build a public radio for LANDVILLE.', request_id: proposalRequestId };
+const proposalSourceReply = { id: `reply-${proposalSourceCitizen.id}`, body: 'PROPOSAL TITLE: Town radio\nPURPOSE: Give citizens a shared place to discover town broadcasts.\nFUNCTIONS: Tune stations, play or pause audio, and show the current programme locally.\nPLACEMENT: Install it as a permanent object in The Dump.\nVISUAL: A battered LANDVILLE radio with acid-green controls.', request_id: null };
+const proposalSummary = `${proposalSourceCitizen.body}\n\nSCRAPY'S PLAN:\n${proposalSourceReply.body.split('\n').slice(1).join('\n')}`;
+const proposalInput = { sourceReplyId: proposalSourceReply.id, category: 'UTILITY', district: 'THE DUMP' };
+const proposal = { id: 'LV-1', request_id: proposalRequestId, creator_wallet: wallet, title: 'Town radio', summary: proposalSummary, category: 'UTILITY', district: 'THE DUMP', status: 'LIVE', build_tier: 'PENDING_REVIEW', eligibility_snapshot: snapshot, yes: 0, no: 0, created_at: new Date().toISOString(), closes_at: new Date(Date.now() + 43_200_000).toISOString() };
 const tokenStatus = { address: '0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe', symbol: 'SCRAPY', name: 'LANDVILLE', decimals: 18, chainId: 4663, totalSupply: '1000000000000000000000000000', totalSupplyFormatted: '1,000,000,000', blockNumber: '1234', verifiedAt: new Date().toISOString() };
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+function proposalSourceResponse(call) {
+  if (!call.url.includes('landville_messages?')) return undefined;
+  if (call.url.includes(`id=eq.${proposalSourceReply.id}`)) return json([proposalSourceReply]);
+  if (call.url.includes(`id=eq.${proposalSourceCitizen.id}`)) return json([proposalSourceCitizen]);
+  return undefined;
+}
 
 // Execute the real route/helper source in isolation. Only HTTP and the chain read
 // are replaced; no test request reaches Supabase, OpenAI or a funded wallet.
@@ -277,10 +288,11 @@ void test('cross-site mutation is denied before database access', async () => {
 });
 
 void test('proposal snapshot, author and governance rules come from the server, not browser fields', async () => {
-  const f = fixture((call) => call.url.endsWith('/rpc/landville_create_proposal') ? json(proposal) : undefined);
-  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', { title: proposal.title, summary: proposal.summary, category: 'UTILITY', district: 'THE DUMP', requestId: randomUUID(), wallet: other, snapshot: { weight: 999999 }, quorum: 0 }, { signed: true }));
+  const f = fixture((call) => proposalSourceResponse(call) || (call.url.endsWith('/rpc/landville_create_proposal') ? json(proposal) : undefined));
+  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', { ...proposalInput, title: 'Injected title', summary: 'Injected summary', wallet: other, snapshot: { weight: 999999 }, quorum: 0 }, { signed: true }));
   assert.equal(response.status, 200);
   const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_create_proposal'));
+  assert.equal(call.body.p_request_id, proposalRequestId); assert.equal(call.body.p_title, proposal.title); assert.equal(call.body.p_summary, proposal.summary);
   assert.equal(call.body.p_wallet, wallet); assert.equal(call.body.p_snapshot.weight, 2);
   assert.equal(call.body.p_quorum_votes, undefined); assert.equal(call.body.p_approval_percent, undefined);
   assert.equal(call.body.p_voting_hours, undefined, 'The database owns the fixed 12-hour deadline');
@@ -604,30 +616,64 @@ void test('absent Supabase configuration never falls back to local records', asy
   assert.equal((await response.json()).objects, undefined);
 });
 
-void test('an active proposal blocks submission before reading the token balance', async () => {
-  const f = fixture((call) => call.url.includes('status=in.(LIVE,PASSED,BUILDING)') ? json([{ id: 'LV-1' }]) : undefined);
-  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', { title: proposal.title, summary: proposal.summary, category: 'UTILITY', district: 'THE DUMP', requestId: randomUUID() }, { signed: true }));
+void test('a proposal cannot bypass the public Scrapy conversation', async () => {
+  const direct = fixture(() => undefined);
+  const blocked = await direct.load('app/api/proposals/route.ts').POST(direct.request('/api/proposals', { title: 'Thin idea', summary: 'Submitted directly.', category: 'UTILITY', district: 'THE DUMP', requestId: randomUUID() }, { signed: true }));
+  assert.equal(blocked.status, 400); assert.match((await blocked.json()).error, /REVIEW & PROPOSE/);
+  assert.equal(direct.balanceReads, 0); assert.ok(!direct.calls.some((call) => call.url.endsWith('/rpc/landville_create_proposal')));
+
+  const wrongOwner = fixture((call) => {
+    if (call.url.includes(`id=eq.${proposalSourceReply.id}`)) return json([proposalSourceReply]);
+    if (call.url.includes(`id=eq.${proposalSourceCitizen.id}`)) return json([]);
+    return undefined;
+  });
+  const rejected = await wrongOwner.load('app/api/proposals/route.ts').POST(wrongOwner.request('/api/proposals', proposalInput, { signed: true }));
+  assert.equal(rejected.status, 400); assert.match((await rejected.json()).error, /your own public conversation/);
+  assert.ok(wrongOwner.calls.some((call) => call.url.includes(`wallet=eq.${wallet}`) && call.url.includes('ask_scrapy=eq.true')));
+  assert.ok(!wrongOwner.calls.some((call) => call.url.endsWith('/rpc/landville_create_proposal')));
+});
+
+void test('two active proposals block a third before reading the token balance', async () => {
+  const f = fixture((call) => proposalSourceResponse(call) || (call.url.includes('status=in.(LIVE,PASSED,BUILDING)') ? json([{ id: 'LV-1' }, { id: 'LV-2' }]) : undefined));
+  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', proposalInput, { signed: true }));
   assert.equal(response.status, 409); assert.equal(f.balanceReads, 0);
-  assert.match((await response.json()).error, /LV-1/);
+  assert.match((await response.json()).error, /LV-1 and LV-2/);
   assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_create_proposal')));
+});
+
+void test('one active proposal and zero SCRAPY still allow a second submission', async () => {
+  const baseSnapshot = { ...snapshot, tokenBalance: '0', tokenBalanceFormatted: '0', weight: 1 };
+  const f = fixture((call) => {
+    const source = proposalSourceResponse(call);
+    if (source) return source;
+    if (call.url.includes('status=in.(LIVE,PASSED,BUILDING)')) return json([{ id: 'LV-1' }]);
+    if (call.url.endsWith('/rpc/landville_create_proposal')) return json({ ...proposal, id: 'LV-2', eligibility_snapshot: baseSnapshot });
+    return undefined;
+  }, {}, { '@/lib/server/voting': { readVotingSnapshot: async () => baseSnapshot } });
+  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', proposalInput, { signed: true }));
+  assert.equal(response.status, 200);
+  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_create_proposal'));
+  assert.equal(call.body.p_snapshot.weight, 1); assert.equal(call.body.p_snapshot.tokenBalance, '0');
 });
 
 void test('idempotent retry reuses the original proposal even while its slot is occupied', async () => {
   const f = fixture((call) => {
+    const source = proposalSourceResponse(call);
+    if (source) return source;
     if (call.url.includes(`request_id=eq.${proposal.request_id}`)) return json([proposal]);
     if (call.url.endsWith('/rpc/landville_create_proposal')) return json(proposal);
     return undefined;
   });
-  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', { title: proposal.title, summary: proposal.summary, category: 'UTILITY', district: 'THE DUMP', requestId: proposal.request_id }, { signed: true }));
+  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', proposalInput, { signed: true }));
   assert.equal(response.status, 200); assert.equal(f.balanceReads, 0);
   assert.ok(!f.calls.some((call) => call.url.includes('status=in.')));
 });
 
 void test('a database slot conflict after the preliminary read returns an honest conflict', async () => {
-  const f = fixture((call) => call.url.endsWith('/rpc/landville_create_proposal') ? json({ message: 'ACTIVE_PROPOSAL_EXISTS' }, 400) : undefined);
-  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', { title: proposal.title, summary: proposal.summary, category: 'UTILITY', district: 'THE DUMP', requestId: randomUUID() }, { signed: true }));
+  const f = fixture((call) => proposalSourceResponse(call) || (call.url.endsWith('/rpc/landville_create_proposal') ? json({ message: 'ACTIVE_PROPOSAL_LIMIT' }, 400) : undefined));
+  const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', proposalInput, { signed: true }));
   assert.equal(response.status, 409);
-  assert.match((await response.json()).error, /active proposal/);
+  assert.match((await response.json()).error, /two active proposals/);
 });
 
 for (const code of ['BUILD_ALREADY_RUNNING', 'BUILD_QUEUE_ORDER']) void test(`${code} cannot be bypassed by the admin API`, async () => {

@@ -4,13 +4,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { BuildUpdate, ProposalRecord, VoteChoice, WorldObjectRecord } from '@/lib/landville-data';
 import type { VoteReceipt } from '@/lib/governance';
-import { activeProposalForWallet } from '@/lib/proposal-lifecycle';
+import { activeProposalForWallet, activeProposalsForWallet } from '@/lib/proposal-lifecycle';
 import { useWallet } from '@/components/landville/wallet-provider';
 
-type NewProposal = Pick<ProposalRecord, 'title' | 'summary' | 'category' | 'district'>;
+type NewProposal = Pick<ProposalRecord, 'category' | 'district'> & { sourceReplyId: string };
 type RemoteState = { proposals: ProposalRecord[]; objects: WorldObjectRecord[]; voted: Record<string, VoteReceipt>; wallet: string; isAdmin: boolean };
 type Store = Omit<RemoteState, 'wallet'> & {
   activeProposal: ProposalRecord | undefined;
+  activeProposals: ProposalRecord[];
   status: 'loading' | 'ready' | 'unavailable'; error: string;
   refresh(): Promise<void>;
   createProposal(input: NewProposal): Promise<ProposalRecord>;
@@ -34,7 +35,6 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<RemoteState>(empty);
   const [status, setStatus] = useState<Store['status']>('loading');
   const [error, setError] = useState('');
-  const pending = useRef(new Map<string, string>());
   const sequence = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -65,16 +65,13 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
   const store = useMemo<Store>(() => ({
     proposals: state.proposals, objects: state.objects,
     activeProposal: activeProposalForWallet(state.proposals, wallet.address),
+    activeProposals: activeProposalsForWallet(state.proposals, wallet.address),
     voted: wallet.address && state.wallet === wallet.address ? state.voted : {},
     isAdmin: Boolean(wallet.address && state.wallet === wallet.address && state.isAdmin),
     status, error, refresh,
     async createProposal(input) {
       if (!wallet.address) throw new Error('Create your citizen account before submitting a proposal.');
-      const key = JSON.stringify([wallet.address, input]);
-      const requestId = pending.current.get(key) || crypto.randomUUID();
-      pending.current.set(key, requestId);
-      const result = await serverAction<{ proposal: ProposalRecord }>('/api/proposals', { ...input, requestId });
-      pending.current.delete(key);
+      const result = await serverAction<{ proposal: ProposalRecord }>('/api/proposals', input);
       await refresh();
       return result.proposal;
     },

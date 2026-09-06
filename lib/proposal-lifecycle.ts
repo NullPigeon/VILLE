@@ -2,10 +2,14 @@ import type { ProposalRecord } from './landville-data';
 
 export const VOTING_HOURS = 12;
 
-export function activeProposalForWallet(proposals: ProposalRecord[], wallet: string) {
-  if (!wallet) return undefined;
-  return proposals.find((proposal) => proposal.creatorWallet?.toLowerCase() === wallet.toLowerCase()
+export function activeProposalsForWallet(proposals: ProposalRecord[], wallet: string) {
+  if (!wallet) return [];
+  return proposals.filter((proposal) => proposal.creatorWallet?.toLowerCase() === wallet.toLowerCase()
     && ['LIVE', 'PASSED', 'BUILDING'].includes(proposal.status));
+}
+
+export function activeProposalForWallet(proposals: ProposalRecord[], wallet: string) {
+  return activeProposalsForWallet(proposals, wallet)[0];
 }
 
 export function hasWinningVote(proposal: Pick<ProposalRecord, 'yes' | 'no'>) {

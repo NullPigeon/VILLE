@@ -42,7 +42,7 @@ export default function ChatPage() {
             const canReviewPlan = proposalDraft && request?.wallet?.toLowerCase() === wallet.address.toLowerCase();
             return <article className={`town-message ${message.kind.toLowerCase()}`} key={message.id}>
               <div className="town-avatar">{message.kind === 'CITIZEN' ? <CitizenAvatar avatar={message.avatar} /> : <Bot />}</div>
-              <div><header>{message.wallet ? <Link href={`/citizens/${message.wallet}`}>{message.author}</Link> : <b>{message.author}</b>}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time></header><p>{message.body}</p>{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE · AI UNAVAILABLE' : 'OLDER REPLY · SOURCE NOT RECORDED'}</small>}{message.wallet && <small>{shortWallet(message.wallet)}</small>}{wallet.address && message.kind === 'CITIZEN' && message.wallet?.toLowerCase() === wallet.address.toLowerCase() && <button className="lv-button" onClick={() => setDraft({ id: message.id, title: '', summary: message.body, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>PREPARE MY PROPOSAL</button>}{canReviewPlan && proposalDraft && <button className="lv-button primary" onClick={() => setDraft({ id: message.id, ...proposalDraft, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>REVIEW &amp; PROPOSE</button>}</div>
+              <div><header>{message.wallet ? <Link href={`/citizens/${message.wallet}`}>{message.author}</Link> : <b>{message.author}</b>}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time></header><p>{message.body}</p>{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE · AI UNAVAILABLE' : 'OLDER REPLY · SOURCE NOT RECORDED'}</small>}{message.wallet && <small>{shortWallet(message.wallet)}</small>}{canReviewPlan && proposalDraft && <button className="lv-button primary" onClick={() => setDraft({ id: message.id, ...proposalDraft, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>REVIEW &amp; PROPOSE</button>}</div>
             </article>;
           })}
           {!chat.messages.length && !chat.error && <p className="empty-state">No messages loaded yet.</p>}
@@ -58,12 +58,12 @@ export default function ChatPage() {
         <p>This history is shared and saved for everyone. Scrapy’s replies and confirmed build updates appear here too.</p>
         <p>SEND (or Enter) talks to your fellow citizens. ASK SCRAPY requests an AI reply here in public. Scrapy does not interrupt ordinary conversations.</p>
         <p>10 messages per UTC day without SCRAPY. 50 with any positive SCRAPY balance. Scrapy’s replies do not use your allowance.</p>
-        <p>One active proposal per account. Submit again after it is built or rejected. A conversation does not submit a proposal automatically.</p>
+        <p>Any citizen may submit up to two active proposals. A third unlocks after at least one is built or rejected. A conversation does not submit a proposal automatically.</p>
         <p>{chat.aiConfigured === null ? 'Checking Scrapy configuration…' : chat.aiConfigured ? 'AI key configured. Each reply shows whether AI actually answered.' : 'AI is not configured. Scrapy uses clearly marked scripted replies.'}</p>
-        <p>Discuss your idea here. Use REVIEW &amp; PROPOSE on Scrapy’s plan, or PREPARE MY PROPOSAL on your own final message. Review the draft before opening voting.</p>
+        <p>Discuss and refine your idea with Scrapy. Proposals can only be opened from a proposal-ready AI plan using REVIEW &amp; PROPOSE.</p>
         {wallet.address && <Link href="/chat/archive">MY OLD PRIVATE ARCHIVE</Link>}
       </div></aside>
     </div>
-    {draft && wallet.address === draft.wallet && <section className="lv-panel"><ChatProposalDraft key={`${draft.id}:${draft.wallet}`} titleText={draft.title} summaryText={draft.summary} onClose={() => setDraft(null)} /></section>}
+    {draft && wallet.address === draft.wallet && <section className="lv-panel"><ChatProposalDraft key={`${draft.id}:${draft.wallet}`} sourceReplyId={draft.id} titleText={draft.title} summaryText={draft.summary} onClose={() => setDraft(null)} /></section>}
   </ProductShell>;
 }
