@@ -665,6 +665,24 @@ void test('a wallet verified by Privy is used as the citizen voting wallet', asy
   assert.equal((await response.json()).linkedWallet, linkedWallet);
 });
 
+void test('a Privy email citizen is merged into its verified legacy wallet citizen', async () => {
+  const privyUserId = 'did:privy:mergecitizen';
+  const linkedWallet = `0x${'7'.repeat(40)}`;
+  const emailCitizen = `0x${'e'.repeat(40)}`;
+  const email = 'merged@example.com';
+  const f = fixture((call) => {
+    if (call.url.includes('privy_user_id=eq.')) return json([{ wallet: emailCitizen, linked_wallet: null, privy_user_id: privyUserId, email }]);
+    if (call.url.includes('linked_wallet=eq.')) return json([{ wallet: linkedWallet, linked_wallet: linkedWallet, privy_user_id: null, email: null }]);
+    if (call.url.endsWith('/rpc/landville_merge_privy_wallet_citizens')) return json({ wallet: linkedWallet, linked_wallet: linkedWallet, privy_user_id: privyUserId, email });
+    if (call.url.endsWith('/rpc/landville_claim_privy_citizen')) return json({ wallet: linkedWallet, linked_wallet: linkedWallet, privy_user_id: privyUserId, email });
+    return undefined;
+  }, {}, { '@/lib/server/privy': { verifyPrivyIdentity: async () => ({ id: privyUserId, email, linkedWallets: [linkedWallet] }) } });
+  const response = await f.load('app/api/auth/privy/route.ts').POST(f.request('/api/auth/privy', {}, { headers: { Authorization: 'Bearer verified-by-test-double' } }));
+  assert.equal(response.status, 200);
+  assert.ok(f.calls.some((call) => call.url.endsWith('/rpc/landville_merge_privy_wallet_citizens')));
+  assert.equal(f.session.readWalletSession(response.cookies.get(f.session.SESSION_COOKIE).value).address, linkedWallet);
+});
+
 void test('absent Supabase configuration never falls back to local records', async () => {
   const f = fixture(() => undefined, { SUPABASE_SECRET_KEY: '' });
   const response = await f.load('app/api/town/route.ts').GET(f.request('/api/town', {}, { method: 'GET' }));

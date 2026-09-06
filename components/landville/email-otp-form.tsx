@@ -14,6 +14,14 @@ export function EmailOtpForm({ attach = false }: { attach?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
 
+  if (attach) return <section className={styles.emailAuth}>
+    <span className={styles.label}><Mail /> ADD PERMANENT EMAIL LOGIN</span>
+    <p>Privy will verify and attach the email to this citizen. Afterwards, either your email or wallet opens the same account.</p>
+    <div className={styles.actions}>
+      <Button type="button" className="lv-button primary" onClick={() => account.linkEmail()}>LINK EMAIL</Button>
+    </div>
+  </section>;
+
   async function send(event: { preventDefault(): void }) {
     event.preventDefault();
     if (busy) return;
