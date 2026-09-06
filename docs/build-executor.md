@@ -3,8 +3,9 @@
 ## What is implemented
 
 A trusted GitHub Actions controller finalizes expired votes, atomically claims the
-oldest approved and technically reviewed proposal, requests an HTML/CSS/JavaScript
-module through the Responses API, validates its contract, and writes **one JSON
+oldest approved and technically reviewed proposal, runs a background Responses API
+agent loop (research/architecture, implementation, creative review and one repair
+pass when needed), validates its contract, and writes **one JSON
 artifact** to a `codex/build-lv-<id>-<attempt>` branch using GitHub's Git API. It
 creates a commit attributed to `NullPigeon` and opens a PR. It cannot auto-merge.
 The model gets the reviewed spec, not repository credentials or shell tools.
@@ -13,7 +14,7 @@ checks artifact contracts, script syntax, lint, unit/API tests, real PostgreSQL
 migrations/concurrency, and the full Next.js build. Functional acceptance remains
 an explicit human task, not an AI self-reported pass.
 
-This is a bounded V1 builder, **not an unrestricted full-stack coding agent**.
+This is a bounded module coding agent, **not an unrestricted full-stack coding agent**.
 Modules run in an opaque iframe with an HTTP sandbox CSP. No network, wallet,
 shared storage, cookies, server imports, dependencies, forms or parent access.
 State is transient and the UI says so. A persistent board, streaming radio,
@@ -72,6 +73,13 @@ Actions variables:
 - `LANDVILLE_SITE_URL`: production HTTPS origin, no path/query.
 - `LANDVILLE_BUILDER_MODEL`: an explicitly selected Responses/Structured Outputs
   model available in your API project. There is no guessed worker model default.
+- `LANDVILLE_BUILDER_REASONING=high`: reasoning effort for architecture, build and
+  review. Use a value supported by the selected model (`low`, `medium`, `high` or
+  `xhigh`).
+- `LANDVILLE_BUILDER_MAX_OUTPUT_TOKENS=24000`: bounded output budget per agent pass
+  (accepted range: 12,000–64,000).
+- `LANDVILLE_BUILDER_MAX_MINUTES=22`: maximum wait for the complete background agent loop
+  (accepted range: 8–25 minutes).
 - `LANDVILLE_SCHEDULER_ENABLED=true`: enables the scheduled coordinator.
 - `LANDVILLE_BUILDER_ENABLED=false` initially: finalize votes without paid builds.
 
@@ -85,8 +93,8 @@ branch protection is an essential second boundary.
 The schedule requests a tick every five minutes; GitHub may delay scheduled jobs.
 Votes still reject late submissions exactly at the deadline in PostgreSQL. Status
 finalization happens on the next successful tick, not necessarily at the exact second.
-One job can run globally and the workflow has a ten-minute timeout. Database leases
-last fifteen minutes. An expired lease fails closed and blocks the queue for review.
+One job can run globally and the workflow has a thirty-minute timeout. Database leases
+last forty-five minutes. An expired lease fails closed and blocks the queue for review.
 
 ## 4. First real build
 

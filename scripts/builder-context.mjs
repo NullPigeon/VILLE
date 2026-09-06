@@ -5,6 +5,7 @@ const sourcePaths = [
   'scripts/LANDVILLE_BUILDER.md',
   'app/globals.css',
   'app/product.css',
+  'app/world-constructor.css',
   'app/world/page.tsx',
   'app/chat/page.tsx',
   'app/proposals/page.tsx',
@@ -21,7 +22,7 @@ const sourcePaths = [
   'lib/robinhood-chain.ts',
 ];
 
-const MAX_SOURCE_CHARS = 140_000;
+const MAX_SOURCE_CHARS = 240_000;
 const MAX_REFERENCE_BYTES = 5_000_000;
 const MAX_SUBJECT_REFERENCES = 3;
 const trustedImageHosts = new Set(['upload.wikimedia.org']);
