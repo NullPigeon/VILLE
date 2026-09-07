@@ -12,7 +12,8 @@ const env = { LANDVILLE_SITE_URL: 'https://town.example', LANDVILLE_WORKER_SECRE
 const acceptanceReport = ['The Count control increments the visible total in the inline script.'];
 const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
 const intentReport = ['The requested subject is present.', 'The requested story and tone are present.', 'The requested interaction is implemented.'];
-const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport };
+const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
+const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.' };
 const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==', subjectReferences: [], creativeDirection: null };
 const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
@@ -24,7 +25,11 @@ function harness(override = () => undefined) {
     const other = override(call, calls);
     if (other) return other;
     if (url.endsWith('/api/internal/builds')) return json(call.body.action === 'CLAIM' ? { work } : { work: null });
-    if (url.includes('api.openai.com')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(calls.filter((entry) => entry.url.includes('api.openai.com')).length === 1 ? { html } : reviewResult) }] }] });
+    if (url.includes('api.openai.com')) {
+      const name = call.body?.text?.format?.name;
+      const result = name === 'city_architecture' ? architectureResult : name === 'city_module' ? { html } : reviewResult;
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(result) }] }] });
+    }
     if (url.endsWith('git/ref/heads/main')) return json({ object: { sha: baseSha } });
     if (url.endsWith(`git/commits/${baseSha}`)) return json({ tree: { sha: baseSha } });
     if (url.endsWith('git/trees')) return json({ sha: baseSha });
@@ -58,6 +63,7 @@ void test('reviewed artifacts require one evidence statement per acceptance chec
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, acceptanceReport: [] }));
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, designGate: 'FAIL' }));
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, intentGate: 'FAIL' }));
+  assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, scrapyGate: 'FAIL' }));
 });
 void test('one generated image is materialized only at the fixed marker', () => {
   const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
@@ -93,13 +99,19 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   const receipt = f.calls.at(-1).body;
   assert.equal(receipt.action, 'COMPLETE'); assert.equal(receipt.sha, sha); assert.equal(receipt.pr, 42);
   const ai = f.calls.find((call) => call.url.includes('api.openai.com'));
-  assert.equal(f.calls.filter((call) => call.url.includes('api.openai.com')).length, 2);
-  assert.equal(ai.body.store, false); assert.equal(ai.body.text.format.strict, true);
-  assert.deepEqual(ai.body.tools, [{ type: 'web_search_preview', search_context_size: 'medium' }, { type: 'image_generation' }]);
+  assert.equal(f.calls.filter((call) => call.url.includes('api.openai.com')).length, 3);
+  assert.equal(ai.body.store, true); assert.equal(ai.body.background, true); assert.equal(ai.body.reasoning.effort, 'high'); assert.equal(ai.body.text.format.strict, true);
+  assert.deepEqual(ai.body.tools, [{ type: 'web_search_preview', search_context_size: 'high' }]);
   assert.equal(ai.body.input[0].content.find((item) => item.type === 'input_image').type, 'input_image');
   assert.ok(ai.body.input[0].content[0].text.includes('LANDVILLE test context'));
-  const reviewAi = f.calls.filter((call) => call.url.includes('api.openai.com'))[1];
+  const buildAi = f.calls.filter((call) => call.url.includes('api.openai.com'))[1];
+  assert.deepEqual(buildAi.body.tools, [{ type: 'web_search_preview', search_context_size: 'medium' }, { type: 'image_generation' }]);
+  assert.match(buildAi.body.input[0].content[0].text, /approvedArchitecture/);
+  assert.match(buildAi.body.input[0].content[0].text, /market\.dexscreener/);
+  assert.match(buildAi.body.input[0].content[0].text, /chain\.robinhood/);
+  const reviewAi = f.calls.filter((call) => call.url.includes('api.openai.com'))[2];
   assert.deepEqual(reviewAi.body.tools, [{ type: 'image_generation' }]);
+  assert.match(f.calls.find((call) => call.url.endsWith('pulls')).body.body, /Scrapy character gate/);
   assert.ok(!JSON.stringify(ai.body).includes(env.LANDVILLE_GITHUB_WRITE_TOKEN));
 });
 void test('generated artwork is shown to the reviewer and embedded only after review', async () => {
@@ -108,19 +120,20 @@ void test('generated artwork is shown to the reviewer and embedded only after re
   let aiCalls = 0;
   const f = harness((call) => {
     if (!call.url.includes('api.openai.com')) return undefined;
+    if (call.body.text.format.name === 'city_architecture') return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(architectureResult) }] }] });
     aiCalls += 1;
-    return aiCalls === 1
+    return call.body.text.format.name === 'city_module'
       ? json({ status: 'completed', output: [{ type: 'image_generation_call', result: image }, { content: [{ type: 'output_text', text: JSON.stringify({ html: markedHtml }) }] }] })
       : json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ ...reviewResult, html: markedHtml }) }] }] });
   });
   assert.equal((await worker(env, f.http)).state, 'REVIEW');
-  const reviewCall = f.calls.filter((call) => call.url.includes('api.openai.com'))[1];
+  const reviewCall = f.calls.filter((call) => call.url.includes('api.openai.com'))[2];
   assert.equal(reviewCall.body.input[0].content.filter((item) => item.type === 'input_image').length, 2);
   const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
   assert.match(artifact.html, new RegExp(`src="data:image/png;base64,${image}"`));
   assert.doesNotMatch(artifact.html, /data-landville-generated-asset/);
 });
-void test('trusted subject references and creative direction reach both model passes', async () => {
+void test('trusted subject references and creative direction reach every model pass', async () => {
   const groundedContext = { ...builderContext, creativeDirection: 'Keep the voted visual joke.', subjectReferences: [{ label: 'Known subject', imageUrl: 'https://upload.wikimedia.org/reference.jpg', sourceUrl: 'https://commons.wikimedia.org/reference', credit: 'Photographer, CC BY-SA 4.0' }] };
   const f = harness();
   assert.equal((await runWorker(env, f.http, async (proposalId) => { assert.equal(proposalId, 'LV-1'); return groundedContext; })).state, 'REVIEW');
@@ -137,14 +150,43 @@ void test('reviewer-generated correction replaces the first-pass artwork', async
   let aiCalls = 0;
   const f = harness((call) => {
     if (!call.url.includes('api.openai.com')) return undefined;
+    if (call.body.text.format.name === 'city_architecture') return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(architectureResult) }] }] });
     aiCalls += 1;
-    const outputText = { content: [{ type: 'output_text', text: JSON.stringify(aiCalls === 1 ? { html: markedHtml } : { ...reviewResult, html: markedHtml }) }] };
-    return json({ status: 'completed', output: [{ type: 'image_generation_call', result: aiCalls === 1 ? draftImage : correctedImage }, outputText] });
+    const outputText = { content: [{ type: 'output_text', text: JSON.stringify(call.body.text.format.name === 'city_module' ? { html: markedHtml } : { ...reviewResult, html: markedHtml }) }] };
+    return json({ status: 'completed', output: [{ type: 'image_generation_call', result: call.body.text.format.name === 'city_module' ? draftImage : correctedImage }, outputText] });
   });
   assert.equal((await worker(env, f.http)).state, 'REVIEW');
   const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
   assert.match(artifact.html, new RegExp(correctedImage));
   assert.doesNotMatch(artifact.html, new RegExp(draftImage));
+});
+void test('background responses are polled until complete', async () => {
+  let queued = false;
+  const f = harness((call) => {
+    if (call.url.endsWith('/v1/responses') && call.body?.text?.format?.name === 'city_architecture' && !queued) {
+      queued = true;
+      return json({ id: 'resp_test', status: 'queued' });
+    }
+    if (call.url.endsWith('/v1/responses/resp_test')) return json({ id: 'resp_test', status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(architectureResult) }] }] });
+    return undefined;
+  });
+  assert.equal((await worker({ ...env, LANDVILLE_BUILDER_POLL_MS: '1' }, f.http)).state, 'REVIEW');
+  assert.equal(f.calls.find((call) => call.url.endsWith('/v1/responses/resp_test')).method, 'GET');
+});
+void test('a failed creative review receives one automatic repair pass', async () => {
+  let reviews = 0;
+  const failed = { ...reviewResult, designGate: 'FAIL', designReport: ['Hierarchy needs repair.', ...designReport.slice(1)] };
+  const f = harness((call) => {
+    if (call.body?.text?.format?.name === 'reviewed_city_module') {
+      reviews += 1;
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(failed) }] }] });
+    }
+    if (call.body?.text?.format?.name === 'repaired_city_module') return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(reviewResult) }] }] });
+    return undefined;
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  assert.equal(reviews, 1);
+  assert.equal(f.calls.filter((call) => call.url.includes('api.openai.com')).length, 4);
 });
 void test('a corrective revision writes a new immutable artifact path', async () => {
   const revised = { ...work, job: { ...work.job, attempt: 2, revision: 2, branch: 'codex/build-lv-1-2' } };
@@ -180,7 +222,7 @@ void test('receipt retries do not create duplicate commits or PRs', async () => 
   assert.equal(f.calls.filter((call) => call.body?.action === 'COMPLETE').length, 3);
 });
 void test('invalid module output never reaches GitHub writes', async () => {
-  const f = harness((call) => call.url.includes('api.openai.com') ? json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: '{"html":"fake"}' }] }] }) : undefined);
+  const f = harness((call) => call.body?.text?.format?.name === 'city_module' ? json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: '{"html":"fake"}' }] }] }) : undefined);
   await assert.rejects(worker(env, f.http));
   assert.ok(!f.calls.some((call) => call.url.includes('api.github.com') && call.method === 'POST'));
 });

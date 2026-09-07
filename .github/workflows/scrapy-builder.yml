@@ -13,7 +13,7 @@ jobs:
     # Opt-in only; pushing this workflow alone does not start paid AI requests.
     if: vars.LANDVILLE_SCHEDULER_ENABLED == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,6 +28,9 @@ jobs:
           LANDVILLE_SITE_URL: ${{ vars.LANDVILLE_SITE_URL }}
           LANDVILLE_BUILDER_ENABLED: ${{ vars.LANDVILLE_BUILDER_ENABLED }}
           LANDVILLE_BUILDER_MODEL: ${{ vars.LANDVILLE_BUILDER_MODEL }}
+          LANDVILLE_BUILDER_REASONING: ${{ vars.LANDVILLE_BUILDER_REASONING }}
+          LANDVILLE_BUILDER_MAX_OUTPUT_TOKENS: ${{ vars.LANDVILLE_BUILDER_MAX_OUTPUT_TOKENS }}
+          LANDVILLE_BUILDER_MAX_MINUTES: ${{ vars.LANDVILLE_BUILDER_MAX_MINUTES }}
           LANDVILLE_WORKER_SECRET: ${{ secrets.LANDVILLE_WORKER_SECRET }}
           OPENAI_API_KEY: ${{ secrets.LANDVILLE_BUILDER_OPENAI_KEY }}
           LANDVILLE_GITHUB_WRITE_TOKEN: ${{ secrets.LANDVILLE_GITHUB_WRITE_TOKEN }}

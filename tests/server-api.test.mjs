@@ -126,6 +126,7 @@ for (const [route, url, method] of [
   ['app/api/mayor/route.ts', '/api/mayor', 'POST'],
   ['app/api/proposals/route.ts', '/api/proposals', 'POST'],
   ['app/api/proposals/[id]/vote/route.ts', '/api/proposals/LV-1/vote', 'POST'],
+  ['app/api/modules/[id]/data/route.ts', '/api/modules/LV-1/data', 'POST'],
   ['app/api/admin/builds/[id]/route.ts', '/api/admin/builds/LV-1', 'PATCH'],
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
   ['app/api/admin/build-jobs/[id]/release/route.ts', '/api/admin/build-jobs/LV-1/release', 'POST'],
@@ -297,6 +298,56 @@ void test('a modified published module cannot silently execute for a citizen', a
   const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ artifact_path: 'city-modules/LV-1.json', artifact_hash: 'b'.repeat(64) }]) : undefined, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { html: '<html>module</html>' }, hash: 'c'.repeat(64) }) } });
   const response = await f.load('app/api/modules/[id]/route.ts').GET(f.request('/api/modules/LV-1', {}, { signed: true, method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 409);
+});
+
+void test('published modules can read bounded DEX Screener JSON through the host', async () => {
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1' }]);
+    if (call.url.startsWith('https://api.dexscreener.com/latest/dex/search')) return json({ schemaVersion: '1', pairs: [{ pairAddress: '0xpair', priceUsd: '1.23' }] });
+    return undefined;
+  });
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { operation: 'search', query: 'SCRAPY' }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.source, 'DEX Screener');
+  assert.equal(result.data.pairs[0].priceUsd, '1.23');
+  const upstream = f.calls.find((call) => call.url.startsWith('https://api.dexscreener.com/'));
+  assert.equal(new URL(upstream.url).searchParams.get('q'), 'SCRAPY');
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+});
+
+void test('module data bridge rejects arbitrary URLs and unapproved operations', async () => {
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1' }]) : undefined);
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { operation: 'url', url: 'http://127.0.0.1/private' }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 400);
+  assert.ok(!f.calls.some((call) => call.url.includes('127.0.0.1')));
+});
+
+void test('published modules can make bounded read-only Robinhood mainnet calls', async () => {
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1' }]);
+    if (call.url === 'https://rpc.mainnet.chain.robinhood.com') return json({ jsonrpc: '2.0', id: 1, result: '0x1234' });
+    return undefined;
+  });
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'chain.robinhood', input: { operation: 'blockNumber' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.source, 'Robinhood Chain'); assert.equal(result.chainId, 4663); assert.equal(result.result, '0x1234');
+  const upstream = f.calls.find((call) => call.url === 'https://rpc.mainnet.chain.robinhood.com');
+  assert.equal(upstream.body.method, 'eth_blockNumber'); assert.deepEqual(upstream.body.params, []);
+});
+
+void test('module chain bridge cannot sign, send transactions or choose an RPC', async () => {
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1' }]) : undefined);
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  for (const operation of ['eth_sendTransaction', 'personal_sign', 'wallet_switchEthereumChain']) {
+    const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'chain.robinhood', input: { operation, rpcUrl: 'http://127.0.0.1/private' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+    assert.equal(response.status, 400);
+  }
+  assert.ok(!f.calls.some((call) => call.url.includes('127.0.0.1') || call.url.includes('rpc.mainnet.chain.robinhood.com')));
 });
 
 void test('cross-site mutation is denied before database access', async () => {

@@ -66,7 +66,7 @@ begin
     perform public.landville_transition(proposal.id, p_actor, 'PASSED', 'START_BUILD', 'Scrapy builder claimed the reviewed specification.');
   end if;
   update public.landville_build_jobs set state = 'RUNNING', attempt = attempt + 1, lease_id = gen_random_uuid(),
-    lease_until = now() + interval '15 minutes', branch = 'codex/build-' || lower(proposal.id) || '-' || (attempt + 1)::text,
+    lease_until = now() + interval '45 minutes', branch = 'codex/build-' || lower(proposal.id) || '-' || (attempt + 1)::text,
     commit_sha = null, content_hash = null, pr_number = null, error = null, updated_at = now()
     where proposal_id = proposal.id returning * into job;
   return jsonb_build_object('job', to_jsonb(job), 'title', proposal.title);
