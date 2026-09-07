@@ -6,7 +6,12 @@ export type BuildJob = {
   branch: string | null; commit_sha: string | null; content_hash: string | null;
   pr_number: number | null; error: string | null; updated_at: string;
 };
-export type CityModule = { version: 1; proposalId: string; title: string; html: string; acceptance: string[] };
+export type ModuleStorageMode = 'private' | 'shared' | 'counter';
+export type ModuleStorageDeclaration = { name: string; mode: ModuleStorageMode; description: string };
+export type CityModule = {
+  version: 1; proposalId: string; title: string; html: string; acceptance: string[];
+  capabilities?: { storage: ModuleStorageDeclaration[] };
+};
 
 export const MAX_MODULE_HTML_LENGTH = 7_500_000;
 export const MAX_MODULE_ARTIFACT_LENGTH = MAX_MODULE_HTML_LENGTH + 10_000;
@@ -23,6 +28,19 @@ export function validateSpec(value: unknown): BuildSpec {
     spec.acceptance.some((item) => typeof item !== 'string' || item.trim().length < 5 || item.length > 300)) throw new Error('Supply a goal and 1–10 concrete acceptance checks.');
   return { version: 1, runtime: 'sandbox-html', goal: spec.goal.trim(), acceptance: spec.acceptance.map((item) => item.trim()), constraints: spec.constraints.trim() };
 }
+export function validateStorageDeclarations(value: unknown): ModuleStorageDeclaration[] {
+  if (!Array.isArray(value) || value.length > 8) throw new Error('Invalid city module capabilities.');
+  const names = new Set<string>();
+  return value.map((valueItem) => {
+    const declaration = valueItem as ModuleStorageDeclaration;
+    if (!declaration || typeof declaration !== 'object' || Object.keys(declaration).some((key) => !['name', 'mode', 'description'].includes(key)) ||
+      typeof declaration.name !== 'string' || !/^[a-z][a-z0-9_-]{0,31}$/.test(declaration.name) || names.has(declaration.name) ||
+      !['private', 'shared', 'counter'].includes(declaration.mode) || typeof declaration.description !== 'string' ||
+      declaration.description.trim().length < 5 || declaration.description.length > 160) throw new Error('Invalid city module storage declaration.');
+    names.add(declaration.name);
+    return { name: declaration.name, mode: declaration.mode, description: declaration.description.trim() };
+  });
+}
 export function validateModule(value: unknown, id: string): CityModule {
   const artifactModule = value as CityModule;
   if (!validProposalId(id) || !artifactModule || artifactModule.version !== 1 || artifactModule.proposalId !== id || typeof artifactModule.title !== 'string' || artifactModule.title.length < 4 || artifactModule.title.length > 80 ||
@@ -30,6 +48,12 @@ export function validateModule(value: unknown, id: string): CityModule {
     !Array.isArray(artifactModule.acceptance) || artifactModule.acceptance.length < 1 || artifactModule.acceptance.length > 10 || artifactModule.acceptance.some((item) => typeof item !== 'string' || item.length > 300)) throw new Error('Invalid city module artifact.');
   // This check is hygiene, not the security boundary. The HTTP CSP + opaque iframe are.
   if (/<(?:iframe|object|embed|base|form)\b/i.test(artifactModule.html) || /http-equiv\s*=\s*["']?refresh/i.test(artifactModule.html)) throw new Error('Unsupported module capability.');
-  return { version: 1, proposalId: id, title: artifactModule.title, html: artifactModule.html, acceptance: artifactModule.acceptance };
+  let capabilities: CityModule['capabilities'];
+  if (artifactModule.capabilities !== undefined) {
+    const storage = artifactModule.capabilities?.storage;
+    if (!artifactModule.capabilities || Object.keys(artifactModule.capabilities).some((key) => key !== 'storage')) throw new Error('Invalid city module capabilities.');
+    capabilities = { storage: validateStorageDeclarations(storage) };
+  }
+  return { version: 1, proposalId: id, title: artifactModule.title, html: artifactModule.html, acceptance: artifactModule.acceptance, ...(capabilities ? { capabilities } : {}) };
 }
 export const MODULE_CSP = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";

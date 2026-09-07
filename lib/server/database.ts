@@ -35,6 +35,9 @@ const databaseErrors: Record<string, [number, string]> = {
   RELEASE_REQUIRED: [400, 'A deployed module path and release reference are required.'],
   IDEMPOTENCY_CONFLICT: [409, 'This submission ID already belongs to different content.'],
   INVALID_VOTING_RULES: [503, 'Voting rules are not configured.'],
+  INVALID_MODULE_STORAGE: [400, 'Invalid module storage request.'],
+  MODULE_COUNTER_LIMIT: [409, 'This module counter reached its maximum value.'],
+  MODULE_STORAGE_QUOTA: [429, 'This module storage collection is full. Remove an old record before adding another.'],
 };
 
 // Server-only HTTP adapter. Privy verifies users, while all Supabase table

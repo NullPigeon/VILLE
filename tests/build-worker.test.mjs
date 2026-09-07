@@ -12,8 +12,8 @@ const env = { LANDVILLE_SITE_URL: 'https://town.example', LANDVILLE_WORKER_SECRE
 const acceptanceReport = ['The Count control increments the visible total in the inline script.'];
 const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
 const intentReport = ['The requested subject is present.', 'The requested story and tone are present.', 'The requested interaction is implemented.'];
-const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
-const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.' };
+const reviewResult = { html, storage: [], acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
+const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.', storagePlan: [] };
 const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==', subjectReferences: [], creativeDirection: null };
 const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
@@ -54,8 +54,9 @@ void test('artifact is deterministic and contains only the scoped module contrac
   const first = artifactFor(work, { html, path: '../../app/api/auth/route.ts', command: 'exfiltrate' });
   assert.deepEqual(first, artifactFor(work, { html }));
   const record = JSON.parse(first.content);
-  assert.deepEqual(Object.keys(record), ['version', 'proposalId', 'title', 'html', 'acceptance']);
+  assert.deepEqual(Object.keys(record), ['version', 'proposalId', 'title', 'html', 'acceptance', 'capabilities']);
   assert.deepEqual(record.acceptance, spec.acceptance);
+  assert.deepEqual(record.capabilities.storage, []);
   assert.match(first.hash, /^[a-f0-9]{64}$/);
 });
 void test('reviewed artifacts require one evidence statement per acceptance check', () => {

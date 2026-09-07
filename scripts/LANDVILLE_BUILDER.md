@@ -84,10 +84,15 @@ than imitate a random cyberpunk poster.
 The generated artifact is one self-contained sandboxed HTML document. It may use
 inline CSS, inline SVG, transient JavaScript, one worker-injected generated image
 and the explicitly documented LANDVILLE postMessage capability bridge. The bridge
-currently provides read-only DEX Screener market data and bounded, read-only
-Robinhood mainnet JSON-RPC calls with loading/error states. This is enough for
-honest live explorers, token screens, contract reads and quote displays; it is not
-transaction execution. It cannot connect wallets, sign, send transactions, write
-contracts, access storage or cookies, inspect the parent DOM/opener, call arbitrary
-servers or open external links. Never invent live data. Refuse specifications that
-require capabilities absent from the supplied runtime guide; do not simulate them.
+currently provides read-only DEX Screener market data, bounded read-only Robinhood
+mainnet JSON-RPC calls, and reviewed persistent module storage. Storage permissions
+must be minimal and explicit in the artifact: `private` is one JSON state per
+citizen, `shared` is a public authored record feed, and `counter` is a town-wide
+integer that can only increase one step at a time. Every bridge call needs honest
+loading, empty and error states. This supports real progress, notes, community
+boards, catalogs, scores and counters without exposing Supabase or citizen wallet
+addresses. The sandbox still cannot connect wallets, sign, send transactions,
+write contracts, use browser storage or cookies, inspect the parent DOM/opener,
+call arbitrary servers or open external links. Never invent live data. Refuse
+specifications that require capabilities absent from the supplied runtime guide;
+do not simulate them.
