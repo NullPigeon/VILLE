@@ -36,17 +36,20 @@ export async function publishVerifiedBuild(id: string, actor: string) {
   const origin = new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost');
   if (origin.protocol !== 'https:') throw new ApiError(503, 'Configure the production HTTPS site URL.');
   const pr = await githubRead<{ merged: boolean; merge_commit_sha: string; head: { sha: string; ref: string; repo: { full_name: string } }; base: { ref: string; repo: { full_name: string } } }>(`pulls/${job.pr_number}`);
-  const [checks, files, deployment, alias, artifact] = await Promise.all([
+  const [checks, files, deployment, alias, artifact, lineage] = await Promise.all([
     githubRead<{ check_runs: Array<{ name: string; status: string; conclusion: string; app: { slug: string } }> }>(`commits/${pr.head.sha}/check-runs?per_page=100`),
     githubRead<Array<{ filename: string; status: string }>>(`pulls/${job.pr_number}/files?per_page=100`),
     vercel<{ id: string; projectId: string; target: string; readyState: string; gitSource?: { sha: string }; meta?: { githubCommitSha?: string } }>(`v13/deployments/${encodeURIComponent(deploymentId)}?withGitRepoInfo=true`),
     vercel<{ deploymentId: string; projectId: string; redirect?: string }>(`v4/aliases/${encodeURIComponent(origin.hostname)}`),
     readCityModule(id, artifactPath),
+    pr.merge_commit_sha === deployedSha
+      ? Promise.resolve({ status: 'identical' })
+      : githubRead<{ status: 'ahead' | 'behind' | 'diverged' | 'identical' }>(`compare/${pr.merge_commit_sha}...${deployedSha}`),
   ]);
   if (!pr.merged || pr.base.ref !== 'main' || pr.base.repo.full_name.toLowerCase() !== BUILD_REPOSITORY.toLowerCase() || pr.head.repo.full_name.toLowerCase() !== BUILD_REPOSITORY.toLowerCase() || pr.head.ref !== job.branch) throw new ApiError(409, 'Merge the reviewed, unchanged builder PR into main first.');
   if (files.length !== 1 || files[0].filename !== artifactPath || !['added', 'modified'].includes(files[0].status)) throw new ApiError(409, 'The builder PR contains changes outside its module revision.');
   if (!checks.check_runs.some((check) => check.name === 'City checks' && check.app.slug === 'github-actions' && check.status === 'completed' && check.conclusion === 'success')) throw new ApiError(409, 'The City checks workflow must pass on the exact builder commit.');
   if (deployment.id !== deploymentId || deployment.projectId !== projectId || deployment.target !== 'production' || deployment.readyState !== 'READY' || alias.deploymentId !== deploymentId || alias.projectId !== projectId || alias.redirect ||
-    (deployment.gitSource?.sha || deployment.meta?.githubCommitSha) !== deployedSha || pr.merge_commit_sha !== deployedSha || artifact.hash !== job.content_hash) throw new ApiError(409, 'The active production deployment must match this merged PR and module artifact.');
+    (deployment.gitSource?.sha || deployment.meta?.githubCommitSha) !== deployedSha || !['ahead', 'identical'].includes(lineage.status) || artifact.hash !== job.content_hash) throw new ApiError(409, 'The active production deployment must contain this merged PR and exact module artifact.');
   return rpc('landville_publish_build_v2', { p_id: id, p_actor: actor, p_sha: job.commit_sha, p_hash: artifact.hash, p_artifact_path: artifactPath, p_release: `${deploymentId}:${deployedSha}` });
 }

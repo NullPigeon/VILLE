@@ -221,6 +221,7 @@ function releaseFixture(change = {}) {
     if (call.url.includes('landville_build_jobs?')) return json([job]);
     if (call.url.includes('/pulls/42/files')) return json(change.files || [{ filename: 'city-modules/LV-1.json', status: 'added' }]);
     if (call.url.endsWith('/pulls/42')) return json(pr);
+    if (call.url.includes('/compare/')) return json(change.compare || { status: 'ahead' });
     if (call.url.includes('/check-runs?')) return json({ check_runs: change.checks || [{ name: 'City checks', status: 'completed', conclusion: 'success', app: { slug: 'github-actions' } }] });
     if (call.url.includes('api.vercel.com/v13/deployments/')) return json({ id: 'dpl_test', projectId: 'prj_test', target: 'production', readyState: 'READY', gitSource: { sha: mergedSha }, ...change.deployment });
     if (call.url.includes('api.vercel.com/v4/aliases/')) return json({ deploymentId: 'dpl_test', projectId: 'prj_test', ...change.alias });
@@ -235,6 +236,18 @@ void test('matching PR, CI, production alias and artifact permit one verified pu
   assert.equal(publish.body.p_release, `dpl_test:${'c'.repeat(40)}`);
   assert.equal(publish.body.p_artifact_path, 'city-modules/LV-1.json');
   assert.ok(!f.calls.some((call) => call.url.includes('attacker.example')));
+});
+void test('a newer production deployment may publish an unchanged merged module', async () => {
+  const deployedSha = 'd'.repeat(40);
+  const f = releaseFixture({
+    env: { VERCEL_GIT_COMMIT_SHA: deployedSha },
+    deployment: { gitSource: { sha: deployedSha } },
+    compare: { status: 'ahead' },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', {}, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_build_v2')).body.p_release, `dpl_test:${deployedSha}`);
+  assert.ok(f.calls.some((call) => call.url.includes(`/compare/${'c'.repeat(40)}...${deployedSha}`)));
 });
 void test('a corrective release verifies its immutable revision path', async () => {
   const f = releaseFixture({ job: { revision: 2 }, files: [{ filename: 'city-modules/LV-1-r2.json', status: 'modified' }] });
@@ -262,6 +275,7 @@ for (const [label, change, expected] of [
   ['redirecting alias', { alias: { redirect: 'https://other.example' } }, 409],
   ['different deployed artifact', { hash: 'd'.repeat(64) }, 409],
   ['different production commit', { deployment: { gitSource: { sha: 'd'.repeat(40) } } }, 409],
+  ['unrelated production commit', { env: { VERCEL_GIT_COMMIT_SHA: 'd'.repeat(40) }, deployment: { gitSource: { sha: 'd'.repeat(40) } }, compare: { status: 'diverged' } }, 409],
   ['non-production environment', { env: { VERCEL_ENV: 'preview' } }, 503],
 ]) void test(`${typeof label === 'string' ? label : 'Invalid release'} cannot publish a world object`, async () => {
   const f = releaseFixture(change);
