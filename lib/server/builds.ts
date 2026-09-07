@@ -2,7 +2,7 @@ import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { ApiError, isAdmin, requireWallet } from '@/lib/server/api';
-import { assertCitizen, database } from '@/lib/server/database';
+import { citizenAccount, database } from '@/lib/server/database';
 import type { BuildJob } from '@/lib/build-contract';
 
 export const BUILD_REPOSITORY = 'NullPigeon/VILLE';
@@ -20,10 +20,15 @@ export function workerActor() {
   if (!/^0x[0-9a-f]{40}$/.test(wallet) || !isAdmin(wallet)) throw new ApiError(503, 'Configure an authorized build operator wallet.');
   return wallet;
 }
+export async function isBuildAdminCitizen(actor: string) {
+  if (!actor) return false;
+  if (isAdmin(actor)) return true;
+  const account = await citizenAccount(actor);
+  return Boolean(account && isAdmin(account.linked_wallet || ''));
+}
 export async function requireBuildAdmin(request: NextRequest) {
   const actor = requireWallet(request);
-  if (!isAdmin(actor)) throw new ApiError(403, 'Build administrator access required.');
-  await assertCitizen(actor);
+  if (!await isBuildAdminCitizen(actor)) throw new ApiError(403, 'Build administrator access required.');
   return actor;
 }
 export async function readJob(id: string) {
