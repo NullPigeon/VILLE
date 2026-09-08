@@ -41,6 +41,21 @@ export function validateStorageDeclarations(value: unknown): ModuleStorageDeclar
     return { name: declaration.name, mode: declaration.mode, description: declaration.description.trim() };
   });
 }
+function validateDeclaredStorageUsage(html: string, storage: ModuleStorageDeclaration[]) {
+  if (!/capability\s*:\s*(['"])module\.storage\1/.test(html)) return;
+  if (!storage.length) throw new Error('Module storage is used but not declared.');
+  const usages = new Map<string, ModuleStorageMode>();
+  const patterns = [
+    /operation\s*:\s*(['"])(private|shared|counter)\.[a-z]+\1[^{}]{0,180}?collection\s*:\s*(['"])([a-z][a-z0-9_-]{0,31})\3/g,
+    /collection\s*:\s*(['"])([a-z][a-z0-9_-]{0,31})\1[^{}]{0,180}?operation\s*:\s*(['"])(private|shared|counter)\.[a-z]+\3/g,
+  ];
+  for (const match of html.matchAll(patterns[0])) usages.set(match[4], match[2] as ModuleStorageMode);
+  for (const match of html.matchAll(patterns[1])) usages.set(match[2], match[4] as ModuleStorageMode);
+  if (!usages.size) throw new Error('Module storage calls must use literal operations and collections.');
+  for (const [name, mode] of usages) {
+    if (!storage.some((item) => item.name === name && item.mode === mode)) throw new Error(`Module storage collection ${name} is not declared with mode ${mode}.`);
+  }
+}
 export function validateModule(value: unknown, id: string): CityModule {
   const artifactModule = value as CityModule;
   if (!validProposalId(id) || !artifactModule || artifactModule.version !== 1 || artifactModule.proposalId !== id || typeof artifactModule.title !== 'string' || artifactModule.title.length < 4 || artifactModule.title.length > 80 ||
@@ -54,6 +69,7 @@ export function validateModule(value: unknown, id: string): CityModule {
     if (!artifactModule.capabilities || Object.keys(artifactModule.capabilities).some((key) => key !== 'storage')) throw new Error('Invalid city module capabilities.');
     capabilities = { storage: validateStorageDeclarations(storage) };
   }
+  validateDeclaredStorageUsage(artifactModule.html, capabilities?.storage || []);
   return { version: 1, proposalId: id, title: artifactModule.title, html: artifactModule.html, acceptance: artifactModule.acceptance, ...(capabilities ? { capabilities } : {}) };
 }
 export const MODULE_CSP = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";
