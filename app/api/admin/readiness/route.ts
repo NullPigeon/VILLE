@@ -20,9 +20,10 @@ export async function GET(request: NextRequest) {
           database('landville_citizens?select=wallet,citizen_number,username,bio,avatar&limit=0'),
           database('landville_proposals?select=id&limit=0'),
           database('landville_build_jobs?select=proposal_id&limit=0'),
+          database('landville_project_banners?select=id&limit=0'),
         ]);
-        storage = 'reachable; chat provenance and citizen profile columns available';
-      } catch { storage = 'unavailable: check credentials and migrations 001–007'; }
+        storage = 'reachable; chat, citizen profiles, builds and project banners available';
+      } catch { storage = 'unavailable: check credentials and apply every Supabase migration'; }
     }
     return NextResponse.json({
       storage,

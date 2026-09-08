@@ -6,6 +6,7 @@ import {
   Bot,
   Building2,
   CalendarDays,
+  Grid2X2,
   User,
   Vote,
   X,
@@ -31,6 +32,11 @@ export default function WorldPage() {
       immersive
     >
       <section className="world-canvas world-stage world-blank-canvas" aria-label="Interactive empty LANDVILLE world">
+        <article className="world-object-card one-scrapy-landmark" style={{ left: '72%', top: '24%' }}>
+          <div className="world-object-preview one-scrapy-landmark-preview" aria-hidden="true"><Grid2X2 /><span>PROJECT<br />SIGNAL<br />WALL</span></div>
+          <div className="world-object-label"><strong>ONE SCRAPY PAGE</strong><small>@scrapy</small></div>
+          <Link href="/one-scrapy" aria-label="Open ONE SCRAPY PAGE" />
+        </article>
         {objects.map((object) => (
           <article
             key={object.id}

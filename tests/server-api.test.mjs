@@ -80,6 +80,7 @@ void test('an unsigned sign-in challenge cannot access private history or admin 
     ['app/api/profile/route.ts', '/api/profile'],
     ['app/api/admin/readiness/route.ts', '/api/admin/readiness'],
     ['app/api/admin/build-jobs/route.ts', '/api/admin/build-jobs'],
+    ['app/api/admin/project-banners/route.ts', '/api/admin/project-banners'],
   ]) {
     const response = await f.load(route).GET(f.request(url, {}, { method: 'GET', headers: { Cookie: `${f.session.SESSION_COOKIE}=${value}` } }));
     assert.equal(response.status, 401, url);
@@ -131,12 +132,58 @@ for (const [route, url, method] of [
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
   ['app/api/admin/build-jobs/[id]/release/route.ts', '/api/admin/build-jobs/LV-1/release', 'POST'],
   ['app/api/admin/build-jobs/[id]/preview/route.ts', '/api/admin/build-jobs/LV-1/preview', 'GET'],
+  ['app/api/admin/project-banners/route.ts', '/api/admin/project-banners', 'POST'],
 ]) void test(`${url} rejects anonymous writes before any database/chain request`, async () => {
   const f = fixture(() => undefined);
   const response = await f.load(route)[method](f.request(url, {}, { method }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 401);
   assert.equal(f.calls.length, 0);
   assert.equal(f.balanceReads, 0);
+});
+
+void test('the public project wall returns only the curated banner fields', async () => {
+  const row = {
+    id: randomUUID(), name: 'Robinhood Chain', twitter_url: 'https://x.com/RobinhoodChain',
+    website_url: 'https://robinhood.com/', description: 'Markets wearing a new chain.',
+    image_url: 'https://images.example.com/banner.jpg', active: true, display_order: 7,
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  };
+  const f = fixture((call) => call.url.includes('landville_project_banners?select=*&active=eq.true') ? json([row]) : undefined);
+  const response = await f.load('app/api/project-banners/route.ts').GET();
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.banners[0].name, row.name);
+  assert.equal(body.banners[0].twitterUrl, row.twitter_url);
+  assert.equal(body.banners[0].displayOrder, 7);
+  assert.match(response.headers.get('cache-control'), /s-maxage=30/);
+});
+
+void test('an admin can add a validated project banner', async () => {
+  const id = randomUUID();
+  const input = {
+    name: 'Robinhood Chain', twitterUrl: 'https://x.com/RobinhoodChain', websiteUrl: 'https://robinhood.com/',
+    description: 'Markets wearing a new chain.', imageUrl: 'https://images.example.com/banner.jpg', active: true, displayOrder: 4,
+  };
+  const f = fixture((call) => {
+    if (call.url.endsWith('/landville_project_banners') && call.method === 'POST') return json([{ id, ...call.body, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }]);
+    return undefined;
+  }, { LANDVILLE_ADMIN_WALLETS: wallet });
+  const response = await f.load('app/api/admin/project-banners/route.ts').POST(f.request('/api/admin/project-banners', input, { signed: true }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).banner.name, input.name);
+  const write = f.calls.find((call) => call.url.endsWith('/landville_project_banners'));
+  assert.equal(write.body.twitter_url, input.twitterUrl);
+  assert.equal(write.body.display_order, 4);
+});
+
+void test('project banners reject non-X click destinations', async () => {
+  const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet });
+  const response = await f.load('app/api/admin/project-banners/route.ts').POST(f.request('/api/admin/project-banners', {
+    name: 'Wrong destination', twitterUrl: 'https://example.com/not-x', websiteUrl: 'https://example.com/',
+    description: 'This banner should never be accepted.', imageUrl: 'https://example.com/banner.jpg', active: true, displayOrder: 0,
+  }, { signed: true }));
+  assert.equal(response.status, 400);
+  assert.ok(!f.calls.some((call) => call.url.endsWith('/landville_project_banners')));
 });
 
 void test('anonymous visitors cannot execute modules', async () => {

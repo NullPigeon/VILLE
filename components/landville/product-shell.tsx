@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, CircleDollarSign, Crown, Home, Menu, MessageCircle, User, Vote, Wrench, X } from 'lucide-react';
+import { Building2, CircleDollarSign, Crown, Grid2X2, Home, Menu, MessageCircle, User, Vote, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { shortWallet } from '@/lib/governance';
@@ -13,6 +13,7 @@ import { SCRAPY_TOKEN, scrapyAccess } from '@/lib/scrapy-token';
 
 const nav = [
   { href: '/world', label: 'WORLD', icon: Building2 },
+  { href: '/one-scrapy', label: 'ONE SCRAPY PAGE', icon: Grid2X2 },
   { href: '/proposals', label: 'PROPOSALS', icon: Vote },
   { href: '/chat', label: 'TOWN CHAT', icon: MessageCircle },
   { href: '/treasury', label: 'TREASURY', icon: CircleDollarSign },
@@ -25,7 +26,7 @@ export function ProductShell({ title, eyebrow, actions, children, immersive = fa
   const town = useLandville();
   const [open, setOpen] = useState(false);
   const profileHref = wallet.address ? `/citizens/${wallet.address}` : '/citizens';
-  const mobileNav = nav.filter((item) => item.href !== '/treasury');
+  const mobileNav = nav.filter((item) => !['/treasury', '/one-scrapy'].includes(item.href));
   const tokenAccess = wallet.snapshot ? scrapyAccess(wallet.snapshot.tokenBalance, wallet.snapshot.tokenDecimals) : null;
   return <div className="product-root">
     <aside className={open ? 'product-rail rail-open' : 'product-rail'}>
