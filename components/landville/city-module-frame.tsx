@@ -13,7 +13,7 @@ export function CityModuleFrame({ id }: { id: string }) {
       const target = frame.current?.contentWindow;
       if (!target || event.source !== target) return;
       const request = parseModuleCapabilityRequest(event.data);
-      if (!request || active.has(request.requestId) || active.size >= 2) return;
+      if (!request || active.has(request.requestId) || active.size >= 4) return;
       active.add(request.requestId);
       try {
         const response = await fetch(`/api/modules/${encodeURIComponent(id)}/data`, {
@@ -29,5 +29,5 @@ export function CityModuleFrame({ id }: { id: string }) {
     return () => window.removeEventListener('message', onMessage);
   }, [id]);
   if (!address) return <section className="lv-panel chat-sidebar-body"><h2>BECOME A CITIZEN</h2><p>Explore the world freely. Sign in to interact with its objects.</p><Link href="/citizens" className="lv-button primary">CREATE ACCOUNT / SIGN IN</Link></section>;
-  return <><p className="admin-warning">Independent city module. Approved public market data may be relayed by LANDVILLE. No wallet control or shared storage; local progress resets when you leave.</p><iframe ref={frame} key={`${id}:${address}`} title={`City module ${id}`} src={`/api/modules/${id}`} sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: '100%', height: '75vh', border: '1px solid #626d26', background: '#10110d' }} /></>;
+  return <><p className="admin-warning">Independent city module. LANDVILLE relays only its declared data and storage permissions. It cannot control your wallet, sign or submit transactions.</p><iframe ref={frame} key={`${id}:${address}`} title={`City module ${id}`} src={`/api/modules/${id}`} sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: '100%', height: '75vh', border: '1px solid #626d26', background: '#10110d' }} /></>;
 }

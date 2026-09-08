@@ -20,9 +20,12 @@ export async function GET(request: NextRequest) {
           database('landville_citizens?select=wallet,citizen_number,username,bio,avatar&limit=0'),
           database('landville_proposals?select=id&limit=0'),
           database('landville_build_jobs?select=proposal_id&limit=0'),
+          database('landville_module_private_state?select=module_id&limit=0'),
+          database('landville_module_shared_records?select=id&limit=0'),
+          database('landville_module_counters?select=module_id&limit=0'),
         ]);
-        storage = 'reachable; chat provenance and citizen profile columns available';
-      } catch { storage = 'unavailable: check credentials and migrations 001–007'; }
+        storage = 'reachable; citizen profiles and universal module storage available';
+      } catch { storage = 'unavailable: check credentials and apply every Supabase migration'; }
     }
     return NextResponse.json({
       storage,

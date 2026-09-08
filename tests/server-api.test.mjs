@@ -350,6 +350,60 @@ void test('module chain bridge cannot sign, send transactions or choose an RPC',
   assert.ok(!f.calls.some((call) => call.url.includes('127.0.0.1') || call.url.includes('rpc.mainnet.chain.robinhood.com')));
 });
 
+void test('a published module can persist private state only in its declared collection', async () => {
+  const hash = 'd'.repeat(64);
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.includes('landville_module_private_state?on_conflict=')) return json([{ data: call.body.data, updated_at: call.body.updated_at }]);
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [{ name: 'progress', mode: 'private', description: 'Citizen progress state.' }] } }, hash }) } });
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'private.set', collection: 'progress', data: { level: 3 } } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).value, { level: 3 });
+  const write = f.calls.find((call) => call.url.includes('landville_module_private_state?on_conflict='));
+  assert.equal(write.body.citizen_wallet, wallet); assert.equal(write.body.module_id, 'LV-1');
+});
+
+void test('module storage refuses undeclared collections before a storage table is touched', async () => {
+  const hash = 'e'.repeat(64);
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [] } }, hash }) },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'shared.list', collection: 'secrets' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 403);
+  assert.ok(!f.calls.some((call) => call.url.includes('landville_module_shared_records')));
+});
+
+void test('shared module records expose public author labels but never wallet addresses', async () => {
+  const hash = 'f'.repeat(64);
+  const record = { id: '11111111-1111-4111-8111-111111111111', owner_wallet: other, data: { topic: 'Build a crane' }, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.includes('landville_module_shared_records?')) return json([record]);
+    if (call.url.includes('landville_citizens?wallet=in.')) return json([{ wallet: other, joined_at: record.created_at, citizen_number: 7, username: 'builder' }]);
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [{ name: 'topics', mode: 'shared', description: 'Public discussion topics.' }] } }, hash }) } });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'shared.list', collection: 'topics', limit: 10 } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.records[0].author.label, '@builder'); assert.equal(body.records[0].ownedByViewer, false);
+  assert.ok(!JSON.stringify(body).includes(other));
+});
+
+void test('global module counters increment only through their declared atomic RPC', async () => {
+  const hash = '1'.repeat(64);
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.endsWith('/rpc/landville_increment_module_counter')) return json(9);
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [{ name: 'visits', mode: 'counter', description: 'Town-wide visit count.' }] } }, hash }) } });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'counter.increment', collection: 'visits' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200); assert.equal((await response.json()).value, 9);
+  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_increment_module_counter'));
+  assert.deepEqual(call.body, { p_module_id: 'LV-1', p_collection: 'visits' });
+});
+
 void test('cross-site mutation is denied before database access', async () => {
   const f = fixture(() => undefined);
   const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', {}, { signed: true, headers: { Origin: 'https://untrusted.example' } }));
