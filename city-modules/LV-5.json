@@ -7,6 +7,22 @@
     "Do it on the best way"
   ],
   "capabilities": {
-    "storage": []
+    "storage": [
+      {
+        "name": "panic_ideas",
+        "mode": "shared",
+        "description": "Public absurd-idea records containing their text, local day and creation time."
+      },
+      {
+        "name": "reaction_ledgers",
+        "mode": "shared",
+        "description": "Citizen-authored reaction choices used to calculate public like and dislike totals."
+      },
+      {
+        "name": "citizen_board_state",
+        "mode": "private",
+        "description": "Private per-citizen links to authored ideas and reaction choices."
+      }
+    ]
   }
 }

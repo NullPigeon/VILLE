@@ -66,6 +66,14 @@ void test('reviewed artifacts require one evidence statement per acceptance chec
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, intentGate: 'FAIL' }));
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, scrapyGate: 'FAIL' }));
 });
+void test('reviewed artifacts retain and enforce every storage declaration used by their code', () => {
+  const storageHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'ideas',capability:'module.storage',input:{operation:'shared.list',collection:'panic_ideas',limit:5}},'*')</script></body>`);
+  const storage = [{ name: 'panic_ideas', mode: 'shared', description: 'Public citizen idea records.' }];
+  const reviewed = reviewedArtifactFor(work, { ...reviewResult, html: storageHtml, storage });
+  assert.deepEqual(JSON.parse(reviewed.artifact.content).capabilities.storage, storage);
+  assert.throws(() => artifactFor(work, { html: storageHtml, storage: [] }), /not declared/);
+  assert.throws(() => artifactFor(work, { html: storageHtml, storage: [{ ...storage[0], mode: 'private' }] }), /mode shared/);
+});
 void test('one generated image is materialized only at the fixed marker', () => {
   const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
   assert.match(materializeGeneratedAsset(marked, 'dGVzdA=='), /src="data:image\/png;base64,dGVzdA=="/);
