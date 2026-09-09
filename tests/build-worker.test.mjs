@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runWorker, artifactFor, extractOutput, materializeGeneratedAsset, reviewedArtifactFor } from '../scripts/build-worker.mjs';
+import { runWorker, artifactFor, builderFailureCode, extractOutput, materializeGeneratedAsset, reviewedArtifactFor } from '../scripts/build-worker.mjs';
 import { MODULE_CSP, artifactPathFor, validateModule, validateSpec, validProposalId } from '../lib/build-contract.ts';
 
 const html = '<!doctype html><html><head><title>Town counter</title></head><body><button id="count">Count</button><script>let count = 0; document.querySelector("button").onclick = () => { document.querySelector("button").textContent = String(++count); };</script></body></html>';
@@ -218,10 +218,17 @@ void test('missing credentials fail before claiming work', async () => {
 });
 void test('model failure records a failed attempt, never a fake successful build', async () => {
   const f = harness((call) => call.url.includes('api.openai.com') ? json({ secret: 'must not leak' }, 429) : undefined);
-  await assert.rejects(worker(env, f.http), /operator review/);
+  await assert.rejects(worker(env, f.http), /architecture \(rate_limit\)/);
   assert.equal(f.calls.at(-1).body.action, 'FAIL');
+  assert.equal(f.calls.at(-1).body.phase, 'ARCHITECTURE');
+  assert.equal(f.calls.at(-1).body.failure, 'RATE_LIMIT');
   assert.ok(!f.calls.some((call) => call.url.endsWith('git/trees')));
   assert.ok(!JSON.stringify(f.calls.at(-1).body).includes('must not leak'));
+});
+void test('builder failure diagnostics expose only a safe category', () => {
+  assert.equal(builderFailureCode(new Error('AI background response timed out.')), 'TIMEOUT');
+  assert.equal(builderFailureCode(new Error('Module storage is used but not declared.')), 'CONTRACT');
+  assert.equal(builderFailureCode(new Error('private provider detail')), 'UNKNOWN');
 });
 void test('receipt retries do not create duplicate commits or PRs', async () => {
   let attempts = 0;

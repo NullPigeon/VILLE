@@ -160,6 +160,18 @@ void test('disabled builder refuses claims but authorized scheduler can finalize
   assert.equal((await route.POST(f.request('/api/internal/builds', { action: 'TICK' }, options))).status, 200);
   assert.equal(f.calls.at(-1).body.p_claim, false);
 });
+void test('worker failure reports persist only categorized diagnostics', async () => {
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_finish_build') ? json({ state: 'FAILED' }) : undefined, {
+    LANDVILLE_WORKER_SECRET: 'w'.repeat(40), LANDVILLE_BUILD_ACTOR: wallet,
+  });
+  const response = await f.load('app/api/internal/builds/route.ts').POST(f.request('/api/internal/builds', {
+    action: 'FAIL', id: 'LV-1', lease: '11111111-1111-4111-8111-111111111111',
+    phase: 'ARCHITECTURE', failure: 'RATE_LIMIT', detail: 'private provider response',
+  }, { headers: { Authorization: `Bearer ${'w'.repeat(40)}` } }));
+  assert.equal(response.status, 200);
+  assert.equal(f.calls.at(-1).body.p_error, 'Builder was rate-limited during architecture planning. Operator review required.');
+  assert.ok(!JSON.stringify(f.calls.at(-1).body).includes('private provider response'));
+});
 void test('manual status changes cannot bypass verified publication', async () => {
   for (const action of ['START_BUILD', 'PUBLISH']) {
     const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet });
