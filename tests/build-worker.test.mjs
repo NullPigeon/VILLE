@@ -182,6 +182,19 @@ void test('background responses are polled until complete', async () => {
   assert.equal((await worker({ ...env, LANDVILLE_BUILDER_POLL_MS: '1' }, f.http)).state, 'REVIEW');
   assert.equal(f.calls.find((call) => call.url.endsWith('/v1/responses/resp_test')).method, 'GET');
 });
+void test('an invalid architecture receives one focused repair pass', async () => {
+  let architectureCalls = 0;
+  const f = harness((call) => {
+    if (call.body?.text?.format?.name !== 'city_architecture') return undefined;
+    architectureCalls += 1;
+    const result = architectureCalls === 1 ? { ...architectureResult, feasibility: 'UNSUPPORTED' } : architectureResult;
+    return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(result) }] }] });
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  assert.equal(architectureCalls, 2);
+  const repaired = f.calls.filter((call) => call.body?.text?.format?.name === 'city_architecture')[1];
+  assert.match(repaired.body.input[0].content[0].text, /rejectedArchitecture/);
+});
 void test('a failed creative review receives one automatic repair pass', async () => {
   let reviews = 0;
   const failed = { ...reviewResult, designGate: 'FAIL', designReport: ['Hierarchy needs repair.', ...designReport.slice(1)] };

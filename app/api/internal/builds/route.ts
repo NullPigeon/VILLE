@@ -5,7 +5,7 @@ import { requireWorker, workerActor } from '@/lib/server/builds';
 import { oneOf, proposalId, requestId } from '@/lib/server/validation';
 
 const failurePhases: Record<string, string> = {
-  REPOSITORY: 'repository preparation', CONTEXT: 'site-context loading', ARCHITECTURE: 'architecture planning',
+  REPOSITORY: 'repository preparation', CONTEXT: 'site-context loading', ARCHITECTURE: 'architecture planning', ARCHITECTURE_REPAIR: 'architecture repair',
   DRAFT: 'module generation', REVIEW: 'creative review', REPAIR: 'creative repair', ARTIFACT: 'artifact validation',
   GITHUB: 'GitHub publication', RECEIPT: 'build receipt confirmation',
 };
