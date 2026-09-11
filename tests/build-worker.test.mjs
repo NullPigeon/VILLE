@@ -24,6 +24,7 @@ function harness(override = () => undefined) {
     calls.push(call);
     const other = override(call, calls);
     if (other) return other;
+    if (url.endsWith('/api/internal/treasury-rewards')) return json({ refresh: { state: 'REFRESHED' }, payout: { state: 'IDLE' } });
     if (url.endsWith('/api/internal/builds')) return json(call.body.action === 'CLAIM' ? { work } : { work: null });
     if (url.includes('api.openai.com')) {
       const name = call.body?.text?.format?.name;
@@ -218,12 +219,12 @@ void test('a corrective revision writes a new immutable artifact path', async ()
 });
 void test('disabled builder only finalizes votes and makes no AI/GitHub requests', async () => {
   const f = harness();
-  assert.deepEqual(await worker({ ...env, LANDVILLE_BUILDER_ENABLED: 'false', OPENAI_API_KEY: '' }, f.http), { state: 'IDLE' });
-  assert.equal(f.calls.length, 1); assert.equal(f.calls[0].body.action, 'TICK');
+  assert.deepEqual(await worker({ ...env, LANDVILLE_BUILDER_ENABLED: 'false', OPENAI_API_KEY: '' }, f.http), { state: 'IDLE', treasuryState: 'IDLE' });
+  assert.equal(f.calls.length, 2); assert.equal(f.calls.find((call) => call.url.endsWith('/api/internal/builds')).body.action, 'TICK');
 });
 void test('idle queue makes no paid model request', async () => {
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: null }) : undefined);
-  assert.equal((await worker(env, f.http)).state, 'IDLE'); assert.equal(f.calls.length, 1);
+  assert.equal((await worker(env, f.http)).state, 'IDLE'); assert.equal(f.calls.length, 2);
 });
 void test('missing credentials fail before claiming work', async () => {
   const f = harness();
@@ -258,5 +259,5 @@ void test('invalid module output never reaches GitHub writes', async () => {
 void test('untrusted job cannot choose a repository branch', async () => {
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: { ...work, job: { ...work.job, branch: 'main' } } }) : undefined);
   await assert.rejects(worker(env, f.http), /Invalid server job/);
-  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls.length, 2);
 });

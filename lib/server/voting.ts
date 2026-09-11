@@ -6,7 +6,7 @@ import { ApiError } from '@/lib/server/api';
 import { formatTokenAmount, SCRAPY_TOKEN, SCRAPY_TOKEN_ADDRESS_LOWER } from '@/lib/scrapy-token';
 import { citizenAccount } from '@/lib/server/database';
 
-export async function readVotingSnapshot(wallet: string): Promise<VotingPowerSnapshot> {
+export async function readVotingSnapshotAt(wallet: string, requestedBlock?: bigint): Promise<VotingPowerSnapshot> {
   const tokenAddress = SCRAPY_TOKEN_ADDRESS_LOWER;
   const account = await citizenAccount(wallet);
   if (!account) throw new ApiError(401, 'Create or sign in to your citizen account first.');
@@ -25,7 +25,7 @@ export async function readVotingSnapshot(wallet: string): Promise<VotingPowerSna
   try {
     const client = createPublicClient({ chain, transport: http(undefined, { timeout: 10_000, retryCount: 1 }) });
     if (await client.getChainId() !== activeRobinhoodChain.id) throw new ApiError(503, 'Governance RPC must connect to Robinhood mainnet (4663).');
-    const blockNumber = await client.getBlockNumber({ cacheTime: 0 });
+    const blockNumber = requestedBlock ?? await client.getBlockNumber({ cacheTime: 0 });
     const [balance, decimals] = await Promise.all([
       client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: 'balanceOf', args: [balanceWallet as `0x${string}`], blockNumber }),
       client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: 'decimals', blockNumber }),
@@ -42,4 +42,8 @@ export async function readVotingSnapshot(wallet: string): Promise<VotingPowerSna
     if (error instanceof ApiError) throw error;
     throw new ApiError(502, 'Could not read SCRAPY from mainnet. No vote or proposal snapshot was recorded.');
   }
+}
+
+export function readVotingSnapshot(wallet: string) {
+  return readVotingSnapshotAt(wallet);
 }

@@ -126,6 +126,8 @@ for (const [route, url, method] of [
   ['app/api/mayor/route.ts', '/api/mayor', 'POST'],
   ['app/api/proposals/route.ts', '/api/proposals', 'POST'],
   ['app/api/proposals/[id]/vote/route.ts', '/api/proposals/LV-1/vote', 'POST'],
+  ['app/api/treasury/proposals/route.ts', '/api/treasury/proposals', 'POST'],
+  ['app/api/treasury/proposals/[id]/vote/route.ts', '/api/treasury/proposals/TP-1/vote', 'POST'],
   ['app/api/modules/[id]/data/route.ts', '/api/modules/LV-1/data', 'POST'],
   ['app/api/admin/builds/[id]/route.ts', '/api/admin/builds/LV-1', 'PATCH'],
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
