@@ -59,10 +59,15 @@ begin
   end loop;
   update public.landville_build_jobs set state = 'FAILED', error = 'Worker lease expired. Operator review required.', updated_at = now()
     where state = 'RUNNING' and lease_until <= clock_timestamp();
-  if not p_claim then return null; end if;
+  if not p_claim or exists(select 1 from public.landville_build_jobs where state = 'RUNNING') then return null; end if;
   select * into proposal from public.landville_proposals where status = 'BUILDING' limit 1 for update;
   if not found then
     select * into proposal from public.landville_proposals where status = 'PASSED' order by closes_at, id limit 1 for update;
+  end if;
+  if not found then
+    select p.* into proposal from public.landville_proposals p
+      join public.landville_build_jobs j on j.proposal_id = p.id
+      where p.status = 'BUILT' and j.state = 'READY' order by j.updated_at, p.id limit 1 for update of p;
   end if;
   if proposal.id is null then return null; end if;
   select * into job from public.landville_build_jobs where proposal_id = proposal.id for update;
@@ -73,7 +78,7 @@ begin
       and (select pg_catalog.count(*) from public.landville_votes where proposal_id = earlier.id) >= 5
       and (earlier.closes_at, earlier.id) < (proposal.closes_at, proposal.id)) then return null; end if;
     perform public.landville_transition(proposal.id, p_actor, 'PASSED', 'START_BUILD', 'Scrapy builder claimed the reviewed specification.');
-  end if;
+  elsif proposal.status not in ('BUILDING', 'BUILT') then return null; end if;
   update public.landville_build_jobs set state = 'RUNNING', attempt = attempt + 1, lease_id = gen_random_uuid(),
     lease_until = now() + interval '45 minutes', branch = 'codex/build-' || lower(proposal.id) || '-' || (attempt + 1)::text,
     commit_sha = null, content_hash = null, pr_number = null, error = null, updated_at = now()
