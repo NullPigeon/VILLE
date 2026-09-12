@@ -13,7 +13,7 @@ const acceptanceReport = ['The Count control increments the visible total in the
 const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
 const intentReport = ['The requested subject is present.', 'The requested story and tone are present.', 'The requested interaction is implemented.'];
 const reviewResult = { html, storage: [], acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
-const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.', storagePlan: [] };
+const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.', storagePlan: [], runtimeImagePlan: { enabled: false, purpose: '', visualDirection: '' } };
 const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==', subjectReferences: [], creativeDirection: null };
 const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
@@ -74,6 +74,14 @@ void test('reviewed artifacts retain and enforce every storage declaration used 
   assert.deepEqual(JSON.parse(reviewed.artifact.content).capabilities.storage, storage);
   assert.throws(() => artifactFor(work, { html: storageHtml, storage: [] }), /not declared/);
   assert.throws(() => artifactFor(work, { html: storageHtml, storage: [{ ...storage[0], mode: 'private' }] }), /mode shared/);
+});
+void test('runtime image generation requires a narrow reviewed artifact permission', () => {
+  const imageHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'portrait',capability:'module.image.generate',input:{operation:'generate',brief:'salvage mayor'}},'*')</script></body>`);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const record = JSON.parse(artifactFor(work, { html: imageHtml, imageGeneration }).content);
+  assert.deepEqual(record.capabilities.imageGeneration, imageGeneration);
+  assert.throws(() => artifactFor(work, { html: imageHtml }), /not declared/);
+  assert.throws(() => artifactFor(work, { html, imageGeneration }), /declared but not used/);
 });
 void test('one generated image is materialized only at the fixed marker', () => {
   const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
