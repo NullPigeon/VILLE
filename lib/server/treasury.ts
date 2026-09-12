@@ -115,6 +115,10 @@ export async function refreshTreasuryCycle() {
 
 export async function payNextCreatorReward(actor: string) {
   if (process.env.SCRAPY_REWARD_PAYOUT_ENABLED !== 'true') return { state: 'PAYOUT_DISABLED' as const };
+  // Even an accidentally copied Preview secret must never turn a branch deploy
+  // into a signer. Creator rewards are allowed only on the Vercel production
+  // runtime and still require the explicit payout switch above.
+  if (process.env.VERCEL_ENV !== 'production') return { state: 'PAYOUT_DISABLED_OUTSIDE_PRODUCTION' as const };
   const treasuryAddress = configuredTreasuryAddress();
   const privateKey = (process.env.SCRAPY_TREASURY_PRIVATE_KEY || '').trim();
   if (!treasuryAddress || !/^0x[0-9a-f]{64}$/i.test(privateKey)) throw new Error('Treasury payout credentials are not configured.');

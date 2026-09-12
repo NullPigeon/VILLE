@@ -1,6 +1,7 @@
 import type { ProposalRecord } from './landville-data';
 
 export const VOTING_HOURS = 2;
+export const MINIMUM_MODULE_VOTERS = 5;
 
 export function activeProposalsForWallet(proposals: ProposalRecord[], wallet: string) {
   if (!wallet) return [];

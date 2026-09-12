@@ -147,10 +147,15 @@ void test('anonymous visitors cannot execute modules', async () => {
   assert.equal(response.status, 401); assert.equal(f.calls.length, 0);
 });
 void test('worker authorization is independent of wallet sessions and fails closed', async () => {
-  for (const secret of ['', 'short', 'w'.repeat(40)]) {
-    const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret });
-    const response = await f.load('app/api/internal/builds/route.ts').POST(f.request('/api/internal/builds', { action: 'CLAIM' }, { signed: true }));
-    assert.equal(response.status, secret.length >= 32 ? 401 : 503); assert.equal(f.calls.length, 0);
+  for (const [routePath, url, body] of [
+    ['app/api/internal/builds/route.ts', '/api/internal/builds', { action: 'CLAIM' }],
+    ['app/api/internal/treasury-rewards/route.ts', '/api/internal/treasury-rewards', {}],
+  ]) {
+    for (const secret of ['', 'short', 'w'.repeat(40)]) {
+      const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret });
+      const response = await f.load(routePath).POST(f.request(url, body, { signed: true }));
+      assert.equal(response.status, secret.length >= 32 ? 401 : 503); assert.equal(f.calls.length, 0);
+    }
   }
 });
 void test('disabled builder refuses claims but authorized scheduler can finalize votes', async () => {

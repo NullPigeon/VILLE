@@ -20,7 +20,7 @@ create table public.landville_creator_rewards (
     check (status in ('CHECKING_ELIGIBILITY','INELIGIBLE','WAITING_FUNDS','READY','PAYMENT_PENDING','PAID','PAYMENT_REVIEW')),
   eligibility_snapshot jsonb,
   treasury_balance_wei numeric(78,0),
-  reward_wei numeric(78,0) not null default 0 check (reward_wei >= 0 and reward_wei <= 50000000000000000),
+  reward_wei numeric(78,0) not null default 0 check (reward_wei >= 0 and reward_wei <= 5000000000000000),
   payment_lease uuid,
   transaction_hash text,
   created_at timestamptz not null default now(),
@@ -127,7 +127,7 @@ begin
   if raw_balance < threshold_units then
     next_status := 'INELIGIBLE'; calculated := 0;
   else
-    calculated := least(50000000000000000::numeric, trunc(greatest(0::numeric, p_treasury_balance_wei) / 100));
+    calculated := least(5000000000000000::numeric, trunc(greatest(0::numeric, p_treasury_balance_wei) / 100));
     if calculated < 1 or exists(select 1 from public.landville_creator_rewards where proposal_id <> p_proposal_id and status in ('READY','PAYMENT_PENDING','PAYMENT_REVIEW'))
       then next_status := 'WAITING_FUNDS'; else next_status := 'READY'; end if;
   end if;
@@ -148,7 +148,7 @@ begin
   if exists(select 1 from public.landville_creator_rewards where status in ('READY','PAYMENT_PENDING','PAYMENT_REVIEW')) then return null; end if;
   select * into reward from public.landville_creator_rewards where status = 'WAITING_FUNDS' order by created_at, proposal_id limit 1 for update skip locked;
   if reward.proposal_id is null then return null; end if;
-  calculated := least(50000000000000000::numeric, trunc(greatest(0::numeric, p_treasury_balance_wei) / 100));
+  calculated := least(5000000000000000::numeric, trunc(greatest(0::numeric, p_treasury_balance_wei) / 100));
   if calculated < 1 then return reward; end if;
   update public.landville_creator_rewards set status = 'READY', treasury_balance_wei = p_treasury_balance_wei,
     reward_wei = calculated where proposal_id = reward.proposal_id returning * into reward;

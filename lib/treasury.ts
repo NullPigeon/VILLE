@@ -1,6 +1,6 @@
 export const TREASURY_VOTING_HOURS = 48;
 export const DEFAULT_REWARD_HOLD_TOKENS = '1000000';
-export const MAX_CREATOR_REWARD_WEI = '50000000000000000';
+export const MAX_CREATOR_REWARD_WEI = '5000000000000000';
 
 export function creatorRewardWei(treasuryBalanceWei: bigint) {
   const onePercent = treasuryBalanceWei > 0n ? treasuryBalanceWei / 100n : 0n;
