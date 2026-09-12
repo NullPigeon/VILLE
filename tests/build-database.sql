@@ -95,7 +95,12 @@ do $$ begin
   end if;
 end $$;
 set role service_role;
-insert into public.landville_citizens(wallet) select '0x' || repeat(letter, 40) from unnest(array['a','b','c','d']) as letter;
+insert into public.landville_citizens(wallet, linked_wallet)
+select address, address
+from (
+  select '0x' || repeat(letter, 40) as address
+  from unnest(array['a','b','c','d']) as letter
+) citizens;
 do $$
 declare actor text := '0x' || repeat('a',40); number_before integer;
 begin
