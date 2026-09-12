@@ -94,7 +94,7 @@ export default function TreasuryPage() {
     <section className="vault-hero">
       <div className="vault-seal"><Landmark /><small>MUNICIPAL<br/>VAULT</small></div>
       <div className="vault-balance"><small>AVAILABLE TREASURY</small><strong>{board ? board.wallet.balanceEth : '…'} <em>ETH</em></strong><button type="button" onClick={() => void copyAddress()}>{copied ? <Check /> : <Copy />}{shortAddress(board?.wallet.address || '')}</button></div>
-      <div className="vault-policy"><small>CREATOR REWARD</small><b>UP TO 0.05 ETH</b><span>MIN HOLD · {numberLabel(board?.policy.minimumRewardTokens || '1000000')} SCRAPY</span><span>OR 1% OF AVAILABLE ETH — WHICHEVER IS LOWER</span></div>
+      <div className="vault-policy"><small>CREATOR REWARD</small><b>UP TO 0.005 ETH</b><span>MIN HOLD · {numberLabel(board?.policy.minimumRewardTokens || '1000000')} SCRAPY</span><span>OR 1% OF AVAILABLE ETH — WHICHEVER IS LOWER</span></div>
     </section>
 
     <section className="treasury-summary">
