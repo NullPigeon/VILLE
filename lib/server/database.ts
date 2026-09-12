@@ -38,6 +38,16 @@ const databaseErrors: Record<string, [number, string]> = {
   INVALID_MODULE_STORAGE: [400, 'Invalid module storage request.'],
   MODULE_COUNTER_LIMIT: [409, 'This module counter reached its maximum value.'],
   MODULE_STORAGE_QUOTA: [429, 'This module storage collection is full. Remove an old record before adding another.'],
+  REWARD_NOT_FOUND: [404, 'Creator reward not found.'],
+  TREASURY_HOLDER_REQUIRED: [403, 'Hold SCRAPY in your linked wallet to propose or vote in Treasury.'],
+  TREASURY_PROPOSAL_NOT_FOUND: [404, 'Treasury proposal not found.'],
+  INVALID_TREASURY_PROPOSAL: [400, 'The treasury proposal is invalid.'],
+  INVALID_TREASURY_SNAPSHOT: [409, 'The treasury voting snapshot is invalid. Refresh and retry.'],
+  INVALID_REWARD_POLICY: [400, 'The creator reward policy is invalid.'],
+  TREASURY_SPEND_LIMIT: [400, 'A proposal may request at most 10% of the current Treasury ETH balance.'],
+  REWARD_NOT_EXECUTABLE: [409, 'This creator reward is not ready for payment.'],
+  REWARD_PAYMENT_BUSY: [409, 'Another creator reward requires payment review first.'],
+  INVALID_REWARD_PAYMENT: [409, 'The creator reward payment receipt is invalid.'],
 };
 
 // Server-only HTTP adapter. Privy verifies users, while all Supabase table

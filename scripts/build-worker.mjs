@@ -129,8 +129,15 @@ export async function runWorker(env = process.env, http = fetch, contextLoader =
   };
   const town = (body) => request(`${site.origin}/api/internal/builds`, env.LANDVILLE_WORKER_SECRET, body);
   const gh = (path, body, method = 'POST') => request(`https://api.github.com/repos/${repository}/${path}`, env.LANDVILLE_GITHUB_WRITE_TOKEN, body, method);
+  let treasuryState = 'UNAVAILABLE';
+  try {
+    const treasury = await request(`${site.origin}/api/internal/treasury-rewards`, env.LANDVILLE_WORKER_SECRET, {});
+    treasuryState = treasury.payout?.state || treasury.refresh?.state || 'READY';
+  } catch {
+    // Treasury rollout or an RPC outage must never block the city build queue.
+  }
   const { work } = await town({ action: tickOnly ? 'TICK' : 'CLAIM' });
-  if (!work) return { state: 'IDLE' };
+  if (!work) return { state: 'IDLE', treasuryState };
   const job = work.job;
   if (!validProposalId(job.proposal_id) || !/^[0-9a-f-]{36}$/.test(job.lease_id) || !Number.isInteger(job.attempt) || job.attempt < 1 || job.attempt > 4 || !Number.isInteger(job.revision) || job.revision < 1 || job.revision > 99 || job.branch !== `codex/build-${job.proposal_id.toLowerCase()}-${job.attempt}`) throw new Error('Invalid server job.');
   let phase = 'REPOSITORY';

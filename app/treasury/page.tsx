@@ -1,88 +1,152 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Check, CircleDollarSign, Copy, ExternalLink, Network, RefreshCw, ShieldCheck, WalletCards } from 'lucide-react';
+import { ArrowUpRight, Check, CircleDollarSign, Clock3, Copy, ExternalLink, Landmark, ShieldCheck, Vote, WalletCards } from 'lucide-react';
 import { ProductShell } from '@/components/landville/product-shell';
-import { useLandville } from '@/components/landville/provider';
 import { useWallet } from '@/components/landville/wallet-provider';
-import { addRobinhoodNetwork, activeRobinhoodChain } from '@/lib/robinhood-chain';
-import { SCRAPY_TOKEN, scrapyAccess, scrapyTokenExplorerUrl, type ScrapyTokenStatus } from '@/lib/scrapy-token';
+import { activeRobinhoodChain } from '@/lib/robinhood-chain';
+import type { TreasuryBoard, TreasuryProposalCategory } from '@/lib/treasury';
+import './treasury.css';
+
+const categories: Array<{ value: TreasuryProposalCategory; label: string }> = [
+  { value: 'BUY', label: 'BUY AN ASSET' },
+  { value: 'STAKE', label: 'STAKE / EARN' },
+  { value: 'DISTRIBUTE', label: 'DISTRIBUTE TO HOLDERS' },
+  { value: 'OPERATIONS', label: 'TOWN OPERATIONS' },
+  { value: 'REWARD_POLICY', label: 'CHANGE CREATOR HOLD' },
+  { value: 'OTHER', label: 'OTHER TREASURY USE' },
+];
+
+async function treasuryRequest<T>(url: string, body?: unknown) {
+  const response = await fetch(url, body === undefined ? { cache: 'no-store' } : {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const result = await response.json() as T & { error?: string };
+  if (!response.ok) throw new Error(result.error || 'Treasury request failed.');
+  return result;
+}
+
+function shortAddress(value: string) { return value ? `${value.slice(0, 8)}…${value.slice(-6)}` : 'NOT CONFIGURED'; }
+function numberLabel(value: string) { try { return BigInt(value).toLocaleString('en-US'); } catch { return value || '0'; } }
+function timeLabel(value: string) { return value ? new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'WAITING IN QUEUE'; }
 
 export default function TreasuryPage() {
-  const { proposals } = useLandville();
   const wallet = useWallet();
-  const [networkMessage, setNetworkMessage] = useState('');
-  const [token, setToken] = useState<ScrapyTokenStatus | null>(null);
-  const [tokenError, setTokenError] = useState('');
+  const [board, setBoard] = useState<TreasuryBoard | null>(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState('');
   const [copied, setCopied] = useState(false);
-  const treasuryAddress = process.env.NEXT_PUBLIC_TREASURY_ADDRESS || '';
-  const activeProposals = proposals.filter((proposal) => proposal.status === 'LIVE').length;
-  const access = wallet.snapshot ? scrapyAccess(wallet.snapshot.tokenBalance, wallet.snapshot.tokenDecimals) : null;
+  const [category, setCategory] = useState<TreasuryProposalCategory>('OTHER');
+  const [title, setTitle] = useState('');
+  const [summary, setSummary] = useState('');
+  const [requestedEth, setRequestedEth] = useState('');
+  const [policyMinimumTokens, setPolicyMinimumTokens] = useState('1000000');
 
-  useEffect(() => {
-    let active = true;
-    fetch('/api/token', { cache: 'no-store' }).then(async (response) => {
-      const result = await response.json() as ScrapyTokenStatus & { error?: string };
-      if (!response.ok) throw new Error(result.error || 'Token verification unavailable.');
-      if (active) { setToken(result); setTokenError(''); }
-    }).catch((error: Error) => { if (active) setTokenError(error.message); });
-    return () => { active = false; };
+  const load = useCallback(async () => {
+    try { setBoard(await treasuryRequest<TreasuryBoard>('/api/treasury')); setError(''); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'Treasury is unavailable.'); }
   }, []);
 
-  async function addNetwork() {
-    try { await addRobinhoodNetwork(); setNetworkMessage('ROBINHOOD MAINNET READY'); }
-    catch (error) { setNetworkMessage((error as Error).message === 'NO_WALLET' ? 'NO EVM WALLET FOUND' : 'WALLET DECLINED THE NETWORK'); }
+  useEffect(() => {
+    const firstLoad = window.setTimeout(() => void load(), 0);
+    const timer = window.setInterval(() => { if (!document.hidden) void load(); }, 15_000);
+    return () => { window.clearTimeout(firstLoad); window.clearInterval(timer); };
+  }, [load, wallet.address]);
+
+  const holder = board?.holder || false;
+
+  async function submitProposal() {
+    setBusy('submit'); setNotice(''); setError('');
+    try {
+      await treasuryRequest('/api/treasury/proposals', { title, summary, category, requestedEth, policyMinimumTokens });
+      setTitle(''); setSummary(''); setRequestedEth(''); setNotice('TREASURY PROPOSAL FILED. SCRAPY FOUND ANOTHER CLIPBOARD.');
+      await load();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Proposal failed.'); }
+    finally { setBusy(''); }
   }
 
-  async function importToken() {
-    try { await wallet.addScrapyToken(); setNetworkMessage('$SCRAPY ADDED TO WALLET'); }
-    catch (error) { setNetworkMessage(error instanceof Error ? error.message.toUpperCase() : 'TOKEN IMPORT FAILED'); }
+  async function vote(id: string, choice: 'YES' | 'NO') {
+    setBusy(`${id}:${choice}`); setNotice(''); setError('');
+    try { await treasuryRequest(`/api/treasury/proposals/${encodeURIComponent(id)}/vote`, { choice }); await load(); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'Vote failed.'); }
+    finally { setBusy(''); }
   }
 
-  async function copyContract() {
-    await navigator.clipboard.writeText(SCRAPY_TOKEN.address);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+  async function copyAddress() {
+    if (!board?.wallet.address) return;
+    await navigator.clipboard.writeText(board.wallet.address); setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
   }
 
-  return <ProductShell title="$SCRAPY / TREASURY" eyebrow="OFFICIAL TOKEN / PUBLIC CHAIN DATA" actions={<div className="build-actions"><button className="lv-button" onClick={addNetwork}><Network /> CONNECT MAINNET</button><button className="lv-button primary" onClick={importToken}><WalletCards /> ADD $SCRAPY TO WALLET</button></div>}>
-    <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}><ShieldCheck /> VERIFIED CONTRACT · ROBINHOOD MAINNET · READ-ONLY PLATFORM ACCESS</div>
-    {networkMessage && <div className="status-tag">{networkMessage}</div>}
-    {tokenError && <div className="admin-warning">{tokenError} The contract address and governance rules remain available.</div>}
+  const live = board?.proposals.find((proposal) => proposal.status === 'LIVE');
+  const queued = board?.proposals.filter((proposal) => proposal.status === 'QUEUED').length || 0;
 
-    <section className="treasury-summary">
-      <article className="metric-card"><small>TOTAL SUPPLY</small><strong>{token?.totalSupplyFormatted ?? 'CHECKING…'}</strong><span>{token ? `${token.symbol} · BLOCK ${token.blockNumber}` : 'LIVE MAINNET READ'}</span></article>
-      <article className="metric-card"><small>ACTIVE VOTES</small><strong>{activeProposals}</strong><span>INDEPENDENT 12-HOUR WINDOWS</span></article>
-      <article className="metric-card"><small>VOTING POWER</small><strong>1 + 1</strong><span>BASE + EACH 250,000 SCRAPY</span></article>
+  return <ProductShell title="SCRAPY TREASURY" eyebrow="PUBLIC VAULT / HOLDER GOVERNANCE" actions={<div className="build-actions">
+    <Link className="lv-button" href="/proposals"><Vote /> CITY BUILDS</Link>
+    <a className="lv-button primary" href={board?.wallet.address ? `${activeRobinhoodChain.explorerUrl}/address/${board.wallet.address}` : activeRobinhoodChain.explorerUrl} target="_blank" rel="noreferrer">EXPLORER <ExternalLink /></a>
+  </div>}>
+    <div className="treasury-marquee"><ShieldCheck /><span>PUBLIC ADDRESS ONLY</span><b>PRIVATE KEY NEVER LEAVES THE SERVER</b><span>ROBINHOOD MAINNET · 4663</span></div>
+    {error && <div className="admin-warning">{error}</div>}
+    {notice && <div className="treasury-notice">{notice}</div>}
+
+    <section className="vault-hero">
+      <div className="vault-seal"><Landmark /><small>MUNICIPAL<br/>VAULT</small></div>
+      <div className="vault-balance"><small>AVAILABLE TREASURY</small><strong>{board ? board.wallet.balanceEth : '…'} <em>ETH</em></strong><button type="button" onClick={() => void copyAddress()}>{copied ? <Check /> : <Copy />}{shortAddress(board?.wallet.address || '')}</button></div>
+      <div className="vault-policy"><small>CREATOR REWARD</small><b>UP TO 0.05 ETH</b><span>MIN HOLD · {numberLabel(board?.policy.minimumRewardTokens || '1000000')} SCRAPY</span><span>OR 1% OF AVAILABLE ETH — WHICHEVER IS LOWER</span></div>
     </section>
 
-    <div className="product-grid">
-      <section className="lv-panel">
-        <header className="lv-panel-head"><h2><CircleDollarSign /> OFFICIAL TOKEN</h2><span>{token ? 'VERIFIED ONCHAIN' : 'VERIFYING CONTRACT'}</span></header>
-        <div className="chain-card">
-          <div className="token-identity"><span>$</span><div><small>LANDVILLE GOVERNANCE TOKEN</small><h2>{SCRAPY_TOKEN.ticker}</h2></div></div>
-          <div className="token-contract"><small>CONTRACT ADDRESS</small><code>{SCRAPY_TOKEN.address}</code><button type="button" className="lv-button" onClick={() => void copyContract()}>{copied ? <Check /> : <Copy />}{copied ? 'COPIED' : 'COPY CA'}</button></div>
-          <div className="chain-facts"><div><span>NETWORK</span><b>ROBINHOOD MAINNET</b></div><div><span>CHAIN ID</span><b>{SCRAPY_TOKEN.chainId}</b></div><div><span>SYMBOL</span><b>{token?.symbol || SCRAPY_TOKEN.symbol}</b></div><div><span>DECIMALS</span><b>{token?.decimals ?? SCRAPY_TOKEN.decimals}</b></div></div>
-          <div className="build-actions"><button className="lv-button primary" onClick={importToken}><WalletCards /> ADD TO WALLET</button><a className="lv-button" href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">VIEW CONTRACT <ExternalLink /></a></div>
-        </div>
+    <section className="treasury-summary">
+      <article className="metric-card"><small>ACTIVE VOTE</small><strong>{live ? live.id : 'NONE'}</strong><span>{live ? `CLOSES ${timeLabel(live.closesAt)}` : 'THE CLIPBOARD IS EMPTY'}</span></article>
+      <article className="metric-card"><small>QUEUED DECISIONS</small><strong>{queued}</strong><span>ONE VOTE RUNS AT A TIME</span></article>
+      <article className="metric-card"><small>VOTING WINDOW</small><strong>48H</strong><span>NO QUORUM · YES MUST EXCEED NO</span></article>
+    </section>
+
+    <div className="treasury-layout">
+      <section className="lv-panel treasury-proposals">
+        <header className="lv-panel-head"><h2><Vote /> TREASURY BALLOT BOARD</h2><span>HOLDERS DECIDE</span></header>
+        {!board?.proposals.length && <div className="empty-state"><CircleDollarSign /><p>No Treasury proposals yet. Suspiciously peaceful.</p></div>}
+        {board?.proposals.map((proposal) => {
+          const receipt = board.voted[proposal.id];
+          const total = proposal.yes + proposal.no;
+          const yesPercent = total ? Math.round(proposal.yes / total * 100) : 0;
+          return <article className={`treasury-ballot ${proposal.status}`} key={proposal.id}>
+            <div className="ballot-head"><span>{proposal.id} · {proposal.category.replaceAll('_',' ')}</span><b>{proposal.status}</b></div>
+            <h3>{proposal.title}</h3><p>{proposal.summary}</p>
+            <div className="ballot-meta"><span>BY {proposal.creator}</span>{proposal.requestedEth && <span>REQUEST · {proposal.requestedEth} ETH</span>}{proposal.policyMinimumTokens && <span>NEW MIN · {numberLabel(proposal.policyMinimumTokens)} SCRAPY</span>}<span><Clock3 /> {proposal.status === 'QUEUED' ? 'QUEUED' : timeLabel(proposal.closesAt)}</span></div>
+            <div className="vote-meter"><i style={{ width: `${yesPercent}%` }} /></div>
+            <div className="vote-counts"><b>{proposal.yes} YES POWER</b><b>{proposal.no} NO POWER</b></div>
+            {proposal.status === 'LIVE' && <div className="treasury-vote-actions">
+              {receipt ? <span>YOUR VOTE · {receipt.choice} · {receipt.weight} POWER</span> : holder ? <><button disabled={Boolean(busy)} onClick={() => void vote(proposal.id,'YES')}>VOTE YES</button><button disabled={Boolean(busy)} className="no" onClick={() => void vote(proposal.id,'NO')}>VOTE NO</button></> : <span>LINK A SCRAPY-HOLDING WALLET TO VOTE</span>}
+            </div>}
+          </article>;
+        })}
       </section>
 
-      <aside className="lv-panel">
-        <header className="lv-panel-head"><h2><WalletCards /> YOUR TOKEN ACCESS</h2><span>{wallet.address ? 'SIGNED CITIZEN' : 'ACCOUNT REQUIRED'}</span></header>
-        <div className="chain-card">
-          {wallet.address ? <>
-            <div className="chain-status"><i /><div><b>{wallet.linkedWallet ? wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY` : 'BALANCE NOT CHECKED' : 'NO WALLET LINKED'}</b><small>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES${wallet.snapshot.source === 'chain' ? ` AT BLOCK ${wallet.snapshot.blockNumber}` : ' · BASE ACCESS'}` : wallet.linkedWallet ? 'MAINNET SNAPSHOT REQUIRED' : 'LINK A WALLET FOR TOKEN POWER'}</small></div></div>
-            <div className="chain-facts"><div><span>DAILY MESSAGES</span><b>{access?.dailyMessageLimit ?? '—'}</b></div><div><span>PROPOSALS</span><b>ALL CITIZENS</b></div><div><span>BASE VOTE</span><b>1</b></div><div><span>HOLDER BONUS</span><b>{wallet.snapshot ? Math.max(0, wallet.snapshot.weight - 1) : '—'}</b></div></div>
-            {wallet.linkedWallet ? <button className="lv-button" onClick={() => wallet.refreshVotingPower().catch(() => undefined)}><RefreshCw /> REFRESH HOLDINGS</button> : <button className="lv-button primary" onClick={() => wallet.connectWallet().catch(() => undefined)}><WalletCards /> LINK WALLET</button>}
-          </> : <><p className="chain-note">Create a citizen account to read your SCRAPY balance, calculate voting power and unlock holder access.</p><Link className="lv-button primary" href="/citizens">CREATE ACCOUNT <ArrowUpRight /></Link></>}
-        </div>
+      <aside className="lv-panel treasury-submit">
+        <header className="lv-panel-head"><h2><WalletCards /> FILE A DECISION</h2><span>HOLDERS ONLY</span></header>
+        {!wallet.address ? <div className="chain-card"><p className="chain-note">Create a citizen account and link the wallet holding SCRAPY.</p><Link href="/citizens" className="lv-button primary">SIGN IN</Link></div> : !holder ? <div className="chain-card"><p className="chain-note">Any positive SCRAPY balance unlocks Treasury proposals and votes. Refresh your holdings after linking a wallet.</p><button className="lv-button" onClick={() => wallet.refreshVotingPower().then(load).catch(() => undefined)}>REFRESH HOLDINGS</button></div> : <form onSubmit={(event) => { event.preventDefault(); void submitProposal(); }} className="treasury-form">
+          <label>CATEGORY<select value={category} onChange={(event) => setCategory(event.target.value as TreasuryProposalCategory)}>{categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          <label>TITLE<input minLength={4} maxLength={80} required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="WHAT SHOULD THE VAULT DO?" /></label>
+          <label>PLAN<textarea minLength={20} maxLength={2000} required value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Explain the action, destination, reason and expected result." /></label>
+          {category === 'REWARD_POLICY' ? <label>PROPOSED MINIMUM SCRAPY<input inputMode="numeric" required value={policyMinimumTokens} onChange={(event) => setPolicyMinimumTokens(event.target.value.replace(/\D/g,''))} /></label> : <label>REQUESTED ETH · OPTIONAL<input inputMode="decimal" value={requestedEth} onChange={(event) => setRequestedEth(event.target.value)} placeholder="MAX 10% OF CURRENT BALANCE" /></label>}
+          <button className="lv-button primary" disabled={Boolean(busy)}>{busy === 'submit' ? 'FILING…' : 'FILE TREASURY PROPOSAL'}</button>
+          <small>Passed free-form decisions are public mandates, not arbitrary automatic transactions. Scrapy cannot be prompt-injected into draining the vault.</small>
+        </form>}
       </aside>
     </div>
 
-    <div className="product-grid">
-      <section className="lv-panel"><header className="lv-panel-head"><h2><ShieldCheck /> TOKEN UTILITY</h2><span>PLATFORM RULES</span></header><div className="chain-card"><div className="chain-facts"><div><span>WITHOUT TOKENS</span><b>1 VOTE · 10 MESSAGES</b></div><div><span>EACH 250,000</span><b>+1 VOTE</b></div><div><span>ANY POSITIVE HOLD</span><b>50 MESSAGES / DAY</b></div><div><span>PROPOSALS</span><b>ALL CITIZENS · MAX 2 ACTIVE</b></div></div><p className="chain-note">Balances are read from the official contract for voting power and chat access. Proposal access requires a citizen account, not a token balance.</p><Link className="lv-button" href="/proposals">OPEN GOVERNANCE <ArrowUpRight /></Link></div></section>
-      <aside className="lv-panel"><header className="lv-panel-head"><h2><WalletCards /> COMMUNITY TREASURY</h2><span>SEPARATE FROM TOKEN CONTRACT</span></header><div className="chain-card"><div className="chain-status"><i /><div><b>{treasuryAddress || 'NOT CONFIGURED'}</b><small>PUBLIC TREASURY ADDRESS</small></div></div><p className="chain-note">The token contract is live. Treasury asset indexing remains separate and will activate after a public treasury address and indexer are configured.</p><a className="lv-button" href={treasuryAddress ? `${activeRobinhoodChain.explorerUrl}/address/${treasuryAddress}` : activeRobinhoodChain.explorerUrl} target="_blank" rel="noreferrer">OPEN EXPLORER <ExternalLink /></a></div></aside>
-    </div>
+    <section className="lv-panel reward-ledger">
+      <header className="lv-panel-head"><h2><CircleDollarSign /> CREATOR REWARD LEDGER</h2><span>FIRST RELEASES ONLY</span></header>
+      <div className="reward-rules"><span>01 · MODULE VERIFIED IN WORLD</span><span>02 · CREATOR HELD THE REQUIRED SCRAPY</span><span>03 · SERVER PAYS ONCE</span><span>REBUILDS · 0 ETH</span></div>
+      {!board?.rewards.length && <div className="empty-state"><p>New verified modules will appear here automatically.</p></div>}
+      {board?.rewards.map((reward) => <article className="reward-row" key={reward.proposalId}>
+        <div><small>{reward.proposalId}</small><b>{reward.title}</b><span>{reward.creator}</span></div>
+        <div><small>HELD AT CHECK</small><b>{reward.tokenBalanceFormatted} SCRAPY</b></div>
+        <div><small>REWARD</small><b>{reward.rewardEth} ETH</b></div>
+        <div><small>STATUS</small><b className={reward.status}>{reward.status.replaceAll('_',' ')}</b>{reward.transactionHash && <a href={`${activeRobinhoodChain.explorerUrl}/tx/${reward.transactionHash}`} target="_blank" rel="noreferrer">TRANSACTION <ArrowUpRight /></a>}</div>
+      </article>)}
+    </section>
   </ProductShell>;
 }

@@ -17,6 +17,11 @@ export function proposalId(value: string) {
   return value;
 }
 
+export function treasuryProposalId(value: string) {
+  if (!/^TP-[1-9][0-9]{0,15}$/.test(value)) throw new ApiError(400, 'Invalid treasury proposal ID.');
+  return value;
+}
+
 export function requestId(value: unknown) {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) throw new ApiError(400, 'A valid submission ID is required.');
   return value.toLowerCase();

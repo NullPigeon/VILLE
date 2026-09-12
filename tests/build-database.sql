@@ -22,6 +22,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260906123502_allow_two_active_proposals.sql
 \ir ../supabase/migrations/20260906130910_email_otp_citizen_accounts.sql
 \ir ../supabase/migrations/20260906183000_two_hour_votes.sql
+\ir ../supabase/migrations/20260911120000_treasury_governance.sql
 
 do $$
 declare
@@ -94,7 +95,12 @@ do $$ begin
   end if;
 end $$;
 set role service_role;
-insert into public.landville_citizens(wallet) select '0x' || repeat(letter, 40) from unnest(array['a','b','c','d']) as letter;
+insert into public.landville_citizens(wallet, linked_wallet)
+select address, address
+from (
+  select '0x' || repeat(letter, 40) as address
+  from unnest(array['a','b','c','d']) as letter
+) citizens;
 do $$
 declare actor text := '0x' || repeat('a',40); number_before integer;
 begin
@@ -255,6 +261,50 @@ begin
     (select artifact_hash from public.landville_objects where proposal_id='LV-1') <> repeat('d',64) or
     (select status from public.landville_proposals where id='LV-1') <> 'BUILT'
     then raise exception 'Verified corrective release did not switch atomically'; end if;
+end $$;
+
+do $$
+declare
+  snapshot jsonb;
+  proposal public.landville_treasury_proposals;
+  reward public.landville_creator_rewards;
+  ballot public.landville_treasury_ballots;
+begin
+  snapshot := jsonb_build_object(
+    'wallet','0x' || repeat('a',40),'chainId',4663,
+    'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','1000000000000000000000000','tokenBalanceFormatted','1000000',
+    'weight',5,'blockNumber','5000','capturedAt',clock_timestamp(),'source','chain'
+  );
+  if (select count(*) from public.landville_creator_rewards where proposal_id='LV-1') <> 1 then
+    raise exception 'First World publication did not create exactly one reward';
+  end if;
+  reward := public.landville_resolve_creator_reward('LV-1','0x' || repeat('a',40),snapshot,10000000000000000000);
+  if reward.status <> 'READY' or reward.reward_wei <> 50000000000000000 then raise exception 'Creator reward cap is incorrect'; end if;
+  reward := public.landville_claim_creator_reward('test-worker');
+  perform public.landville_finish_creator_reward('LV-1',reward.payment_lease,'0x' || repeat('1',64));
+  if (select status from public.landville_creator_rewards where proposal_id='LV-1') <> 'PAID' then raise exception 'Creator reward was not paid'; end if;
+
+  proposal := public.landville_submit_treasury_proposal('0x' || repeat('a',40),'Buy civic bolts',
+    'Use a bounded part of the Treasury to buy useful civic bolts.','BUY',100000000000000000,null,snapshot,10000000000000000000);
+  ballot := public.landville_cast_treasury_vote(proposal.id,'0x' || repeat('a',40),'YES',snapshot);
+  update public.landville_treasury_proposals set closes_at=now()-interval '1 second' where id=proposal.id;
+  perform public.landville_treasury_tick();
+  if (select status from public.landville_treasury_proposals where id=proposal.id) <> 'PASSED' then raise exception 'No-quorum Treasury vote did not pass'; end if;
+
+  proposal := public.landville_submit_treasury_proposal('0x' || repeat('a',40),'Raise creator hold',
+    'Require two million SCRAPY for future creator rewards.','REWARD_POLICY',null,2000000,snapshot,10000000000000000000);
+  perform public.landville_cast_treasury_vote(proposal.id,'0x' || repeat('a',40),'YES',snapshot);
+  update public.landville_treasury_proposals set closes_at=now()-interval '1 second' where id=proposal.id;
+  perform public.landville_treasury_tick();
+  if (select minimum_reward_tokens from public.landville_treasury_policy where singleton) <> 2000000 then raise exception 'Reward policy vote was not executed'; end if;
+
+  begin
+    snapshot := jsonb_set(snapshot,'{tokenBalance}','"0"'::jsonb);
+    perform public.landville_submit_treasury_proposal('0x' || repeat('a',40),'Drain attempt blocked',
+      'A zero-balance citizen must not file this Treasury action.','OTHER',null,null,snapshot,10000000000000000000);
+    raise exception 'Non-holder submitted a Treasury proposal';
+  exception when raise_exception then if sqlerrm <> 'TREASURY_HOLDER_REQUIRED' then raise; end if; end;
 end $$;
 
 -- Leave one eligible job for concurrent-claim checks in the Node runner.
