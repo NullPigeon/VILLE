@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { activeProposalForWallet, activeProposalsForWallet, getBuildQueue, hasWinningVote, nextBuildId, VOTING_HOURS } from '../lib/proposal-lifecycle.ts';
+import { activeProposalForWallet, activeProposalsForWallet, getBuildQueue, hasWinningVote, MINIMUM_MODULE_VOTERS, nextBuildId, VOTING_HOURS } from '../lib/proposal-lifecycle.ts';
 
 const wallet = `0x${'a'.repeat(40)}`;
 const other = `0x${'b'.repeat(40)}`;
@@ -8,6 +8,7 @@ const now = Date.parse('2026-09-03T12:00:00Z');
 const proposal = (id, status = 'LIVE', offset = -1000, yes = 2, no = 1) => ({ id, status, creatorWallet: wallet, yes, no, closesAt: new Date(now + offset).toISOString() });
 
 void test('each proposal gets an independent 2-hour window', () => assert.equal(VOTING_HOURS, 2));
+void test('five distinct citizens are required before a module can pass', () => assert.equal(MINIMUM_MODULE_VOTERS, 5));
 for (const status of ['LIVE', 'PASSED', 'BUILDING']) {
   void test(`${status} counts as active, regardless of its age`, () => {
     const record = { ...proposal('LV-1', status), createdAt: '2025-01-01' };
@@ -26,7 +27,7 @@ for (const status of ['REJECTED', 'BUILT']) {
   void test(`${status} releases the citizen's slot immediately`, () => assert.equal(activeProposalForWallet([proposal('LV-1', status)], wallet), undefined));
 }
 for (const [yes, no, passed] of [[0,0,false],[1,1,false],[1,2,false],[1,0,true],[101,100,true]]) {
-  void test(`${yes} YES / ${no} NO ${passed ? 'passes' : 'fails'} without a quorum or rounded percentage`, () => assert.equal(hasWinningVote({ yes, no }), passed));
+  void test(`${yes} YES / ${no} NO ${passed ? 'wins' : 'loses'} the power comparison`, () => assert.equal(hasWinningVote({ yes, no }), passed));
 }
 void test('multiple approved proposals queue by deadline, not number of votes', () => {
   const records = [proposal('LV-3', 'PASSED', -1000, 100), proposal('LV-1', 'PASSED', -3000), proposal('LV-2', 'PASSED', -2000)];

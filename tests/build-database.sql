@@ -23,6 +23,8 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260906130910_email_otp_citizen_accounts.sql
 \ir ../supabase/migrations/20260906183000_two_hour_votes.sql
 \ir ../supabase/migrations/20260911120000_treasury_governance.sql
+\ir ../supabase/migrations/20260912150000_require_five_module_voters.sql
+\ir ../supabase/migrations/20260912151000_reduce_creator_reward_cap.sql
 
 do $$
 declare
@@ -180,10 +182,20 @@ begin
 end $$;
 insert into public.landville_proposals(id, request_id, creator_wallet, title, summary, category, district, eligibility_snapshot, yes, no, created_at, closes_at)
 values
-  ('LV-1', gen_random_uuid(), '0x' || repeat('a',40), 'Town counter', 'A counter for the citizens of town.', 'UTILITY','THE DUMP','{}',2,1,now()-interval '14 hours',now()-interval '2 hours'),
+  ('LV-1', gen_random_uuid(), '0x' || repeat('a',40), 'Town counter', 'A counter for the citizens of town.', 'UTILITY','THE DUMP','{}',4,1,now()-interval '14 hours',now()-interval '2 hours'),
   ('LV-2', gen_random_uuid(), '0x' || repeat('b',40), 'Town puzzle', 'A puzzle for the citizens of town.', 'GAME','THE DUMP','{}',100,1,now()-interval '13 hours',now()-interval '1 hour'),
   ('LV-3', gen_random_uuid(), '0x' || repeat('c',40), 'Town artwork', 'A mural for the citizens of town.', 'ART','THE DUMP','{}',1,1,now()-interval '13 hours',now()-interval '30 minutes'),
-  ('LV-4', gen_random_uuid(), '0x' || repeat('d',40), 'Town garden', 'A garden for the citizens of town.', 'ART','THE DUMP','{}',3,0,now()-interval '11 hours',now()+interval '1 hour');
+  ('LV-4', gen_random_uuid(), '0x' || repeat('d',40), 'Town garden', 'A garden for the citizens of town.', 'ART','THE DUMP','{}',5,0,now()-interval '11 hours',now()+interval '1 hour'),
+  ('LV-5', gen_random_uuid(), '0x' || repeat('a',40), 'Quiet monument', 'A winning vote with too few participating citizens.', 'ART','THE DUMP','{}',100,0,now()-interval '10 hours',now()-interval '15 minutes');
+
+insert into public.landville_votes(proposal_id, wallet, choice, snapshot)
+select proposal_id, wallet, choice, '{}'
+from (values
+  ('LV-1','0x' || repeat('a',40),'YES'),('LV-1','0x' || repeat('b',40),'YES'),('LV-1','0x' || repeat('c',40),'YES'),('LV-1','0x' || repeat('d',40),'YES'),('LV-1','0x' || repeat('e',40),'NO'),
+  ('LV-2','0x' || repeat('a',40),'YES'),('LV-2','0x' || repeat('b',40),'YES'),('LV-2','0x' || repeat('c',40),'YES'),('LV-2','0x' || repeat('d',40),'YES'),('LV-2','0x' || repeat('e',40),'NO'),
+  ('LV-4','0x' || repeat('a',40),'YES'),('LV-4','0x' || repeat('b',40),'YES'),('LV-4','0x' || repeat('c',40),'YES'),('LV-4','0x' || repeat('d',40),'YES'),('LV-4','0x' || repeat('e',40),'YES'),
+  ('LV-5','0x' || repeat('a',40),'YES'),('LV-5','0x' || repeat('b',40),'YES'),('LV-5','0x' || repeat('c',40),'YES'),('LV-5','0x' || repeat('d',40),'YES')
+) votes(proposal_id, wallet, choice);
 
 do $$
 declare actor text := '0x' || repeat('a',40); spec jsonb; work jsonb; job public.landville_build_jobs; first_lease uuid;
@@ -191,6 +203,7 @@ begin
   perform public.landville_claim_build(actor, false);
   if (select status from public.landville_proposals where id = 'LV-1') <> 'PASSED' or
     (select status from public.landville_proposals where id = 'LV-3') <> 'REJECTED' or
+    (select status from public.landville_proposals where id = 'LV-5') <> 'REJECTED' or
     (select status from public.landville_proposals where id = 'LV-4') <> 'LIVE' then raise exception 'Deadline finalization is incorrect'; end if;
   spec := jsonb_build_object('version',1,'runtime','sandbox-html','goal','A puzzle for the citizens of town.','acceptance',jsonb_build_array('The puzzle can be reset.'),'constraints','');
   perform public.landville_prepare_build('LV-2',actor,spec);
@@ -280,7 +293,7 @@ begin
     raise exception 'First World publication did not create exactly one reward';
   end if;
   reward := public.landville_resolve_creator_reward('LV-1','0x' || repeat('a',40),snapshot,10000000000000000000);
-  if reward.status <> 'READY' or reward.reward_wei <> 50000000000000000 then raise exception 'Creator reward cap is incorrect'; end if;
+  if reward.status <> 'READY' or reward.reward_wei <> 5000000000000000 then raise exception 'Creator reward cap is incorrect'; end if;
   reward := public.landville_claim_creator_reward('test-worker');
   perform public.landville_finish_creator_reward('LV-1',reward.payment_lease,'0x' || repeat('1',64));
   if (select status from public.landville_creator_rewards where proposal_id='LV-1') <> 'PAID' then raise exception 'Creator reward was not paid'; end if;
