@@ -6,7 +6,10 @@ import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import { readCityModule } from '@/lib/server/city-module';
 import { citizenIdentities } from '@/lib/server/citizens';
 import { citizenLabel } from '@/lib/citizen-identity';
+import { moduleImageResponse } from '@/lib/server/module-image';
 import type { CityModule, ModuleStorageMode } from '@/lib/build-contract';
+
+export const maxDuration = 180;
 
 const MAX_UPSTREAM_BYTES = 750_000;
 const MAX_RPC_BYTES = 64_000;
@@ -160,8 +163,18 @@ function callData(value: unknown) {
 
 function capabilityInput(body: Record<string, unknown>) {
   if (!('capability' in body)) return { capability: 'market.dexscreener', input: body };
-  if (!['market.dexscreener', 'chain.robinhood', 'module.storage'].includes(String(body.capability))) throw new ApiError(400, 'Unsupported module capability.');
+  if (!['market.dexscreener', 'chain.robinhood', 'module.storage', 'module.image.generate'].includes(String(body.capability))) throw new ApiError(400, 'Unsupported module capability.');
   return { capability: String(body.capability), input: object(body.input, 'capability input') };
+}
+
+async function imageResponse(id: string, wallet: string, input: Record<string, unknown>, published: PublishedObject) {
+  exactKeys(input, ['operation', 'brief']);
+  if (input.operation !== 'generate') throw new ApiError(400, 'Unsupported image operation.');
+  const cityModule = await verifiedModule(id, published);
+  const declaration = cityModule.capabilities?.imageGeneration;
+  if (!declaration) throw new ApiError(403, 'This module did not declare image generation permission.');
+  await enforceRate(wallet, 'module-image', 2);
+  return NextResponse.json(await moduleImageResponse(id, wallet, declaration, input.brief), { headers: { 'Cache-Control': 'private, no-store' } });
 }
 
 async function chainResponse(body: Record<string, unknown>) {
@@ -204,6 +217,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await enforceRate(wallet, 'module-data', 40);
     const { capability, input } = capabilityInput(await jsonBody(request));
     if (capability === 'module.storage') return await moduleStorageResponse(id, wallet, input, objects[0]);
+    if (capability === 'module.image.generate') return await imageResponse(id, wallet, input, objects[0]);
     if (capability === 'chain.robinhood') return await chainResponse(input);
     const url = marketUrl(input);
     const upstream = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' }, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8_000) });

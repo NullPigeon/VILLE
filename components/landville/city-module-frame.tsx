@@ -62,7 +62,10 @@ export function CityModuleFrame({ id, preview = false }: { id: string; preview?:
           target.postMessage({ type: MODULE_CAPABILITY_RESPONSE, requestId: request.requestId, ok: true, data }, '*');
           return;
         }
-        const response = await fetch(`/api/modules/${encodeURIComponent(id)}/data`, {
+        const endpoint = preview && request.capability === 'module.image.generate'
+          ? `/api/admin/build-jobs/${encodeURIComponent(id)}/image`
+          : `/api/modules/${encodeURIComponent(id)}/data`;
+        const response = await fetch(endpoint, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capability: request.capability, input: request.input }),
         });
         const result = await response.json().catch(() => ({ error: 'Invalid capability response.' }));
@@ -75,5 +78,5 @@ export function CityModuleFrame({ id, preview = false }: { id: string; preview?:
     return () => window.removeEventListener('message', onMessage);
   }, [id, preview]);
   if (!address) return <section className="lv-panel chat-sidebar-body"><h2>BECOME A CITIZEN</h2><p>Explore the world freely. Sign in to interact with its objects.</p><Link href="/citizens" className="lv-button primary">CREATE ACCOUNT / SIGN IN</Link></section>;
-  return <><p className="admin-warning">{preview ? 'ADMIN PREVIEW: storage is simulated in this tab and clears on reload. Test every interaction before release.' : 'Independent city module. LANDVILLE relays only its declared data and storage permissions. It cannot control your wallet, sign or submit transactions.'}</p><iframe ref={frame} key={`${id}:${address}:${preview}`} title={`City module ${id}`} src={preview ? `/api/admin/build-jobs/${id}/preview` : `/api/modules/${id}`} sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: '100%', height: '75vh', border: '1px solid #626d26', background: '#10110d' }} /></>;
+  return <><p className="admin-warning">{preview ? 'ADMIN PREVIEW: storage is simulated and clears on reload. Declared image generations are real, billed and rate-limited. Test every interaction before release.' : 'Independent city module. LANDVILLE relays only its declared data, storage and image permissions. It cannot control your wallet, sign or submit transactions.'}</p><iframe ref={frame} key={`${id}:${address}:${preview}`} title={`City module ${id}`} src={preview ? `/api/admin/build-jobs/${id}/preview` : `/api/modules/${id}`} sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: '100%', height: '75vh', border: '1px solid #626d26', background: '#10110d' }} /></>;
 }
