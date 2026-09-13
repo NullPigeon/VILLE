@@ -91,14 +91,74 @@ begin
   return found;
 end; $$;
 
+-- A citizen may explicitly place their latest generated character in World.
+-- The server supplies only the authenticated wallet and module id; the image is
+-- copied from the reviewed weekly generation record, never accepted from a client.
+create table public.landville_world_citizens (
+  citizen_wallet text primary key references public.landville_citizens(wallet) on delete cascade,
+  source_module_id text not null references public.landville_objects(proposal_id) on delete cascade,
+  image_base64 text not null check (length(image_base64) between 100 and 5000000 and image_base64 ~ '^[A-Za-z0-9+/=]+$'),
+  mime_type text not null default 'image/webp' check (mime_type = 'image/webp'),
+  x smallint not null check (x between 7 and 93),
+  y smallint not null check (y between 10 and 88),
+  published_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create function public.landville_publish_world_citizen(p_module_id text, p_citizen_wallet text)
+returns jsonb language plpgsql security invoker set search_path = '' as $$
+declare
+  v_period date := pg_catalog.date_trunc('week', pg_catalog.timezone('utc', pg_catalog.now()))::date;
+  v_image public.landville_module_images;
+  v_number bigint;
+  v_row public.landville_world_citizens;
+begin
+  if p_module_id !~ '^LV-[1-9][0-9]{0,15}$' or p_citizen_wallet !~ '^0x[0-9a-f]{40}$' then
+    raise exception 'INVALID_WORLD_CITIZEN';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('world-citizen'), pg_catalog.hashtext(p_citizen_wallet));
+  select * into v_image from public.landville_module_images
+    where module_id = p_module_id and citizen_wallet = p_citizen_wallet
+      and period_start = v_period and state = 'READY'
+    limit 1;
+  if not found then raise exception 'MODULE_IMAGE_REQUIRED'; end if;
+  select citizen_number into v_number from public.landville_citizens where wallet = p_citizen_wallet;
+  if v_number is null then raise exception 'ACCOUNT_REQUIRED'; end if;
+
+  insert into public.landville_world_citizens(citizen_wallet, source_module_id, image_base64, mime_type, x, y)
+    values (p_citizen_wallet, p_module_id, v_image.image_base64, v_image.mime_type,
+      7 + ((v_number * 37) % 87)::smallint, 10 + ((v_number * 53) % 79)::smallint)
+    on conflict (citizen_wallet) do update set
+      source_module_id = excluded.source_module_id, image_base64 = excluded.image_base64,
+      mime_type = excluded.mime_type, updated_at = pg_catalog.now()
+    returning * into v_row;
+  return pg_catalog.jsonb_build_object('published', true, 'publishedAt', v_row.published_at,
+    'sourceModuleId', v_row.source_module_id);
+end; $$;
+
+create function public.landville_unpublish_world_citizen(p_citizen_wallet text)
+returns boolean language plpgsql security invoker set search_path = '' as $$
+begin
+  if p_citizen_wallet !~ '^0x[0-9a-f]{40}$' then raise exception 'INVALID_WORLD_CITIZEN'; end if;
+  delete from public.landville_world_citizens where citizen_wallet = p_citizen_wallet;
+  return found;
+end; $$;
+
 alter table public.landville_module_images enable row level security;
+alter table public.landville_world_citizens enable row level security;
 revoke all on public.landville_module_images from anon, authenticated;
+revoke all on public.landville_world_citizens from anon, authenticated;
 revoke all on function public.landville_claim_module_image(text, text, text) from public, anon, authenticated;
 revoke all on function public.landville_finish_module_image(text, text, uuid, text, text, timestamptz) from public, anon, authenticated;
 revoke all on function public.landville_fail_module_image(text, text, uuid) from public, anon, authenticated;
+revoke all on function public.landville_publish_world_citizen(text, text) from public, anon, authenticated;
+revoke all on function public.landville_unpublish_world_citizen(text) from public, anon, authenticated;
 grant all on public.landville_module_images to service_role;
+grant all on public.landville_world_citizens to service_role;
 grant execute on function public.landville_claim_module_image(text, text, text) to service_role;
 grant execute on function public.landville_finish_module_image(text, text, uuid, text, text, timestamptz) to service_role;
 grant execute on function public.landville_fail_module_image(text, text, uuid) to service_role;
+grant execute on function public.landville_publish_world_citizen(text, text) to service_role;
+grant execute on function public.landville_unpublish_world_citizen(text) to service_role;
 
 commit;

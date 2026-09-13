@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
           database('landville_module_shared_records?select=id&limit=0'),
           database('landville_module_counters?select=module_id&limit=0'),
           database('landville_module_images?select=module_id&limit=0'),
+          database('landville_world_citizens?select=citizen_wallet&limit=0'),
         ]);
         storage = 'reachable; citizen profiles and universal module storage available';
       } catch { storage = 'unavailable: check credentials and apply every Supabase migration'; }

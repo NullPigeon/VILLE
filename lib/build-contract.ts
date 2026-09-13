@@ -9,9 +9,10 @@ export type BuildJob = {
 export type ModuleStorageMode = 'private' | 'shared' | 'counter';
 export type ModuleStorageDeclaration = { name: string; mode: ModuleStorageMode; description: string };
 export type ModuleImageGenerationDeclaration = { purpose: string; visualDirection: string };
+export type WorldCitizenDeclaration = { purpose: string };
 export type CityModule = {
   version: 1; proposalId: string; title: string; html: string; acceptance: string[];
-  capabilities?: { storage: ModuleStorageDeclaration[]; imageGeneration?: ModuleImageGenerationDeclaration };
+  capabilities?: { storage: ModuleStorageDeclaration[]; imageGeneration?: ModuleImageGenerationDeclaration; worldCitizen?: WorldCitizenDeclaration };
 };
 
 export const MAX_MODULE_HTML_LENGTH = 7_500_000;
@@ -52,6 +53,14 @@ export function validateImageGenerationDeclaration(value: unknown): ModuleImageG
   }
   return { purpose: declaration.purpose.trim(), visualDirection: declaration.visualDirection.trim() };
 }
+export function validateWorldCitizenDeclaration(value: unknown): WorldCitizenDeclaration {
+  const declaration = value as WorldCitizenDeclaration;
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration) || Object.keys(declaration).some((key) => key !== 'purpose') ||
+    typeof declaration.purpose !== 'string' || declaration.purpose.trim().length < 10 || declaration.purpose.length > 300) {
+    throw new Error('Invalid World citizen declaration.');
+  }
+  return { purpose: declaration.purpose.trim() };
+}
 function validateDeclaredStorageUsage(html: string, storage: ModuleStorageDeclaration[]) {
   if (!/capability\s*:\s*(['"])module\.storage\1/.test(html)) return;
   if (!storage.length) throw new Error('Module storage is used but not declared.');
@@ -72,6 +81,12 @@ function validateDeclaredImageGenerationUsage(html: string, declaration?: Module
   if (used && !declaration) throw new Error('Module image generation is used but not declared.');
   if (declaration && !used) throw new Error('Module image generation is declared but not used.');
 }
+function validateDeclaredWorldCitizenUsage(html: string, declaration?: WorldCitizenDeclaration, imageGeneration?: ModuleImageGenerationDeclaration) {
+  const used = /capability\s*:\s*(['"])world\.citizen\.publish\1/.test(html);
+  if (used && !declaration) throw new Error('World citizen publishing is used but not declared.');
+  if (declaration && !used) throw new Error('World citizen publishing is declared but not used.');
+  if (declaration && !imageGeneration) throw new Error('World citizen publishing requires reviewed image generation.');
+}
 export function validateModule(value: unknown, id: string): CityModule {
   const artifactModule = value as CityModule;
   if (!validProposalId(id) || !artifactModule || artifactModule.version !== 1 || artifactModule.proposalId !== id || typeof artifactModule.title !== 'string' || artifactModule.title.length < 4 || artifactModule.title.length > 80 ||
@@ -82,11 +97,14 @@ export function validateModule(value: unknown, id: string): CityModule {
   let capabilities: CityModule['capabilities'];
   if (artifactModule.capabilities !== undefined) {
     const storage = artifactModule.capabilities?.storage;
-    if (!artifactModule.capabilities || Object.keys(artifactModule.capabilities).some((key) => !['storage', 'imageGeneration'].includes(key))) throw new Error('Invalid city module capabilities.');
-    capabilities = { storage: validateStorageDeclarations(storage), ...(artifactModule.capabilities.imageGeneration === undefined ? {} : { imageGeneration: validateImageGenerationDeclaration(artifactModule.capabilities.imageGeneration) }) };
+    if (!artifactModule.capabilities || Object.keys(artifactModule.capabilities).some((key) => !['storage', 'imageGeneration', 'worldCitizen'].includes(key))) throw new Error('Invalid city module capabilities.');
+    capabilities = { storage: validateStorageDeclarations(storage),
+      ...(artifactModule.capabilities.imageGeneration === undefined ? {} : { imageGeneration: validateImageGenerationDeclaration(artifactModule.capabilities.imageGeneration) }),
+      ...(artifactModule.capabilities.worldCitizen === undefined ? {} : { worldCitizen: validateWorldCitizenDeclaration(artifactModule.capabilities.worldCitizen) }) };
   }
   validateDeclaredStorageUsage(artifactModule.html, capabilities?.storage || []);
   validateDeclaredImageGenerationUsage(artifactModule.html, capabilities?.imageGeneration);
+  validateDeclaredWorldCitizenUsage(artifactModule.html, capabilities?.worldCitizen, capabilities?.imageGeneration);
   return { version: 1, proposalId: id, title: artifactModule.title, html: artifactModule.html, acceptance: artifactModule.acceptance, ...(capabilities ? { capabilities } : {}) };
 }
 export const MODULE_CSP = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";

@@ -294,9 +294,17 @@ begin
   if claim->>'state' <> 'READY' or claim->>'imageBase64' <> repeat('A',100) then
     raise exception 'Weekly runtime image was not cached';
   end if;
+  if public.landville_publish_world_citizen('LV-1',actor)->>'published' <> 'true' then
+    raise exception 'Generated citizen was not published to World';
+  end if;
+  if (select image_base64 from public.landville_world_citizens where citizen_wallet=actor) <> repeat('A',100) then
+    raise exception 'World citizen did not use the reviewed generated image';
+  end if;
   if has_table_privilege('anon','public.landville_module_images','SELECT')
-    or has_function_privilege('authenticated','public.landville_claim_module_image(text,text,text)','EXECUTE') then
-    raise exception 'Runtime image records or claims are exposed to browser roles';
+    or has_table_privilege('anon','public.landville_world_citizens','SELECT')
+    or has_function_privilege('authenticated','public.landville_claim_module_image(text,text,text)','EXECUTE')
+    or has_function_privilege('authenticated','public.landville_publish_world_citizen(text,text)','EXECUTE') then
+    raise exception 'Runtime image or World citizen records are exposed to browser roles';
   end if;
 end $$;
 

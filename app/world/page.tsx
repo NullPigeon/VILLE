@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Bot,
   Building2,
@@ -14,7 +15,7 @@ import { ProductShell } from '@/components/landville/product-shell';
 import { useLandville } from '@/components/landville/provider';
 
 export default function WorldPage() {
-  const { objects } = useLandville();
+  const { objects, citizens } = useLandville();
   const [selectedId, setSelectedId] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const selected = objects.find((item) => item.id === selectedId);
@@ -44,6 +45,20 @@ export default function WorldPage() {
             <div className="world-object-label"><strong>{object.title}</strong><small>{object.creator}</small></div>
             <button onClick={() => inspectObject(object.id)} aria-label={`Inspect ${object.title}`} />
           </article>
+        ))}
+
+        {citizens.map((citizen) => (
+          <Link
+            key={citizen.wallet}
+            className="world-citizen-card"
+            style={{ left: `${citizen.x}%`, top: `${citizen.y}%` }}
+            href={`/citizens/${citizen.wallet}`}
+            aria-label={`Open ${citizen.creator} citizen profile`}
+          >
+            {/* Public image endpoint streams bytes; town state carries no base64 artwork. */}
+            <Image src={citizen.imagePath} alt={`${citizen.creator} LANDVILLE resident`} width={88} height={108} unoptimized />
+            <small>{citizen.creator}</small>
+          </Link>
         ))}
 
         {drawerOpen && <button className="world-drawer-scrim" onClick={() => setDrawerOpen(false)} aria-label="Close object menu" />}

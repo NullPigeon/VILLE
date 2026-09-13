@@ -40,6 +40,8 @@ const databaseErrors: Record<string, [number, string]> = {
   MODULE_STORAGE_QUOTA: [429, 'This module storage collection is full. Remove an old record before adding another.'],
   INVALID_MODULE_IMAGE: [400, 'Invalid module image request.'],
   MODULE_IMAGE_LEASE: [409, 'That image generation reservation expired. Try again.'],
+  INVALID_WORLD_CITIZEN: [400, 'Invalid World citizen request.'],
+  MODULE_IMAGE_REQUIRED: [409, 'Generate your citizen image before publishing it to World.'],
   REWARD_NOT_FOUND: [404, 'Creator reward not found.'],
   TREASURY_HOLDER_REQUIRED: [403, 'Hold SCRAPY in your linked wallet to propose or vote in Treasury.'],
   TREASURY_PROPOSAL_NOT_FOUND: [404, 'Treasury proposal not found.'],

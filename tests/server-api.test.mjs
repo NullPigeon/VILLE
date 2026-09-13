@@ -432,6 +432,44 @@ void test('a module without reviewed image permission cannot spend OpenAI budget
   assert.equal(response.status, 403); assert.equal(generated, false);
 });
 
+void test('a reviewed module can publish only the signed-in citizen and server-owned image', async () => {
+  const hash = '7'.repeat(64);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const worldCitizen = { purpose: 'Publish the generated character as the caller\'s public World resident.' };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.endsWith('/rpc/landville_publish_world_citizen')) return json({ published: true, publishedAt: new Date().toISOString(), sourceModuleId: 'LV-1' });
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration, worldCitizen } }, hash }) } });
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const publish = f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_world_citizen'));
+  assert.deepEqual(publish.body, { p_module_id: 'LV-1', p_citizen_wallet: wallet });
+  const rejected = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish', wallet: other, image: 'arbitrary' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(rejected.status, 400);
+  assert.equal(f.calls.filter((call) => call.url.endsWith('/rpc/landville_publish_world_citizen')).length, 1);
+});
+
+void test('World publishing is denied without an explicit reviewed artifact permission', async () => {
+  const hash = '6'.repeat(64);
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [] } }, hash }) },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 403);
+  assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_publish_world_citizen')));
+});
+
+void test('public World citizen image endpoint streams bytes', async () => {
+  const imageBase64 = Buffer.alloc(100, 3).toString('base64');
+  const f = fixture((call) => call.url.includes('landville_world_citizens?') ? json([{ image_base64: imageBase64, mime_type: 'image/webp', updated_at: new Date().toISOString() }]) : undefined);
+  const response = await f.load('app/api/world/citizens/[address]/image/route.ts').GET(f.request(`/api/world/citizens/${wallet}/image`, {}, { method: 'GET' }), { params: Promise.resolve({ address: wallet }) });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'image/webp');
+  assert.equal((await response.arrayBuffer()).byteLength, 100);
+});
+
 void test('shared module records expose public author labels but never wallet addresses', async () => {
   const hash = 'f'.repeat(64);
   const record = { id: '11111111-1111-4111-8111-111111111111', owner_wallet: other, data: { topic: 'Build a crane' }, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };

@@ -163,7 +163,7 @@ function callData(value: unknown) {
 
 function capabilityInput(body: Record<string, unknown>) {
   if (!('capability' in body)) return { capability: 'market.dexscreener', input: body };
-  if (!['market.dexscreener', 'chain.robinhood', 'module.storage', 'module.image.generate'].includes(String(body.capability))) throw new ApiError(400, 'Unsupported module capability.');
+  if (!['market.dexscreener', 'chain.robinhood', 'module.storage', 'module.image.generate', 'world.citizen.publish'].includes(String(body.capability))) throw new ApiError(400, 'Unsupported module capability.');
   return { capability: String(body.capability), input: object(body.input, 'capability input') };
 }
 
@@ -175,6 +175,29 @@ async function imageResponse(id: string, wallet: string, input: Record<string, u
   if (!declaration) throw new ApiError(403, 'This module did not declare image generation permission.');
   await enforceRate(wallet, 'module-image', 2);
   return NextResponse.json(await moduleImageResponse(id, wallet, declaration, input.brief), { headers: { 'Cache-Control': 'private, no-store' } });
+}
+
+async function worldCitizenResponse(id: string, wallet: string, input: Record<string, unknown>, published: PublishedObject) {
+  exactKeys(input, ['operation']);
+  const operation = input.operation;
+  if (!['status', 'publish', 'unpublish'].includes(String(operation))) throw new ApiError(400, 'Unsupported World citizen operation.');
+  const cityModule = await verifiedModule(id, published);
+  if (!cityModule.capabilities?.worldCitizen || !cityModule.capabilities.imageGeneration) {
+    throw new ApiError(403, 'This module did not declare World citizen publishing permission.');
+  }
+  if (operation === 'status') {
+    const rows = await database<Array<{ source_module_id: string; published_at: string }>>(`landville_world_citizens?select=source_module_id,published_at&citizen_wallet=eq.${wallet}&limit=1`);
+    return NextResponse.json({ published: Boolean(rows[0]), publishedAt: rows[0]?.published_at ?? null, sourceModuleId: rows[0]?.source_module_id ?? null }, { headers: { 'Cache-Control': 'private, no-store' } });
+  }
+  await enforceRate(wallet, 'world-citizen', 4);
+  if (operation === 'publish') {
+    const result = await database<{ published: boolean; publishedAt: string; sourceModuleId: string }>('rpc/landville_publish_world_citizen', {
+      method: 'POST', body: JSON.stringify({ p_module_id: id, p_citizen_wallet: wallet }),
+    });
+    return NextResponse.json(result, { headers: { 'Cache-Control': 'private, no-store' } });
+  }
+  await database<boolean>('rpc/landville_unpublish_world_citizen', { method: 'POST', body: JSON.stringify({ p_citizen_wallet: wallet }) });
+  return NextResponse.json({ published: false, publishedAt: null, sourceModuleId: null }, { headers: { 'Cache-Control': 'private, no-store' } });
 }
 
 async function chainResponse(body: Record<string, unknown>) {
@@ -218,6 +241,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { capability, input } = capabilityInput(await jsonBody(request));
     if (capability === 'module.storage') return await moduleStorageResponse(id, wallet, input, objects[0]);
     if (capability === 'module.image.generate') return await imageResponse(id, wallet, input, objects[0]);
+    if (capability === 'world.citizen.publish') return await worldCitizenResponse(id, wallet, input, objects[0]);
     if (capability === 'chain.robinhood') return await chainResponse(input);
     const url = marketUrl(input);
     const upstream = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' }, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8_000) });

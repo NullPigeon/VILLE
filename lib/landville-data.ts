@@ -17,6 +17,16 @@ export type WorldObjectRecord = {
   y: number;
 };
 
+export type WorldCitizenRecord = {
+  wallet: string;
+  creator: string;
+  imagePath: string;
+  sourceModuleId: string;
+  x: number;
+  y: number;
+  publishedAt: string;
+};
+
 export type ProposalRecord = {
   id: string;
   title: string;
