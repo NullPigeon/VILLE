@@ -33,11 +33,17 @@ function isCharacterCutout(declaration: ModuleImageGenerationDeclaration) {
   return /\b(avatar|character|full-body|world resident|world publication)\b/.test(reviewedIntent);
 }
 
-function promptFor(declaration: ModuleImageGenerationDeclaration, brief: string) {
+function promptFor(declaration: ModuleImageGenerationDeclaration, brief: string, choiceIndex: number, providerRetry = false) {
   const characterCutout = isCharacterCutout(declaration);
-  const quantity = declaration.maxImages === 3
-    ? `Create three distinct, equally polished ${characterCutout ? 'vertical character cutout' : 'square raster'} choices for a sandboxed LANDVILLE city module. Every returned image is one independent choice, never a sheet containing multiple choices.`
-    : `Create one polished ${characterCutout ? 'vertical character cutout' : 'square raster artwork'} for a sandboxed LANDVILLE city module.`;
+  const variation = [
+    'Stay closest to the primary brief and use a clear, confident pose.',
+    'Keep the same identity but explore a more expressive pose and different LANDVILLE construction details.',
+    'Keep the same identity but make Scrapy\'s improvised twist bolder while preserving every iconic cue.',
+  ][choiceIndex];
+  const quantity = `Create one polished ${characterCutout ? 'vertical character cutout' : 'square raster artwork'} for a sandboxed LANDVILLE city module.${declaration.maxImages === 3 ? ` This is independent choice ${choiceIndex + 1} of 3. ${variation}` : ''} Do not show alternate choices inside this image.`;
+  const retryRule = providerRetry
+    ? 'PROVIDER-SAFE RETRY: Render this as harmless original LANDVILLE fan art. Keep recognizable non-logo visual cues from the requested identity, but omit weapons, violence, threatening action, official branding and exact emblems.'
+    : '';
   const subjectRules = characterCutout ? `
 SUBJECT FIDELITY — HIGHEST PRIORITY:
 - The citizen brief defines who or what the character is. It may be a person, robot, superhero, creature, animal, object-character or any other subject.
@@ -55,6 +61,7 @@ MODULE PURPOSE: ${declaration.purpose}
 REVIEWED VISUAL DIRECTION: ${declaration.visualDirection}
 PRIMARY CITIZEN BRIEF: ${brief}
 ${subjectRules}
+${retryRule}
 
 The citizen brief controls the subject while the reviewed module declaration controls safe composition and capability boundaries. Make the finish unmistakably LANDVILLE and Scrapy-authored: tactile weathered printmaking, patched materials, warm rust and paper tones, restrained acid-lime repairs, a strong silhouette, sly municipal humor and one small improvised detail that complements the requested identity. Avoid generic cyberpunk, generic vector avatars, bland trait grids, stock UI, watermarks, signatures, logos, URLs, tiny text and illegible typography. Do not add text unless the reviewed direction explicitly requires it. Return only the image.`;
 }
@@ -78,39 +85,55 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
   if (!key || !IMAGE_MODELS.has(model)) throw new ApiError(503, 'Citizen image generation is not configured.');
   const brief = imageBrief(briefValue);
   const characterCutout = isCharacterCutout(declaration);
-  let response: Response;
-  try {
-    response = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt: promptFor(declaration, brief),
-        n: declaration.maxImages,
-        size: characterCutout ? '1024x1536' : '1024x1024',
-        quality: 'medium',
-        output_format: 'webp',
-        output_compression: 82,
-        moderation: 'auto',
-        ...(characterCutout ? { background: 'transparent' } : {}),
-      }),
-      cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(165_000),
-    });
-  } catch { throw new ApiError(503, 'The image workshop timed out. Try again later.'); }
-  if (!response.ok) {
-    if (response.status === 429) throw new ApiError(429, 'The image workshop is busy. Try again later.');
-    if (response.status >= 400 && response.status < 500) throw new ApiError(422, 'That image request could not be generated. Adjust the description and try again.');
+  const generateChoice = async (choiceIndex: number) => {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let response: Response;
+      try {
+        response = await fetch('https://api.openai.com/v1/images/generations', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            model,
+            prompt: promptFor(declaration, brief, choiceIndex, attempt === 1),
+            n: 1,
+            size: characterCutout ? '1024x1536' : '1024x1024',
+            quality: 'medium',
+            output_format: 'webp',
+            output_compression: 82,
+            moderation: 'auto',
+            ...(characterCutout ? { background: 'transparent' } : {}),
+          }),
+          cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(165_000),
+        });
+      } catch { throw new ApiError(503, 'The image workshop timed out. Try again later.'); }
+      if (!response.ok) {
+        if (response.status === 429) throw new ApiError(429, 'The image workshop is busy. Try again later.');
+        if (response.status >= 400 && response.status < 500 && attempt === 0) {
+          await response.arrayBuffer().catch(() => undefined);
+          continue;
+        }
+        if (response.status >= 400 && response.status < 500) throw new ApiError(422, 'That character could not be generated even after Scrapy simplified the request. Try a more descriptive identity.');
+        throw new ApiError(503, 'The image workshop is temporarily unavailable.');
+      }
+      const declaredLength = Number(response.headers.get('content-length') || 0);
+      if (declaredLength > MAX_IMAGE_BASE64 + 50_000) throw new ApiError(502, 'The image provider returned an oversized image.');
+      const text = await response.text();
+      if (text.length > MAX_IMAGE_BASE64 + 50_000) throw new ApiError(502, 'The image provider returned an oversized image.');
+      let images: unknown;
+      try { images = (JSON.parse(text) as { data?: Array<{ b64_json?: unknown }> }).data?.map((item) => item.b64_json); }
+      catch {
+        if (attempt === 0) continue;
+        throw new ApiError(502, 'The image provider returned invalid data twice.');
+      }
+      if (Array.isArray(images) && images.length === 1 && validBase64Image(images[0])) return images[0];
+      if (attempt === 0) continue;
+      throw new ApiError(502, 'The image provider returned an incomplete image choice twice.');
+    }
     throw new ApiError(503, 'The image workshop is temporarily unavailable.');
-  }
-  const declaredLength = Number(response.headers.get('content-length') || 0);
-  if (declaredLength > MAX_IMAGE_BATCH_BASE64 + 150_000) throw new ApiError(502, 'The image provider returned an oversized image.');
-  const text = await response.text();
-  if (text.length > MAX_IMAGE_BATCH_BASE64 + 150_000) throw new ApiError(502, 'The image provider returned an oversized image.');
-  let base64Images: unknown;
-  try { base64Images = (JSON.parse(text) as { data?: Array<{ b64_json?: unknown }> }).data?.map((item) => item.b64_json); }
-  catch { throw new ApiError(502, 'The image provider returned invalid data.'); }
-  if (!Array.isArray(base64Images) || base64Images.length !== declaration.maxImages || !base64Images.every(validBase64Image)) {
-    throw new ApiError(502, 'The image provider returned an incomplete image batch.');
+  };
+  const base64Images = await Promise.all(Array.from({ length: declaration.maxImages }, (_, choiceIndex) => generateChoice(choiceIndex)));
+  if (base64Images.reduce((total, image) => total + image.length, 0) > MAX_IMAGE_BATCH_BASE64) {
+    throw new ApiError(502, 'The image provider returned an oversized image batch.');
   }
   return { base64Images, base64: base64Images[0], mimeType: 'image/webp', generatedAt: new Date().toISOString(), brief };
 }
