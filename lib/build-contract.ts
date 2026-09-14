@@ -8,7 +8,7 @@ export type BuildJob = {
 };
 export type ModuleStorageMode = 'private' | 'shared' | 'counter';
 export type ModuleStorageDeclaration = { name: string; mode: ModuleStorageMode; description: string };
-export type ModuleImageGenerationDeclaration = { purpose: string; visualDirection: string };
+export type ModuleImageGenerationDeclaration = { purpose: string; visualDirection: string; maxImages: 1 | 3 };
 export type WorldCitizenDeclaration = { purpose: string };
 export type CityModule = {
   version: 1; proposalId: string; title: string; html: string; acceptance: string[];
@@ -45,13 +45,15 @@ export function validateStorageDeclarations(value: unknown): ModuleStorageDeclar
 }
 export function validateImageGenerationDeclaration(value: unknown): ModuleImageGenerationDeclaration {
   const declaration = value as ModuleImageGenerationDeclaration;
+  const maxImages = declaration?.maxImages === undefined ? 1 : declaration.maxImages;
   if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration) ||
-    Object.keys(declaration).some((key) => !['purpose', 'visualDirection'].includes(key)) ||
+    Object.keys(declaration).some((key) => !['purpose', 'visualDirection', 'maxImages'].includes(key)) ||
     typeof declaration.purpose !== 'string' || declaration.purpose.trim().length < 10 || declaration.purpose.length > 300 ||
-    typeof declaration.visualDirection !== 'string' || declaration.visualDirection.trim().length < 20 || declaration.visualDirection.length > 1200) {
+    typeof declaration.visualDirection !== 'string' || declaration.visualDirection.trim().length < 20 || declaration.visualDirection.length > 1200 ||
+    ![1, 3].includes(maxImages)) {
     throw new Error('Invalid city module image generation declaration.');
   }
-  return { purpose: declaration.purpose.trim(), visualDirection: declaration.visualDirection.trim() };
+  return { purpose: declaration.purpose.trim(), visualDirection: declaration.visualDirection.trim(), maxImages };
 }
 export function validateWorldCitizenDeclaration(value: unknown): WorldCitizenDeclaration {
   const declaration = value as WorldCitizenDeclaration;

@@ -29,6 +29,7 @@ export type ModuleImageInput = {
 
 export type WorldCitizenInput = {
   operation: 'status' | 'publish' | 'unpublish';
+  imageIndex?: 0 | 1 | 2;
 };
 
 export type ModuleCapabilityRequest = {
@@ -74,19 +75,19 @@ export const MODULE_RUNTIME_GUIDE = {
       transport: 'Use the same parent postMessage bridge. Render pending, signed-out, empty and failure states. Never put secrets or wallet keys in storage. Shared records return a public author label, never a wallet address. Writes persist only after an ok response.',
     },
     'module.image.generate': {
-      description: 'Generate one original raster image for the signed-in citizen through LANDVILLE\'s server-side OpenAI connection. This is for proposals whose core product needs a fresh citizen-specific visual, not for ordinary decoration. The reviewed artifact must declare a narrow purpose and visual direction. LANDVILLE never reveals the provider key.',
-      quota: 'One successful image per citizen, per module, per UTC week. Reopening the module returns the saved image for that week without another paid generation.',
-      declarations: { shape: '{ purpose: exact product reason, visualDirection: proposal-specific LANDVILLE art direction }', maximum: 1 },
+      description: 'Generate one original raster image, or one reviewed set of three choices, for the signed-in citizen through LANDVILLE\'s server-side OpenAI connection. This is for proposals whose core product needs a fresh citizen-specific visual, not for ordinary decoration. The reviewed artifact must declare a narrow purpose, visual direction and maximum image count. LANDVILLE never reveals the provider key.',
+      quota: 'One successful generation batch per citizen, per module, per UTC week. A reviewed batch contains either one image or three choices. Reopening the module returns the saved batch without another paid generation.',
+      declarations: { shape: '{ purpose: exact product reason, visualDirection: proposal-specific LANDVILLE art direction, maxImages: 1 | 3 }', maximum: 1 },
       request: { type: MODULE_CAPABILITY_REQUEST, requestId: 'unique-id', capability: 'module.image.generate', input: { operation: 'generate', brief: 'citizen choices or subject description, 1-280 characters' } },
-      response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: '{ imageUrl: data:image/webp;base64,..., mimeType, generatedAt, cached } when ok', error: 'string when not ok' },
-      transport: 'Use the same parent postMessage bridge. Show a deliberate generate control, a potentially long pending state, the returned image, the weekly quota/cached state and a useful failure state. Treat the brief as plain user data. Never ask for secrets, wallet keys, URLs or hidden prompts.',
+      response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: '{ images: [{ index, imageUrl, mimeType }], imageUrl: first image for compatibility, generatedAt, cached } when ok', error: 'string when not ok' },
+      transport: 'Use the same parent postMessage bridge. Show a deliberate generate control, a potentially long pending state, every returned choice, the weekly quota/cached state and a useful failure state. Treat the brief as plain user data. Never ask for secrets, wallet keys, URLs or hidden prompts.',
     },
     'world.citizen.publish': {
       description: 'After this module generates a citizen character, let the signed-in citizen explicitly publish that saved image as their public World resident. LANDVILLE owns the confirmation dialog and always uses the caller\'s own current generated image and username. One public resident per citizen; a later approved portrait replaces it.',
       requirement: 'May be declared only together with module.image.generate when turning the generated character into a World resident is part of the approved product.',
-      request: { type: MODULE_CAPABILITY_REQUEST, requestId: 'unique-id', capability: 'world.citizen.publish', input: { operation: 'status | publish | unpublish' } },
-      response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: '{ published, publishedAt }', error: 'string when not ok' },
-      transport: 'Use the parent postMessage bridge. Offer PUBLISH MY CITIZEN TO WORLD only after a generated image exists, explain that the image and username become public, and offer REMOVE FROM WORLD when published. The LANDVILLE host asks for confirmation; never fake or bypass it.',
+      request: { type: MODULE_CAPABILITY_REQUEST, requestId: 'unique-id', capability: 'world.citizen.publish', input: { operation: 'status | publish | unpublish', imageIndex: 'required for publish; 0, 1 or 2 from the generated images array' } },
+      response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: '{ published, publishedAt, selectedImageIndex }', error: 'string when not ok' },
+      transport: 'Use the parent postMessage bridge. Offer PUBLISH MY CITIZEN TO WORLD only after the citizen selects a returned image, send its imageIndex, explain that the selected image and username become public, and offer REMOVE FROM WORLD when published. The LANDVILLE host asks for confirmation; never fake or bypass it.',
     },
   },
 } as const;

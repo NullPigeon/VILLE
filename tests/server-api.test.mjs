@@ -235,10 +235,10 @@ void test('only an admin can preview the exact deployed review artifact', async 
 
 void test('admin preview can test only the reviewed runtime image permission', async () => {
   const hash = '7'.repeat(64);
-  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
   const f = fixture((call) => call.url.includes('landville_build_jobs?') ? json([{ state: 'REVIEW', revision: 2, content_hash: hash }]) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet }, {
     '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
-    '@/lib/server/module-image': { generateModuleImage: async (_declaration, brief) => ({ base64: 'A'.repeat(100), mimeType: 'image/webp', generatedAt: '2026-09-13T00:00:00.000Z', brief }) },
+    '@/lib/server/module-image': { generateModuleImage: async (_declaration, brief) => ({ base64Images: ['A'.repeat(100)], base64: 'A'.repeat(100), mimeType: 'image/webp', generatedAt: '2026-09-13T00:00:00.000Z', brief }) },
   });
   const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/image', { capability: 'module.image.generate', input: { operation: 'generate', brief: 'A patched civic oracle' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 200);
@@ -410,7 +410,7 @@ void test('module storage refuses undeclared collections before a storage table 
 
 void test('runtime image generation is available only to an explicitly permitted published module', async () => {
   const hash = '9'.repeat(64);
-  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
   const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
     '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
     '@/lib/server/module-image': { moduleImageResponse: async (id, actor, declaration, brief) => ({ imageUrl: 'data:image/webp;base64,dGVzdA==', id, actor, declaration, brief, cached: false }) },
@@ -434,21 +434,21 @@ void test('a module without reviewed image permission cannot spend OpenAI budget
 
 void test('a reviewed module can publish only the signed-in citizen and server-owned image', async () => {
   const hash = '7'.repeat(64);
-  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
   const worldCitizen = { purpose: 'Publish the generated character as the caller\'s public World resident.' };
   const f = fixture((call) => {
     if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
-    if (call.url.endsWith('/rpc/landville_publish_world_citizen')) return json({ published: true, publishedAt: new Date().toISOString(), sourceModuleId: 'LV-1' });
+    if (call.url.endsWith('/rpc/landville_publish_world_citizen_v2')) return json({ published: true, publishedAt: new Date().toISOString(), sourceModuleId: 'LV-1', selectedImageIndex: 0 });
     return undefined;
   }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration, worldCitizen } }, hash }) } });
   const route = f.load('app/api/modules/[id]/data/route.ts');
-  const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish', imageIndex: 0 } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 200);
-  const publish = f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_world_citizen'));
-  assert.deepEqual(publish.body, { p_module_id: 'LV-1', p_citizen_wallet: wallet });
-  const rejected = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish', wallet: other, image: 'arbitrary' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  const publish = f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_world_citizen_v2'));
+  assert.deepEqual(publish.body, { p_module_id: 'LV-1', p_citizen_wallet: wallet, p_image_index: 0 });
+  const rejected = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish', imageIndex: 0, wallet: other, image: 'arbitrary' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(rejected.status, 400);
-  assert.equal(f.calls.filter((call) => call.url.endsWith('/rpc/landville_publish_world_citizen')).length, 1);
+  assert.equal(f.calls.filter((call) => call.url.endsWith('/rpc/landville_publish_world_citizen_v2')).length, 1);
 });
 
 void test('World publishing is denied without an explicit reviewed artifact permission', async () => {

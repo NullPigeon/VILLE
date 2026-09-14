@@ -26,6 +26,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!declaration) throw new ApiError(403, 'This revision did not declare image generation permission.');
     await enforceRate(actor, 'module-image-preview', 3);
     const generated = await generateModuleImage(declaration, input.brief);
-    return NextResponse.json({ imageUrl: `data:${generated.mimeType};base64,${generated.base64}`, mimeType: generated.mimeType, generatedAt: generated.generatedAt, cached: false, preview: true }, { headers: { 'Cache-Control': 'private, no-store' } });
+    const images = generated.base64Images.map((base64, index) => ({ index, imageUrl: `data:${generated.mimeType};base64,${base64}`, mimeType: generated.mimeType }));
+    return NextResponse.json({ images, imageUrl: images[0].imageUrl, mimeType: generated.mimeType, generatedAt: generated.generatedAt, cached: false, preview: true }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) { return apiFailure(error); }
 }

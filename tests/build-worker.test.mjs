@@ -13,7 +13,7 @@ const acceptanceReport = ['The Count control increments the visible total in the
 const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
 const intentReport = ['The requested subject is present.', 'The requested story and tone are present.', 'The requested interaction is implemented.'];
 const reviewResult = { html, storage: [], acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
-const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.', storagePlan: [], runtimeImagePlan: { enabled: false, purpose: '', visualDirection: '' }, worldCitizenPlan: { enabled: false, purpose: '' } };
+const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.', storagePlan: [], runtimeImagePlan: { enabled: false, purpose: '', visualDirection: '', maxImages: 1 }, worldCitizenPlan: { enabled: false, purpose: '' } };
 const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==', subjectReferences: [], creativeDirection: null };
 const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
@@ -77,7 +77,7 @@ void test('reviewed artifacts retain and enforce every storage declaration used 
 });
 void test('runtime image generation requires a narrow reviewed artifact permission', () => {
   const imageHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'portrait',capability:'module.image.generate',input:{operation:'generate',brief:'salvage mayor'}},'*')</script></body>`);
-  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const imageGeneration = { purpose: 'Generate three citizen-specific salvage portrait choices.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait set with rust, paper, and acid-lime repair marks.', maxImages: 3 };
   const record = JSON.parse(artifactFor(work, { html: imageHtml, imageGeneration }).content);
   assert.deepEqual(record.capabilities.imageGeneration, imageGeneration);
   assert.throws(() => artifactFor(work, { html: imageHtml }), /not declared/);
@@ -85,7 +85,7 @@ void test('runtime image generation requires a narrow reviewed artifact permissi
 });
 void test('publishing a generated citizen requires both reviewed permissions', () => {
   const citizenHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'portrait',capability:'module.image.generate',input:{operation:'generate',brief:'salvage mayor'}},'*');window.parent.postMessage({type:'landville:capability-request',requestId:'resident',capability:'world.citizen.publish',input:{operation:'status'}},'*')</script></body>`);
-  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
   const worldCitizen = { purpose: 'Publish the generated character as this citizen\'s public World resident.' };
   const record = JSON.parse(artifactFor(work, { html: citizenHtml, imageGeneration, worldCitizen }).content);
   assert.deepEqual(record.capabilities.worldCitizen, worldCitizen);
@@ -94,7 +94,7 @@ void test('publishing a generated citizen requires both reviewed permissions', (
 });
 void test('reviewed capability declarations accept normal JSON-quoted JavaScript keys', () => {
   const quotedHtml = html.replace('</body>', `<script>window.parent.postMessage({"type":"landville:capability-request","requestId":"portrait","capability":"module.image.generate","input":{"operation":"generate","brief":"salvage mayor"}},'*');window.parent.postMessage({"type":"landville:capability-request","requestId":"resident","capability":"world.citizen.publish","input":{"operation":"status"}},'*')</script></body>`);
-  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
   const worldCitizen = { purpose: 'Publish the generated character as this citizen\'s public World resident.' };
   assert.doesNotThrow(() => artifactFor(work, { html: quotedHtml, imageGeneration, worldCitizen }));
 });
@@ -220,7 +220,7 @@ void test('an invalid architecture receives one focused repair pass', async () =
   assert.match(repaired.body.input[0].content[0].text, /rejectedArchitecture/);
 });
 void test('a contract-invalid draft receives one focused repair pass', async () => {
-  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const imageGeneration = { purpose: 'Generate three citizen-specific salvage portrait choices.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait set with rust, paper, and acid-lime repair marks.', maxImages: 3 };
   const repairedHtml = html.replace('</body>', `<script>window.parent.postMessage({"type":"landville:capability-request","requestId":"portrait","capability":"module.image.generate","input":{"operation":"generate","brief":"salvage mayor"}},'*');window.parent.postMessage({"type":"landville:capability-request","requestId":"resident","capability":"world.citizen.publish","input":{"operation":"status"}},'*')</script></body>`);
   const architecture = { ...architectureResult, runtimeImagePlan: { enabled: true, ...imageGeneration }, worldCitizenPlan: { enabled: true, purpose: 'Publish the generated character as the citizen\'s public World resident.' } };
   let draftCalls = 0;
@@ -237,6 +237,8 @@ void test('a contract-invalid draft receives one focused repair pass', async () 
   });
   assert.equal((await worker(env, f.http)).state, 'REVIEW');
   assert.equal(draftCalls, 2);
+  const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
+  assert.equal(artifact.capabilities.imageGeneration.maxImages, 3);
 });
 void test('a failed creative review receives one automatic repair pass', async () => {
   let reviews = 0;

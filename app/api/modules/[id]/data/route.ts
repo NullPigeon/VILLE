@@ -178,7 +178,7 @@ async function imageResponse(id: string, wallet: string, input: Record<string, u
 }
 
 async function worldCitizenResponse(id: string, wallet: string, input: Record<string, unknown>, published: PublishedObject) {
-  exactKeys(input, ['operation']);
+  exactKeys(input, ['operation', 'imageIndex']);
   const operation = input.operation;
   if (!['status', 'publish', 'unpublish'].includes(String(operation))) throw new ApiError(400, 'Unsupported World citizen operation.');
   const cityModule = await verifiedModule(id, published);
@@ -191,8 +191,9 @@ async function worldCitizenResponse(id: string, wallet: string, input: Record<st
   }
   await enforceRate(wallet, 'world-citizen', 4);
   if (operation === 'publish') {
-    const result = await database<{ published: boolean; publishedAt: string; sourceModuleId: string }>('rpc/landville_publish_world_citizen', {
-      method: 'POST', body: JSON.stringify({ p_module_id: id, p_citizen_wallet: wallet }),
+    if (!Number.isInteger(input.imageIndex) || Number(input.imageIndex) < 0 || Number(input.imageIndex) > 2) throw new ApiError(400, 'Select a generated image before publishing.');
+    const result = await database<{ published: boolean; publishedAt: string; sourceModuleId: string; selectedImageIndex: number }>('rpc/landville_publish_world_citizen_v2', {
+      method: 'POST', body: JSON.stringify({ p_module_id: id, p_citizen_wallet: wallet, p_image_index: input.imageIndex }),
     });
     return NextResponse.json(result, { headers: { 'Cache-Control': 'private, no-store' } });
   }
