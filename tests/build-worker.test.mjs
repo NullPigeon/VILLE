@@ -255,6 +255,24 @@ void test('a failed creative review receives one automatic repair pass', async (
   assert.equal(reviews, 1);
   assert.equal(f.calls.filter((call) => call.url.includes('api.openai.com')).length, 4);
 });
+void test('a contract-invalid final review receives one focused artifact repair pass', async () => {
+  const invalidReviewedHtml = html.replace('</body>', '<form><button>Unsupported submit</button></form></body>');
+  const f = harness((call) => {
+    if (call.body?.text?.format?.name === 'reviewed_city_module') {
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ ...reviewResult, html: invalidReviewedHtml }) }] }] });
+    }
+    if (call.body?.text?.format?.name === 'artifact_contract_repair') {
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(reviewResult) }] }] });
+    }
+    return undefined;
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  const repairs = f.calls.filter((call) => call.body?.text?.format?.name === 'artifact_contract_repair');
+  assert.equal(repairs.length, 1);
+  assert.match(repairs[0].body.input[0].content[0].text, /Unsupported module capability/);
+  const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
+  assert.doesNotMatch(artifact.html, /<form\b/i);
+});
 void test('a corrective revision writes a new immutable artifact path', async () => {
   const revised = { ...work, job: { ...work.job, attempt: 2, revision: 2, branch: 'codex/build-lv-1-2' } };
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: revised }) : undefined);
