@@ -26,6 +26,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260912150000_require_five_module_voters.sql
 \ir ../supabase/migrations/20260912151000_reduce_creator_reward_cap.sql
 \ir ../supabase/migrations/20260913090000_module_image_generation.sql
+\ir ../supabase/migrations/20260914150000_module_image_choices.sql
 
 do $$
 declare
@@ -289,21 +290,27 @@ begin
   if public.landville_claim_module_image('LV-1',actor,repeat('a',64))->>'state' <> 'BUSY' then
     raise exception 'Concurrent runtime image generation was not blocked';
   end if;
-  perform public.landville_finish_module_image('LV-1',actor,lease,repeat('A',100),'image/webp',now());
+  perform public.landville_finish_module_image_set(
+    'LV-1', actor, lease,
+    jsonb_build_array(repeat('A',100), repeat('B',100), repeat('C',100)),
+    'image/webp', now()
+  );
   claim := public.landville_claim_module_image('LV-1',actor,repeat('b',64));
-  if claim->>'state' <> 'READY' or claim->>'imageBase64' <> repeat('A',100) then
-    raise exception 'Weekly runtime image was not cached';
+  if claim->>'state' <> 'READY'
+    or jsonb_array_length(claim->'imagesBase64') <> 3
+    or claim->'imagesBase64'->>2 <> repeat('C',100) then
+    raise exception 'Weekly runtime image choices were not cached';
   end if;
-  if public.landville_publish_world_citizen('LV-1',actor)->>'published' <> 'true' then
+  if public.landville_publish_world_citizen_v2('LV-1',actor,2)->>'published' <> 'true' then
     raise exception 'Generated citizen was not published to World';
   end if;
-  if (select image_base64 from public.landville_world_citizens where citizen_wallet=actor) <> repeat('A',100) then
-    raise exception 'World citizen did not use the reviewed generated image';
+  if (select image_base64 from public.landville_world_citizens where citizen_wallet=actor) <> repeat('C',100) then
+    raise exception 'World citizen did not use the selected reviewed generated image';
   end if;
   if has_table_privilege('anon','public.landville_module_images','SELECT')
     or has_table_privilege('anon','public.landville_world_citizens','SELECT')
     or has_function_privilege('authenticated','public.landville_claim_module_image(text,text,text)','EXECUTE')
-    or has_function_privilege('authenticated','public.landville_publish_world_citizen(text,text)','EXECUTE') then
+    or has_function_privilege('authenticated','public.landville_publish_world_citizen_v2(text,text,integer)','EXECUTE') then
     raise exception 'Runtime image or World citizen records are exposed to browser roles';
   end if;
 end $$;
