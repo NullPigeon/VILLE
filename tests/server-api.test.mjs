@@ -277,6 +277,8 @@ void test('character generation requests separate vertical WebP cutouts with tra
   assert.ok(generations.every((generation) => generation.body.size === '1024x1536'));
   assert.ok(generations.every((generation) => generation.body.background === 'transparent'));
   assert.ok(generations.every((generation) => generation.body.output_format === 'webp'));
+  assert.ok(generations.every((generation) => generation.body.moderation === 'low'));
+  assert.ok(generations.every((generation) => generation.body.output_compression === undefined));
   assert.ok(generations.every((generation) => /SUBJECT FIDELITY — HIGHEST PRIORITY/.test(generation.body.prompt)));
   assert.ok(generations.every((generation) => /generic worker/.test(generation.body.prompt)));
   assert.ok(generations.every((generation) => /exactly one character exactly once/.test(generation.body.prompt)));
@@ -318,7 +320,11 @@ void test('a rejected character choice retries safely without restarting success
   assert.equal(generations.filter((generation) => /choice 1 of 3/.test(generation.body.prompt)).length, 1);
   assert.equal(generations.filter((generation) => /choice 2 of 3/.test(generation.body.prompt)).length, 2);
   assert.equal(generations.filter((generation) => /choice 3 of 3/.test(generation.body.prompt)).length, 1);
-  assert.match(generations.find((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt)).body.prompt, /harmless original LANDVILLE fan art/);
+  assert.match(generations.find((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt)).body.prompt, /friendly, all-ages, original LANDVILLE interpretation/);
+  const retry = generations.find((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt));
+  assert.equal(retry.body.moderation, 'low');
+  assert.equal(retry.body.output_compression, undefined);
+  assert.doesNotMatch(retry.body.prompt, /weapons|violence|threatening action/i);
 });
 
 void test('an incomplete character choice retries without discarding completed choices', async () => {
