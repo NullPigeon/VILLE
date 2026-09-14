@@ -208,9 +208,20 @@ export async function runWorker(env = process.env, http = fetch, contextLoader =
       tools: [{ type: 'web_search_preview', search_context_size: 'medium' }, { type: 'image_generation' }], tool_choice: 'auto',
       text: { format: { type: 'json_schema', name: 'city_module', strict: true, schema } },
     });
-    const draft = extractOutput(response);
-    enforceStoragePlan(draft, architecture);
-    artifactFor(work, { ...draft, imageGeneration: runtimeImageDeclaration(architecture), worldCitizen: worldCitizenDeclaration(architecture) });
+    let draft = extractOutput(response);
+    try {
+      enforceStoragePlan(draft, architecture);
+      artifactFor(work, { ...draft, imageGeneration: runtimeImageDeclaration(architecture), worldCitizen: worldCitizenDeclaration(architecture) });
+    } catch (error) {
+      phase = 'DRAFT_REPAIR';
+      draft = extractOutput(await openAi({
+        instructions: 'You are LANDVILLE\'s contract repair engineer. Correct this draft without changing the approved citizen goal or visual design. Return a complete HTML document and the storage array exactly matching approvedArchitecture.storagePlan. Use every enabled reviewed capability and no undeclared capability. If runtimeImagePlan is enabled, the HTML must send a literal module.image.generate request. If worldCitizenPlan is enabled, the HTML must send literal world.citizen.publish status, publish and unpublish requests, expose publish only after a generated image exists, and explain the host confirmation. Capability requests may use quoted or unquoted JavaScript object keys. Remove browser storage, forms, frames, remote URLs, direct network calls and wallet access. Do not add placeholders or fake success states.',
+        input: builderInput(JSON.stringify({ ...project, approvedArchitecture: architecture, rejectedDraft: draft, validationIssue: builderFailureCode(error) }), context),
+        text: { format: { type: 'json_schema', name: 'city_module', strict: true, schema } },
+      }));
+      enforceStoragePlan(draft, architecture);
+      artifactFor(work, { ...draft, imageGeneration: runtimeImageDeclaration(architecture), worldCitizen: worldCitizenDeclaration(architecture) });
+    }
     const generatedAsset = draft.generatedImage ? `data:image/png;base64,${draft.generatedImage}` : null;
     phase = 'REVIEW';
     const review = await openAi({

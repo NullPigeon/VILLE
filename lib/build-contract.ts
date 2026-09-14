@@ -66,8 +66,8 @@ function validateDeclaredStorageUsage(html: string, storage: ModuleStorageDeclar
   if (!storage.length) throw new Error('Module storage is used but not declared.');
   const usages = new Map<string, ModuleStorageMode>();
   const patterns = [
-    /operation\s*:\s*(['"])(private|shared|counter)\.[a-z]+\1[^{}]{0,180}?collection\s*:\s*(['"])([a-z][a-z0-9_-]{0,31})\3/g,
-    /collection\s*:\s*(['"])([a-z][a-z0-9_-]{0,31})\1[^{}]{0,180}?operation\s*:\s*(['"])(private|shared|counter)\.[a-z]+\3/g,
+    /(?:['"]?operation['"]?)\s*:\s*(['"])(private|shared|counter)\.[a-z]+\1[^{}]{0,180}?(?:['"]?collection['"]?)\s*:\s*(['"])([a-z][a-z0-9_-]{0,31})\3/g,
+    /(?:['"]?collection['"]?)\s*:\s*(['"])([a-z][a-z0-9_-]{0,31})\1[^{}]{0,180}?(?:['"]?operation['"]?)\s*:\s*(['"])(private|shared|counter)\.[a-z]+\3/g,
   ];
   for (const match of html.matchAll(patterns[0])) usages.set(match[4], match[2] as ModuleStorageMode);
   for (const match of html.matchAll(patterns[1])) usages.set(match[2], match[4] as ModuleStorageMode);
@@ -77,12 +77,12 @@ function validateDeclaredStorageUsage(html: string, storage: ModuleStorageDeclar
   }
 }
 function validateDeclaredImageGenerationUsage(html: string, declaration?: ModuleImageGenerationDeclaration) {
-  const used = /capability\s*:\s*(['"])module\.image\.generate\1/.test(html);
+  const used = /(?:['"]?capability['"]?)\s*:\s*(['"])module\.image\.generate\1/.test(html);
   if (used && !declaration) throw new Error('Module image generation is used but not declared.');
   if (declaration && !used) throw new Error('Module image generation is declared but not used.');
 }
 function validateDeclaredWorldCitizenUsage(html: string, declaration?: WorldCitizenDeclaration, imageGeneration?: ModuleImageGenerationDeclaration) {
-  const used = /capability\s*:\s*(['"])world\.citizen\.publish\1/.test(html);
+  const used = /(?:['"]?capability['"]?)\s*:\s*(['"])world\.citizen\.publish\1/.test(html);
   if (used && !declaration) throw new Error('World citizen publishing is used but not declared.');
   if (declaration && !used) throw new Error('World citizen publishing is declared but not used.');
   if (declaration && !imageGeneration) throw new Error('World citizen publishing requires reviewed image generation.');
