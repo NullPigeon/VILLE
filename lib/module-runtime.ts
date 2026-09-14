@@ -22,11 +22,20 @@ export type ModuleStorageInput =
   | { operation: 'shared.update'; collection: string; id: string; data: Record<string, unknown> }
   | { operation: 'shared.delete'; collection: string; id: string };
 
+export type ModuleImageInput = {
+  operation: 'generate';
+  brief: string;
+};
+
+export type WorldCitizenInput = {
+  operation: 'status' | 'publish' | 'unpublish';
+};
+
 export type ModuleCapabilityRequest = {
   type: typeof MODULE_CAPABILITY_REQUEST;
   requestId: string;
-  capability: 'market.dexscreener' | 'chain.robinhood' | 'module.storage';
-  input: MarketDataInput | RobinhoodChainInput | ModuleStorageInput;
+  capability: 'market.dexscreener' | 'chain.robinhood' | 'module.storage' | 'module.image.generate' | 'world.citizen.publish';
+  input: MarketDataInput | RobinhoodChainInput | ModuleStorageInput | ModuleImageInput | WorldCitizenInput;
 };
 
 export function parseModuleCapabilityRequest(value: unknown): ModuleCapabilityRequest | null {
@@ -36,7 +45,9 @@ export function parseModuleCapabilityRequest(value: unknown): ModuleCapabilityRe
   if (request.capability === 'market.dexscreener' && !['search', 'pair', 'tokenPairs', 'tokens'].includes(request.input.operation)) return null;
   if (request.capability === 'chain.robinhood' && !['blockNumber', 'nativeBalance', 'bytecode', 'ethCall'].includes(request.input.operation)) return null;
   if (request.capability === 'module.storage' && !['private.get', 'private.set', 'private.delete', 'shared.list', 'shared.create', 'shared.update', 'shared.delete', 'counter.get', 'counter.increment'].includes(request.input.operation)) return null;
-  if (!['market.dexscreener', 'chain.robinhood', 'module.storage'].includes(request.capability)) return null;
+  if (request.capability === 'module.image.generate' && request.input.operation !== 'generate') return null;
+  if (request.capability === 'world.citizen.publish' && !['status', 'publish', 'unpublish'].includes(request.input.operation)) return null;
+  if (!['market.dexscreener', 'chain.robinhood', 'module.storage', 'module.image.generate', 'world.citizen.publish'].includes(request.capability)) return null;
   return request;
 }
 
@@ -61,6 +72,21 @@ export const MODULE_RUNTIME_GUIDE = {
       request: { type: MODULE_CAPABILITY_REQUEST, requestId: 'unique-id', capability: 'module.storage', input: { operation: 'private.get | private.set | private.delete | shared.list | shared.create | shared.update | shared.delete | counter.get | counter.increment', collection: 'declared collection name', data: 'plain JSON object for set/create/update', id: 'server-issued shared record id for update/delete', limit: '1-50 for shared.list' } },
       response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: 'operation-specific JSON when ok', error: 'string when not ok' },
       transport: 'Use the same parent postMessage bridge. Render pending, signed-out, empty and failure states. Never put secrets or wallet keys in storage. Shared records return a public author label, never a wallet address. Writes persist only after an ok response.',
+    },
+    'module.image.generate': {
+      description: 'Generate one original raster image for the signed-in citizen through LANDVILLE\'s server-side OpenAI connection. This is for proposals whose core product needs a fresh citizen-specific visual, not for ordinary decoration. The reviewed artifact must declare a narrow purpose and visual direction. LANDVILLE never reveals the provider key.',
+      quota: 'One successful image per citizen, per module, per UTC week. Reopening the module returns the saved image for that week without another paid generation.',
+      declarations: { shape: '{ purpose: exact product reason, visualDirection: proposal-specific LANDVILLE art direction }', maximum: 1 },
+      request: { type: MODULE_CAPABILITY_REQUEST, requestId: 'unique-id', capability: 'module.image.generate', input: { operation: 'generate', brief: 'citizen choices or subject description, 1-280 characters' } },
+      response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: '{ imageUrl: data:image/webp;base64,..., mimeType, generatedAt, cached } when ok', error: 'string when not ok' },
+      transport: 'Use the same parent postMessage bridge. Show a deliberate generate control, a potentially long pending state, the returned image, the weekly quota/cached state and a useful failure state. Treat the brief as plain user data. Never ask for secrets, wallet keys, URLs or hidden prompts.',
+    },
+    'world.citizen.publish': {
+      description: 'After this module generates a citizen character, let the signed-in citizen explicitly publish that saved image as their public World resident. LANDVILLE owns the confirmation dialog and always uses the caller\'s own current generated image and username. One public resident per citizen; a later approved portrait replaces it.',
+      requirement: 'May be declared only together with module.image.generate when turning the generated character into a World resident is part of the approved product.',
+      request: { type: MODULE_CAPABILITY_REQUEST, requestId: 'unique-id', capability: 'world.citizen.publish', input: { operation: 'status | publish | unpublish' } },
+      response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: '{ published, publishedAt }', error: 'string when not ok' },
+      transport: 'Use the parent postMessage bridge. Offer PUBLISH MY CITIZEN TO WORLD only after a generated image exists, explain that the image and username become public, and offer REMOVE FROM WORLD when published. The LANDVILLE host asks for confirmation; never fake or bypass it.',
     },
   },
 } as const;

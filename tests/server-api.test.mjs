@@ -133,6 +133,7 @@ for (const [route, url, method] of [
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
   ['app/api/admin/build-jobs/[id]/release/route.ts', '/api/admin/build-jobs/LV-1/release', 'POST'],
   ['app/api/admin/build-jobs/[id]/preview/route.ts', '/api/admin/build-jobs/LV-1/preview', 'GET'],
+  ['app/api/admin/build-jobs/[id]/image/route.ts', '/api/admin/build-jobs/LV-1/image', 'POST'],
 ]) void test(`${url} rejects anonymous writes before any database/chain request`, async () => {
   const f = fixture(() => undefined);
   const response = await f.load(route)[method](f.request(url, {}, { method }), { params: Promise.resolve({ id: 'LV-1' }) });
@@ -230,6 +231,19 @@ void test('only an admin can preview the exact deployed review artifact', async 
   assert.equal(response.status, 200);
   assert.equal(await response.text(), '<html>revision two</html>');
   assert.match(response.headers.get('content-security-policy'), /^sandbox allow-scripts;/);
+});
+
+void test('admin preview can test only the reviewed runtime image permission', async () => {
+  const hash = '7'.repeat(64);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const f = fixture((call) => call.url.includes('landville_build_jobs?') ? json([{ state: 'REVIEW', revision: 2, content_hash: hash }]) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+    '@/lib/server/module-image': { generateModuleImage: async (_declaration, brief) => ({ base64: 'A'.repeat(100), mimeType: 'image/webp', generatedAt: '2026-09-13T00:00:00.000Z', brief }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/image', { capability: 'module.image.generate', input: { operation: 'generate', brief: 'A patched civic oracle' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.imageUrl, `data:image/webp;base64,${'A'.repeat(100)}`); assert.equal(body.preview, true);
 });
 
 const releaseEnv = { LANDVILLE_ADMIN_WALLETS: wallet, VERCEL_ENV: 'production', VERCEL_DEPLOYMENT_ID: 'dpl_test', VERCEL_GIT_COMMIT_SHA: 'c'.repeat(40), LANDVILLE_VERCEL_PROJECT_ID: 'prj_test', NEXT_PUBLIC_SITE_URL: 'https://town.example', LANDVILLE_GITHUB_READ_TOKEN: 'read-only-test', LANDVILLE_VERCEL_READ_TOKEN: 'read-only-vercel-test' };
@@ -392,6 +406,68 @@ void test('module storage refuses undeclared collections before a storage table 
   const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'shared.list', collection: 'secrets' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 403);
   assert.ok(!f.calls.some((call) => call.url.includes('landville_module_shared_records')));
+});
+
+void test('runtime image generation is available only to an explicitly permitted published module', async () => {
+  const hash = '9'.repeat(64);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+    '@/lib/server/module-image': { moduleImageResponse: async (id, actor, declaration, brief) => ({ imageUrl: 'data:image/webp;base64,dGVzdA==', id, actor, declaration, brief, cached: false }) },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.image.generate', input: { operation: 'generate', brief: 'A boiler-suited town oracle' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.id, 'LV-1'); assert.equal(result.actor, wallet); assert.equal(result.brief, 'A boiler-suited town oracle');
+});
+
+void test('a module without reviewed image permission cannot spend OpenAI budget', async () => {
+  const hash = '8'.repeat(64);
+  let generated = false;
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [] } }, hash }) },
+    '@/lib/server/module-image': { moduleImageResponse: async () => { generated = true; return {}; } },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.image.generate', input: { operation: 'generate', brief: 'Unauthorized art' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 403); assert.equal(generated, false);
+});
+
+void test('a reviewed module can publish only the signed-in citizen and server-owned image', async () => {
+  const hash = '7'.repeat(64);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const worldCitizen = { purpose: 'Publish the generated character as the caller\'s public World resident.' };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.endsWith('/rpc/landville_publish_world_citizen')) return json({ published: true, publishedAt: new Date().toISOString(), sourceModuleId: 'LV-1' });
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration, worldCitizen } }, hash }) } });
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const publish = f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_world_citizen'));
+  assert.deepEqual(publish.body, { p_module_id: 'LV-1', p_citizen_wallet: wallet });
+  const rejected = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish', wallet: other, image: 'arbitrary' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(rejected.status, 400);
+  assert.equal(f.calls.filter((call) => call.url.endsWith('/rpc/landville_publish_world_citizen')).length, 1);
+});
+
+void test('World publishing is denied without an explicit reviewed artifact permission', async () => {
+  const hash = '6'.repeat(64);
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [] } }, hash }) },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 403);
+  assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_publish_world_citizen')));
+});
+
+void test('public World citizen image endpoint streams bytes', async () => {
+  const imageBase64 = Buffer.alloc(100, 3).toString('base64');
+  const f = fixture((call) => call.url.includes('landville_world_citizens?') ? json([{ image_base64: imageBase64, mime_type: 'image/webp', updated_at: new Date().toISOString() }]) : undefined);
+  const response = await f.load('app/api/world/citizens/[address]/image/route.ts').GET(f.request(`/api/world/citizens/${wallet}/image`, {}, { method: 'GET' }), { params: Promise.resolve({ address: wallet }) });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'image/webp');
+  assert.equal((await response.arrayBuffer()).byteLength, 100);
 });
 
 void test('shared module records expose public author labels but never wallet addresses', async () => {

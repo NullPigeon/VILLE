@@ -1,5 +1,5 @@
 import 'server-only';
-import { type ProposalRecord, type ProposalStatus, type WorldObjectRecord } from '@/lib/landville-data';
+import { type ProposalRecord, type ProposalStatus, type WorldCitizenRecord, type WorldObjectRecord } from '@/lib/landville-data';
 import { type VotingPowerSnapshot, type VoteReceipt, walletUsername } from '@/lib/governance';
 import { database } from '@/lib/server/database';
 import { ApiError } from '@/lib/server/api';
@@ -13,6 +13,7 @@ export type ProposalRow = {
 };
 export type VoteRow = { proposal_id: string; wallet: string; choice: 'YES' | 'NO'; snapshot: VotingPowerSnapshot; created_at: string };
 type ObjectRow = { proposal_id: string; creator_wallet: string; module_path: string; release_ref: string; x: number; y: number; built_at: string; landville_proposals: ProposalRow };
+type WorldCitizenRow = { citizen_wallet: string; source_module_id: string; x: number; y: number; published_at: string };
 
 export function proposalRecord(row: ProposalRow): ProposalRecord {
   const hoursLeft = Math.max(0, Math.ceil((Date.parse(row.closes_at) - Date.now()) / 3_600_000));
@@ -50,11 +51,19 @@ export async function allRows<T>(query: string) {
 }
 
 export async function readTown(wallet = '') {
-  const [proposals, objects, votes] = await Promise.all([
+  const [proposals, objects, citizens, votes] = await Promise.all([
     allRows<ProposalRow>('landville_proposals?select=*&order=created_at.desc,id.desc'),
     allRows<ObjectRow>('landville_objects?select=*,landville_proposals(*)&order=built_at.asc,proposal_id.asc'),
+    allRows<WorldCitizenRow>('landville_world_citizens?select=citizen_wallet,source_module_id,x,y,published_at&order=published_at.asc,citizen_wallet.asc'),
     wallet ? allRows<VoteRow>(`landville_votes?select=*&wallet=eq.${wallet}&order=proposal_id.asc`) : Promise.resolve([]),
   ]);
-  const identities = await citizenIdentities([...proposals.map((row) => row.creator_wallet), ...objects.map((row) => row.creator_wallet)]);
-  return { proposals: proposals.map((row) => ({ ...proposalRecord(row), creator: citizenLabel(identities.get(row.creator_wallet)) })), objects: objects.map((row) => ({ ...objectRecord(row), creator: citizenLabel(identities.get(row.creator_wallet)) })), voted: Object.fromEntries(votes.map((vote) => [vote.proposal_id, voteReceipt(vote)])) };
+  const identities = await citizenIdentities([...proposals.map((row) => row.creator_wallet), ...objects.map((row) => row.creator_wallet), ...citizens.map((row) => row.citizen_wallet)]);
+  return {
+    proposals: proposals.map((row) => ({ ...proposalRecord(row), creator: citizenLabel(identities.get(row.creator_wallet)) })),
+    objects: objects.map((row) => ({ ...objectRecord(row), creator: citizenLabel(identities.get(row.creator_wallet)) })),
+    citizens: citizens.map((row): WorldCitizenRecord => ({ wallet: row.citizen_wallet, creator: citizenLabel(identities.get(row.citizen_wallet)),
+      imagePath: `/api/world/citizens/${row.citizen_wallet}/image`, sourceModuleId: row.source_module_id,
+      x: Number(row.x), y: Number(row.y), publishedAt: row.published_at })),
+    voted: Object.fromEntries(votes.map((vote) => [vote.proposal_id, voteReceipt(vote)])),
+  };
 }
