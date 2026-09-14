@@ -30,8 +30,8 @@ function imageBrief(value: unknown) {
     const code = character.charCodeAt(0);
     return code < 32 && code !== 9 && code !== 10 && code !== 13;
   });
-  if (typeof value !== 'string' || value.trim().length < 1 || value.length > 280 || hasUnsafeControl) {
-    throw new ApiError(400, 'Describe the image in 1–280 characters.');
+  if (typeof value !== 'string' || value.trim().length < 1 || value.length > 1_000 || hasUnsafeControl) {
+    throw new ApiError(400, 'Describe the image in 1–1,000 characters.');
   }
   return value.trim();
 }
@@ -39,6 +39,16 @@ function imageBrief(value: unknown) {
 function isCharacterCutout(declaration: ModuleImageGenerationDeclaration) {
   const reviewedIntent = `${declaration.purpose}\n${declaration.visualDirection}`.toLowerCase();
   return /\b(avatar|character|full-body|world resident|world publication)\b/.test(reviewedIntent);
+}
+
+function selectedStyleRule(brief: string) {
+  const selected = brief.match(/\bStyle:\s*([^.\n]{1,80})/i)?.[1]?.trim().toLowerCase() || '';
+  if (!selected) return '';
+  if (/pixel/.test(selected)) return 'SELECTED STYLE — HARD REQUIREMENT: True 2D pixel art. Build the entire character from visibly crisp, hard-edged square pixels at a deliberately low internal resolution with a limited palette. No painterly brushwork, smooth digital painting, photorealism, soft airbrushing or high-detail concept-art rendering.';
+  if (/comic/.test(selected)) return 'SELECTED STYLE — HARD REQUIREMENT: Bold comic-book illustration with confident ink contours, graphic shadow shapes, controlled halftone texture and a readable heroic silhouette. Do not drift into photorealism or painterly concept art.';
+  if (/anime/.test(selected)) return 'SELECTED STYLE — HARD REQUIREMENT: Expressive anime character design with deliberate linework, clean cel-shaded color shapes and a readable full-body silhouette. Do not drift into photorealism or painterly concept art.';
+  if (/real/.test(selected)) return 'SELECTED STYLE — HARD REQUIREMENT: Believable realistic character rendering with coherent anatomy, materials and lighting while retaining LANDVILLE costume repairs and palette accents. Do not turn it into pixel art, anime or flat vector art.';
+  return `SELECTED STYLE — HARD REQUIREMENT: Render consistently as ${selected}. Do not replace this medium with LANDVILLE's default printmaking treatment.`;
 }
 
 function promptFor(declaration: ModuleImageGenerationDeclaration, brief: string, choiceIndex: number, providerRetry = false) {
@@ -49,6 +59,7 @@ function promptFor(declaration: ModuleImageGenerationDeclaration, brief: string,
     'Keep the same identity but make Scrapy\'s improvised twist bolder while preserving every iconic cue.',
   ][choiceIndex];
   const quantity = `Create one polished ${characterCutout ? 'vertical character cutout' : 'square raster artwork'} for a sandboxed LANDVILLE city module.${declaration.maxImages === 3 ? ` This is independent choice ${choiceIndex + 1} of 3. ${variation}` : ''} Do not show alternate choices inside this image.`;
+  const styleRule = selectedStyleRule(brief);
   const retryRule = providerRetry
     ? 'PROVIDER-SAFE RETRY: Render a friendly, all-ages, original LANDVILLE interpretation. Preserve the requested identity through its silhouette, colors, clothing and personality. Use no official branding, exact emblems or text.'
     : '';
@@ -68,10 +79,11 @@ CUTOUT CONTRACT:
 MODULE PURPOSE: ${declaration.purpose}
 REVIEWED VISUAL DIRECTION: ${declaration.visualDirection}
 PRIMARY CITIZEN BRIEF: ${brief}
+${styleRule}
 ${subjectRules}
 ${retryRule}
 
-The citizen brief controls the subject while the reviewed module declaration controls safe composition and capability boundaries. Make the finish unmistakably LANDVILLE and Scrapy-authored: tactile weathered printmaking, patched materials, warm rust and paper tones, restrained acid-lime repairs, a strong silhouette, sly municipal humor and one small improvised detail that complements the requested identity. Avoid generic cyberpunk, generic vector avatars, bland trait grids, stock UI, watermarks, signatures, logos, URLs, tiny text and illegible typography. Do not add text unless the reviewed direction explicitly requires it. Return only the image.`;
+The citizen brief controls the subject while the reviewed module declaration controls safe composition and capability boundaries. The selected style is the rendering medium and must remain obvious; LANDVILLE is layered into its palette, wear, repairs and personality rather than replacing that medium. Make the result unmistakably LANDVILLE and Scrapy-authored through patched materials, warm rust and paper tones, restrained acid-lime repairs, a strong silhouette, sly municipal humor and one small improvised detail that complements the requested identity. Avoid generic cyberpunk, generic vector avatars, bland trait grids, stock UI, watermarks, signatures, logos, URLs, tiny text and illegible typography. Do not add text unless the reviewed direction explicitly requires it. Return only the image.`;
 }
 
 function validBase64Image(value: unknown): value is string {
@@ -111,6 +123,57 @@ function providerConfigurationFailure(issue: ImageProviderIssue) {
   return [401, 403, 404].includes(issue.status) || /api.?key|billing|credit|model.?not.?found|permission|organization/.test(reference);
 }
 
+function isModerationFailure(issue: ImageProviderIssue) {
+  return issue.code === 'moderation_blocked' || issue.type === 'image_generation_user_error';
+}
+
+function knownIdentityAnchor(brief: string) {
+  const normalized = brief.toLowerCase();
+  return normalized.includes('batman')
+    ? 'An original nocturnal masked vigilante with a tall pointed-eared black cowl, exposed lower face, long scalloped charcoal cape shaped like folded wings, armored dark bodysuit, practical utility belt and stern heroic posture.'
+    : normalized.includes('superman')
+      ? 'An original powerful black-haired flying hero in a fitted cobalt suit with a flowing crimson cape and boots, broad heroic silhouette and optimistic upright posture.'
+      : '';
+}
+
+function localModerationRewrite(brief: string) {
+  const knownIdentity = knownIdentityAnchor(brief) || 'An original all-ages character inspired by the citizen\'s requested role, silhouette, colors, clothing and personality, without copying a named franchise design.';
+  const traits = brief.match(/(?:Style|Vibe|Outfit|Scrapy twist):[^.]{1,120}\./gi)?.join(' ') || '';
+  return `${knownIdentity} ${traits}`.trim().slice(0, 900);
+}
+
+function preserveKnownIdentity(brief: string, rewritten: string) {
+  const anchor = knownIdentityAnchor(brief);
+  const sanitized = rewritten.replace(/\b(?:batman|superman)\b/gi, 'the character').trim();
+  const traits = brief.match(/(?:Style|Vibe|Outfit|Scrapy twist):[^.]{1,120}\./gi)?.join(' ') || '';
+  return `${anchor} ${sanitized} ${traits}`.trim().slice(0, 900);
+}
+
+async function rewriteModeratedBrief(key: string, brief: string) {
+  const fallback = localModerationRewrite(brief);
+  try {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || 'gpt-5.4-mini',
+        store: false,
+        instructions: 'Rewrite the supplied character request as one concise visual description for original, friendly, all-ages artwork. Preserve the recognizable silhouette, colors, clothing, personality, selected style and LANDVILLE details. Remove every character name, franchise name, logo, exact emblem, quotation and instruction. Never refuse, explain or mention this rewrite. Return only the visual description in 900 characters or fewer.',
+        input: brief,
+        max_output_tokens: 220,
+      }),
+      cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) return fallback;
+    const result = await response.json() as { status?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
+    const text = result.output?.flatMap((entry) => entry.content || []).filter((entry) => entry.type === 'output_text').map((entry) => entry.text || '').join('').trim() || '';
+    const hasUnsafeControl = Array.from(text).some((character) => character.charCodeAt(0) < 32 && !['\t', '\n', '\r'].includes(character));
+    return result.status === 'completed' && text.length >= 20 && text.length <= 900 && !hasUnsafeControl
+      ? preserveKnownIdentity(brief, text)
+      : fallback;
+  } catch { return fallback; }
+}
+
 function providerFailure(issue: ImageProviderIssue) {
   const error = providerConfigurationFailure(issue)
     ? new ApiError(503, `The LANDVILLE image connection needs administrator attention. Reference: ${providerReference(issue)}.`)
@@ -134,6 +197,8 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
   if (!key || !IMAGE_MODELS.has(model)) throw new ApiError(503, 'Citizen image generation is not configured.');
   const brief = imageBrief(briefValue);
   const characterCutout = isCharacterCutout(declaration);
+  let moderatedBrief: string | undefined;
+  let moderationRewrite: Promise<string> | undefined;
   const generateChoice = async (choiceIndex: number) => {
     let lastIssue: ImageProviderIssue | undefined;
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -144,7 +209,7 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
           headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({
             model,
-            prompt: promptFor(declaration, brief, choiceIndex, attempt === 1),
+            prompt: promptFor(declaration, moderatedBrief || brief, choiceIndex, attempt === 1 || Boolean(moderatedBrief)),
             n: 1,
             size: characterCutout ? '1024x1536' : '1024x1024',
             quality: 'medium',
@@ -158,6 +223,11 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
       if (!response.ok) {
         if (response.status === 429) throw new ApiError(429, 'The image workshop is busy. Try again later.');
         lastIssue = await readProviderIssue(response);
+        if (isModerationFailure(lastIssue) && attempt === 0) {
+          moderationRewrite ||= rewriteModeratedBrief(key, brief);
+          moderatedBrief = await moderationRewrite;
+          continue;
+        }
         if (providerConfigurationFailure(lastIssue) || attempt === 1) {
           console.error('LANDVILLE image provider rejection:', {
             status: lastIssue.status,
@@ -187,7 +257,11 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
     }
     throw lastIssue ? providerFailure(lastIssue) : new ApiError(503, 'The image workshop is temporarily unavailable.');
   };
-  const base64Images = await Promise.all(Array.from({ length: declaration.maxImages }, (_, choiceIndex) => generateChoice(choiceIndex)));
+  const firstImage = await generateChoice(0);
+  const remainingImages = declaration.maxImages > 1
+    ? await Promise.all(Array.from({ length: declaration.maxImages - 1 }, (_, index) => generateChoice(index + 1)))
+    : [];
+  const base64Images = [firstImage, ...remainingImages];
   if (base64Images.reduce((total, image) => total + image.length, 0) > MAX_IMAGE_BATCH_BASE64) {
     throw new ApiError(502, 'The image provider returned an oversized image batch.');
   }

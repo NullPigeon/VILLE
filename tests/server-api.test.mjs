@@ -298,7 +298,7 @@ void test('a rejected character choice retries safely without restarting success
     if (call.url === 'https://api.openai.com/v1/images/generations') {
       if (!rejected && /choice 2 of 3/.test(call.body.prompt)) {
         rejected = true;
-        return json({ error: { type: 'image_generation_user_error' } }, 400);
+        return json({ error: { type: 'invalid_request_error', code: 'request_rejected' } }, 400);
       }
       return json({ data: [{ b64_json: 'A'.repeat(100) }] });
     }
@@ -325,6 +325,50 @@ void test('a rejected character choice retries safely without restarting success
   assert.equal(retry.body.moderation, 'low');
   assert.equal(retry.body.output_compression, undefined);
   assert.doesNotMatch(retry.body.prompt, /weapons|violence|threatening action/i);
+});
+
+void test('a moderated named character is rewritten once without losing identity or selected style', async () => {
+  const hash = '6'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Keep the requested identity and selected rendering style in LANDVILLE.',
+    maxImages: 3,
+  };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/responses') {
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'An original masked night guardian with a dark cape and vigilant posture. Style: pixel-art character.' }] }] });
+    }
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      if (/Batman/i.test(call.body.prompt)) return json({ error: { code: 'moderation_blocked', type: 'image_generation_user_error' } }, 400);
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    OPENAI_MODEL: 'gpt-5.4-mini',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: Batman. Style: pixel-art character. Vibe: dark and mysterious.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const rewrites = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/responses');
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(rewrites.length, 1);
+  assert.equal(generations.length, 4);
+  assert.match(rewrites[0].body.instructions, /Remove every character name/);
+  assert.equal(generations.filter((generation) => /Batman/i.test(generation.body.prompt)).length, 1);
+  const safeGenerations = generations.filter((generation) => !/Batman/i.test(generation.body.prompt));
+  assert.equal(safeGenerations.length, 3);
+  assert.ok(safeGenerations.every((generation) => /tall pointed-eared black cowl/.test(generation.body.prompt)));
+  assert.ok(safeGenerations.every((generation) => /SELECTED STYLE — HARD REQUIREMENT: True 2D pixel art/.test(generation.body.prompt)));
+  assert.ok(safeGenerations.every((generation) => /hard-edged square pixels/.test(generation.body.prompt)));
+  assert.ok(safeGenerations.every((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt)));
 });
 
 void test('an incomplete character choice retries without discarding completed choices', async () => {
