@@ -146,7 +146,7 @@ export async function runWorker(env = process.env, http = fetch, contextLoader =
   }
   const maxOutputTokens = Math.min(64_000, Math.max(12_000, Number.parseInt(env.LANDVILLE_BUILDER_MAX_OUTPUT_TOKENS || '24000', 10) || 24_000));
   const reasoningEffort = ['low', 'medium', 'high', 'xhigh'].includes(env.LANDVILLE_BUILDER_REASONING) ? env.LANDVILLE_BUILDER_REASONING : 'high';
-  const maxAgentMinutes = Math.min(25, Math.max(8, Number.parseInt(env.LANDVILLE_BUILDER_MAX_MINUTES || '25', 10) || 25));
+  const maxAgentMinutes = Math.min(40, Math.max(8, Number.parseInt(env.LANDVILLE_BUILDER_MAX_MINUTES || '35', 10) || 35));
   const pollMs = Math.min(10_000, Math.max(1, Number.parseInt(env.LANDVILLE_BUILDER_POLL_MS || '5000', 10) || 5_000));
   const agentDeadline = Date.now() + maxAgentMinutes * 60_000;
   const openAi = async (body) => {
@@ -247,7 +247,20 @@ export async function runWorker(env = process.env, http = fetch, contextLoader =
       currentImage = reviewedOutput.generatedImage || currentImage;
     }
     phase = 'ARTIFACT';
-    const reviewed = reviewedArtifactFor(work, reviewedOutput, currentImage, runtimeImageDeclaration(architecture), worldCitizenDeclaration(architecture));
+    let reviewed;
+    try {
+      reviewed = reviewedArtifactFor(work, reviewedOutput, currentImage, runtimeImageDeclaration(architecture), worldCitizenDeclaration(architecture));
+    } catch (error) {
+      phase = 'ARTIFACT_REPAIR';
+      const validationIssue = error instanceof Error ? error.message.slice(0, 300) : 'Final artifact contract failed.';
+      reviewedOutput = extractOutput(await openAi({
+        instructions: 'You are LANDVILLE\'s final artifact contract repair engineer. The creative review passed, but its returned HTML or evidence no longer satisfies the immutable sandbox artifact contract. Repair only the concrete validation issue while preserving the approved citizen goal, accepted visual design, interactions, all PASS gates, evidence reports and the exact approvedArchitecture.storagePlan array. Return a complete HTML document. Use every enabled reviewed capability and no undeclared capability. If runtimeImagePlan is enabled, retain a literal module.image.generate capability request and render every item in the returned images array. If worldCitizenPlan is enabled, retain literal world.citizen.publish status, publish with the selected imageIndex, and unpublish requests. When currentArtworkSupplied is true, keep exactly one data-landville-generated-asset attribute on the intended fixed artwork img and do not add a src to that marker; the trusted worker inserts it. Remove forms, frames, remote URLs, browser storage, direct network calls, wallet access and unsupported capability calls. Do not change storage declarations, fabricate states or weaken a failed gate into PASS.',
+        input: builderInput(JSON.stringify({ ...project, approvedArchitecture: architecture, rejectedReview: reviewedOutput, validationIssue, currentArtworkSupplied: Boolean(currentImage) }), context, currentImage ? [`data:image/png;base64,${currentImage}`] : []),
+        text: { format: { type: 'json_schema', name: 'artifact_contract_repair', strict: true, schema: reviewSchema } },
+      }));
+      enforceStoragePlan(reviewedOutput, architecture);
+      reviewed = reviewedArtifactFor(work, reviewedOutput, currentImage, runtimeImageDeclaration(architecture), worldCitizenDeclaration(architecture));
+    }
     const artifact = reviewed.artifact;
     const artifactPath = artifactPathFor(job.proposal_id, job.revision);
     phase = 'GITHUB';
