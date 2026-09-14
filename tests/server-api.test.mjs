@@ -246,6 +246,41 @@ void test('admin preview can test only the reviewed runtime image permission', a
   assert.equal(body.imageUrl, `data:image/webp;base64,${'A'.repeat(100)}`); assert.equal(body.preview, true);
 });
 
+void test('character generation requests separate vertical WebP cutouts with transparent backgrounds', async () => {
+  const hash = '8'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Any requested character receives a LANDVILLE treatment without losing its identity.',
+    maxImages: 3,
+  };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      return json({ data: Array.from({ length: 3 }, () => ({ b64_json: 'A'.repeat(100) })) });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: Superman.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const generation = f.calls.find((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(generation.body.size, '1024x1536');
+  assert.equal(generation.body.background, 'transparent');
+  assert.equal(generation.body.output_format, 'webp');
+  assert.equal(generation.body.n, 3);
+  assert.match(generation.body.prompt, /SUBJECT FIDELITY — HIGHEST PRIORITY/);
+  assert.match(generation.body.prompt, /generic worker/);
+  assert.match(generation.body.prompt, /exactly one character exactly once/);
+});
+
 const releaseEnv = { LANDVILLE_ADMIN_WALLETS: wallet, VERCEL_ENV: 'production', VERCEL_DEPLOYMENT_ID: 'dpl_test', VERCEL_GIT_COMMIT_SHA: 'c'.repeat(40), LANDVILLE_VERCEL_PROJECT_ID: 'prj_test', NEXT_PUBLIC_SITE_URL: 'https://town.example', LANDVILLE_GITHUB_READ_TOKEN: 'read-only-test', LANDVILLE_VERCEL_READ_TOKEN: 'read-only-vercel-test' };
 function releaseFixture(change = {}) {
   const sha = 'a'.repeat(40), hash = 'b'.repeat(64), mergedSha = 'c'.repeat(40);
