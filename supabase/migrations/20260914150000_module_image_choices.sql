@@ -106,7 +106,7 @@ begin
 end; $$;
 
 create function public.landville_publish_world_citizen_v2(
-  p_module_id text, p_citizen_wallet text, p_image_index smallint
+  p_module_id text, p_citizen_wallet text, p_image_index integer
 )
 returns jsonb language plpgsql security invoker set search_path = '' as $$
 declare
@@ -153,8 +153,8 @@ begin
 end; $$;
 
 revoke all on function public.landville_finish_module_image_set(text,text,uuid,jsonb,text,timestamptz) from public, anon, authenticated;
-revoke all on function public.landville_publish_world_citizen_v2(text,text,smallint) from public, anon, authenticated;
+revoke all on function public.landville_publish_world_citizen_v2(text,text,integer) from public, anon, authenticated;
 grant execute on function public.landville_finish_module_image_set(text,text,uuid,jsonb,text,timestamptz) to service_role;
-grant execute on function public.landville_publish_world_citizen_v2(text,text,smallint) to service_role;
+grant execute on function public.landville_publish_world_citizen_v2(text,text,integer) to service_role;
 
 commit;

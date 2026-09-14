@@ -310,7 +310,7 @@ begin
   if has_table_privilege('anon','public.landville_module_images','SELECT')
     or has_table_privilege('anon','public.landville_world_citizens','SELECT')
     or has_function_privilege('authenticated','public.landville_claim_module_image(text,text,text)','EXECUTE')
-    or has_function_privilege('authenticated','public.landville_publish_world_citizen_v2(text,text,smallint)','EXECUTE') then
+    or has_function_privilege('authenticated','public.landville_publish_world_citizen_v2(text,text,integer)','EXECUTE') then
     raise exception 'Runtime image or World citizen records are exposed to browser roles';
   end if;
 end $$;
