@@ -17,6 +17,14 @@ type ImageClaim = {
   generatedAt?: string;
 };
 
+type ImageProviderIssue = {
+  status: number;
+  type?: string;
+  code?: string;
+  param?: string;
+  requestId?: string;
+};
+
 function imageBrief(value: unknown) {
   const hasUnsafeControl = typeof value === 'string' && Array.from(value).some((character) => {
     const code = character.charCodeAt(0);
@@ -42,7 +50,7 @@ function promptFor(declaration: ModuleImageGenerationDeclaration, brief: string,
   ][choiceIndex];
   const quantity = `Create one polished ${characterCutout ? 'vertical character cutout' : 'square raster artwork'} for a sandboxed LANDVILLE city module.${declaration.maxImages === 3 ? ` This is independent choice ${choiceIndex + 1} of 3. ${variation}` : ''} Do not show alternate choices inside this image.`;
   const retryRule = providerRetry
-    ? 'PROVIDER-SAFE RETRY: Render this as harmless original LANDVILLE fan art. Keep recognizable non-logo visual cues from the requested identity, but omit weapons, violence, threatening action, official branding and exact emblems.'
+    ? 'PROVIDER-SAFE RETRY: Render a friendly, all-ages, original LANDVILLE interpretation. Preserve the requested identity through its silhouette, colors, clothing and personality. Use no official branding, exact emblems or text.'
     : '';
   const subjectRules = characterCutout ? `
 SUBJECT FIDELITY — HIGHEST PRIORITY:
@@ -70,6 +78,47 @@ function validBase64Image(value: unknown): value is string {
   return typeof value === 'string' && value.length >= 100 && value.length <= MAX_IMAGE_BASE64 && /^[A-Za-z0-9+/=]+$/.test(value);
 }
 
+async function readProviderIssue(response: Response): Promise<ImageProviderIssue> {
+  let payload: unknown;
+  try { payload = JSON.parse((await response.text()).slice(0, 16_384)); }
+  catch { payload = undefined; }
+  const details = payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? (payload as { error?: unknown }).error
+    : undefined;
+  const error = details && typeof details === 'object' && !Array.isArray(details)
+    ? details as Record<string, unknown>
+    : {};
+  const field = (name: string) => {
+    const value = typeof error[name] === 'string' ? String(error[name]) : '';
+    return /^[a-zA-Z0-9._-]{1,80}$/.test(value) ? value : undefined;
+  };
+  const requestId = response.headers.get('x-request-id') || '';
+  return {
+    status: response.status,
+    type: field('type'),
+    code: field('code'),
+    param: field('param'),
+    requestId: /^[a-zA-Z0-9_-]{1,120}$/.test(requestId) ? requestId : undefined,
+  };
+}
+
+function providerReference(issue: ImageProviderIssue) {
+  return [issue.code, issue.type, issue.param].filter(Boolean).join('/') || `HTTP_${issue.status}`;
+}
+
+function providerConfigurationFailure(issue: ImageProviderIssue) {
+  const reference = providerReference(issue).toLowerCase();
+  return [401, 403, 404].includes(issue.status) || /api.?key|billing|credit|model.?not.?found|permission|organization/.test(reference);
+}
+
+function providerFailure(issue: ImageProviderIssue) {
+  const error = providerConfigurationFailure(issue)
+    ? new ApiError(503, `The LANDVILLE image connection needs administrator attention. Reference: ${providerReference(issue)}.`)
+    : new ApiError(502, `Scrapy's image press was rejected by the provider after an automatic retry. Your work order is valid. Reference: ${providerReference(issue)}.`);
+  error.code = providerReference(issue);
+  return error;
+}
+
 function imageResult(base64Images: unknown, mimeType: string, generatedAt: string, cached: boolean) {
   if (mimeType !== 'image/webp' || !Array.isArray(base64Images) || ![1, 3].includes(base64Images.length) || !base64Images.every(validBase64Image)) {
     throw new ApiError(502, 'The image provider returned an invalid image.');
@@ -86,6 +135,7 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
   const brief = imageBrief(briefValue);
   const characterCutout = isCharacterCutout(declaration);
   const generateChoice = async (choiceIndex: number) => {
+    let lastIssue: ImageProviderIssue | undefined;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       let response: Response;
       try {
@@ -99,8 +149,7 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
             size: characterCutout ? '1024x1536' : '1024x1024',
             quality: 'medium',
             output_format: 'webp',
-            output_compression: 82,
-            moderation: 'auto',
+            moderation: 'low',
             ...(characterCutout ? { background: 'transparent' } : {}),
           }),
           cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(165_000),
@@ -108,11 +157,18 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
       } catch { throw new ApiError(503, 'The image workshop timed out. Try again later.'); }
       if (!response.ok) {
         if (response.status === 429) throw new ApiError(429, 'The image workshop is busy. Try again later.');
-        if (response.status >= 400 && response.status < 500 && attempt === 0) {
-          await response.arrayBuffer().catch(() => undefined);
-          continue;
+        lastIssue = await readProviderIssue(response);
+        if (providerConfigurationFailure(lastIssue) || attempt === 1) {
+          console.error('LANDVILLE image provider rejection:', {
+            status: lastIssue.status,
+            type: lastIssue.type,
+            code: lastIssue.code,
+            param: lastIssue.param,
+            requestId: lastIssue.requestId,
+          });
+          throw providerFailure(lastIssue);
         }
-        if (response.status >= 400 && response.status < 500) throw new ApiError(422, 'That character could not be generated even after Scrapy simplified the request. Try a more descriptive identity.');
+        if (response.status >= 400 && response.status < 500) continue;
         throw new ApiError(503, 'The image workshop is temporarily unavailable.');
       }
       const declaredLength = Number(response.headers.get('content-length') || 0);
@@ -129,7 +185,7 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
       if (attempt === 0) continue;
       throw new ApiError(502, 'The image provider returned an incomplete image choice twice.');
     }
-    throw new ApiError(503, 'The image workshop is temporarily unavailable.');
+    throw lastIssue ? providerFailure(lastIssue) : new ApiError(503, 'The image workshop is temporarily unavailable.');
   };
   const base64Images = await Promise.all(Array.from({ length: declaration.maxImages }, (_, choiceIndex) => generateChoice(choiceIndex)));
   if (base64Images.reduce((total, image) => total + image.length, 0) > MAX_IMAGE_BATCH_BASE64) {
