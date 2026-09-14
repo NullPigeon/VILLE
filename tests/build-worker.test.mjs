@@ -92,6 +92,12 @@ void test('publishing a generated citizen requires both reviewed permissions', (
   assert.throws(() => artifactFor(work, { html: citizenHtml, imageGeneration }), /not declared/);
   assert.throws(() => artifactFor(work, { html: citizenHtml, worldCitizen }), /image generation/);
 });
+void test('reviewed capability declarations accept normal JSON-quoted JavaScript keys', () => {
+  const quotedHtml = html.replace('</body>', `<script>window.parent.postMessage({"type":"landville:capability-request","requestId":"portrait","capability":"module.image.generate","input":{"operation":"generate","brief":"salvage mayor"}},'*');window.parent.postMessage({"type":"landville:capability-request","requestId":"resident","capability":"world.citizen.publish","input":{"operation":"status"}},'*')</script></body>`);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const worldCitizen = { purpose: 'Publish the generated character as this citizen\'s public World resident.' };
+  assert.doesNotThrow(() => artifactFor(work, { html: quotedHtml, imageGeneration, worldCitizen }));
+});
 void test('one generated image is materialized only at the fixed marker', () => {
   const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
   assert.match(materializeGeneratedAsset(marked, 'dGVzdA=='), /src="data:image\/png;base64,dGVzdA=="/);
@@ -212,6 +218,25 @@ void test('an invalid architecture receives one focused repair pass', async () =
   assert.equal(architectureCalls, 2);
   const repaired = f.calls.filter((call) => call.body?.text?.format?.name === 'city_architecture')[1];
   assert.match(repaired.body.input[0].content[0].text, /rejectedArchitecture/);
+});
+void test('a contract-invalid draft receives one focused repair pass', async () => {
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.' };
+  const repairedHtml = html.replace('</body>', `<script>window.parent.postMessage({"type":"landville:capability-request","requestId":"portrait","capability":"module.image.generate","input":{"operation":"generate","brief":"salvage mayor"}},'*');window.parent.postMessage({"type":"landville:capability-request","requestId":"resident","capability":"world.citizen.publish","input":{"operation":"status"}},'*')</script></body>`);
+  const architecture = { ...architectureResult, runtimeImagePlan: { enabled: true, ...imageGeneration }, worldCitizenPlan: { enabled: true, purpose: 'Publish the generated character as the citizen\'s public World resident.' } };
+  let draftCalls = 0;
+  const f = harness((call) => {
+    if (!call.url.includes('api.openai.com')) return undefined;
+    const name = call.body?.text?.format?.name;
+    if (name === 'city_architecture') return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(architecture) }] }] });
+    if (name === 'city_module') {
+      draftCalls += 1;
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ html: draftCalls === 1 ? html : repairedHtml, storage: [] }) }] }] });
+    }
+    if (name === 'reviewed_city_module') return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ ...reviewResult, html: repairedHtml }) }] }] });
+    return undefined;
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  assert.equal(draftCalls, 2);
 });
 void test('a failed creative review receives one automatic repair pass', async () => {
   let reviews = 0;
