@@ -256,7 +256,7 @@ void test('character generation requests separate vertical WebP cutouts with tra
   const f = fixture((call) => {
     if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
     if (call.url === 'https://api.openai.com/v1/images/generations') {
-      return json({ data: Array.from({ length: 3 }, () => ({ b64_json: 'A'.repeat(100) })) });
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
     }
     return undefined;
   }, {
@@ -271,14 +271,91 @@ void test('character generation requests separate vertical WebP cutouts with tra
     capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: Superman.' },
   }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
   assert.equal(response.status, 200);
-  const generation = f.calls.find((call) => call.url === 'https://api.openai.com/v1/images/generations');
-  assert.equal(generation.body.size, '1024x1536');
-  assert.equal(generation.body.background, 'transparent');
-  assert.equal(generation.body.output_format, 'webp');
-  assert.equal(generation.body.n, 3);
-  assert.match(generation.body.prompt, /SUBJECT FIDELITY — HIGHEST PRIORITY/);
-  assert.match(generation.body.prompt, /generic worker/);
-  assert.match(generation.body.prompt, /exactly one character exactly once/);
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(generations.length, 3);
+  assert.deepEqual(generations.map((generation) => generation.body.n), [1, 1, 1]);
+  assert.ok(generations.every((generation) => generation.body.size === '1024x1536'));
+  assert.ok(generations.every((generation) => generation.body.background === 'transparent'));
+  assert.ok(generations.every((generation) => generation.body.output_format === 'webp'));
+  assert.ok(generations.every((generation) => /SUBJECT FIDELITY — HIGHEST PRIORITY/.test(generation.body.prompt)));
+  assert.ok(generations.every((generation) => /generic worker/.test(generation.body.prompt)));
+  assert.ok(generations.every((generation) => /exactly one character exactly once/.test(generation.body.prompt)));
+  assert.deepEqual(generations.map((generation) => generation.body.prompt.match(/choice (\d) of 3/)?.[1]), ['1', '2', '3']);
+});
+
+void test('a rejected character choice retries safely without restarting successful choices', async () => {
+  const hash = '9'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Keep the requested identity in LANDVILLE style.',
+    maxImages: 3,
+  };
+  let rejected = false;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      if (!rejected && /choice 2 of 3/.test(call.body.prompt)) {
+        rejected = true;
+        return json({ error: { type: 'image_generation_user_error' } }, 400);
+      }
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: Batman.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(generations.length, 4);
+  assert.equal(generations.filter((generation) => /choice 1 of 3/.test(generation.body.prompt)).length, 1);
+  assert.equal(generations.filter((generation) => /choice 2 of 3/.test(generation.body.prompt)).length, 2);
+  assert.equal(generations.filter((generation) => /choice 3 of 3/.test(generation.body.prompt)).length, 1);
+  assert.match(generations.find((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt)).body.prompt, /harmless original LANDVILLE fan art/);
+});
+
+void test('an incomplete character choice retries without discarding completed choices', async () => {
+  const hash = '8'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Keep the requested identity in LANDVILLE style.',
+    maxImages: 3,
+  };
+  let incomplete = false;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      if (!incomplete && /choice 3 of 3/.test(call.body.prompt)) {
+        incomplete = true;
+        return json({ data: [] });
+      }
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: original flying hero.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(generations.length, 4);
+  assert.equal(generations.filter((generation) => /choice 1 of 3/.test(generation.body.prompt)).length, 1);
+  assert.equal(generations.filter((generation) => /choice 2 of 3/.test(generation.body.prompt)).length, 1);
+  assert.equal(generations.filter((generation) => /choice 3 of 3/.test(generation.body.prompt)).length, 2);
 });
 
 const releaseEnv = { LANDVILLE_ADMIN_WALLETS: wallet, VERCEL_ENV: 'production', VERCEL_DEPLOYMENT_ID: 'dpl_test', VERCEL_GIT_COMMIT_SHA: 'c'.repeat(40), LANDVILLE_VERCEL_PROJECT_ID: 'prj_test', NEXT_PUBLIC_SITE_URL: 'https://town.example', LANDVILLE_GITHUB_READ_TOKEN: 'read-only-test', LANDVILLE_VERCEL_READ_TOKEN: 'read-only-vercel-test' };
