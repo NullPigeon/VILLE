@@ -219,6 +219,19 @@ void test('an invalid architecture receives one focused repair pass', async () =
   const repaired = f.calls.filter((call) => call.body?.text?.format?.name === 'city_architecture')[1];
   assert.match(repaired.body.input[0].content[0].text, /rejectedArchitecture/);
 });
+void test('a repeatedly invalid architecture receives final capability adjudication', async () => {
+  let architectureCalls = 0;
+  const f = harness((call) => {
+    if (call.body?.text?.format?.name !== 'city_architecture') return undefined;
+    architectureCalls += 1;
+    const result = architectureCalls < 3 ? { ...architectureResult, feasibility: 'UNSUPPORTED' } : architectureResult;
+    return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(result) }] }] });
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  assert.equal(architectureCalls, 3);
+  const adjudication = f.calls.filter((call) => call.body?.text?.format?.name === 'city_architecture')[2];
+  assert.match(adjudication.body.input[0].content[0].text, /Approved proposal needs a reviewed runtime capability/);
+});
 void test('a contract-invalid draft receives one focused repair pass', async () => {
   const imageGeneration = { purpose: 'Generate three citizen-specific salvage portrait choices.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait set with rust, paper, and acid-lime repair marks.', maxImages: 3 };
   const repairedHtml = html.replace('</body>', `<script>window.parent.postMessage({"type":"landville:capability-request","requestId":"portrait","capability":"module.image.generate","input":{"operation":"generate","brief":"salvage mayor"}},'*');window.parent.postMessage({"type":"landville:capability-request","requestId":"resident","capability":"world.citizen.publish","input":{"operation":"status"}},'*')</script></body>`);
