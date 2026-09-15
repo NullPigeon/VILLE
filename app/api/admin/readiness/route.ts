@@ -41,8 +41,10 @@ export async function GET(request: NextRequest) {
       },
       walletTransactions: {
         enabled: process.env.LANDVILLE_WALLET_TRANSACTIONS_ENABLED === 'true',
+        adapterConfigured: Boolean(/^0x[0-9a-fA-F]{40}$/.test(process.env.LANDVILLE_TRANSACTION_ROUTER_ADDRESS || '')),
+        treasuryConfigured: Boolean(/^0x[0-9a-fA-F]{40}$/.test(process.env.SCRAPY_TREASURY_ADDRESS || '')),
         chainId: 4663,
-        mode: 'Uniswap V3 direct ERC-20 / user-signed',
+        mode: 'reviewed adapters / 1% fee swap installed',
       },
       builderEnabled: process.env.LANDVILLE_BUILDER_ENABLED === 'true',
       builderConfigurationPresent: Boolean((process.env.LANDVILLE_WORKER_SECRET?.length || 0) >= 32 &&

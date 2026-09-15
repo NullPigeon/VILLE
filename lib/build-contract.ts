@@ -10,8 +10,16 @@ export type ModuleStorageMode = 'private' | 'shared' | 'counter';
 export type ModuleStorageDeclaration = { name: string; mode: ModuleStorageMode; description: string };
 export type ModuleImageGenerationDeclaration = { purpose: string; visualDirection: string; maxImages: 1 | 3 };
 export type WorldCitizenDeclaration = { purpose: string };
+// Every write action maps to one reviewed host adapter. Adding an action requires
+// server-side calldata construction and tests; generated modules never get a
+// generic contract-call escape hatch.
 export const MODULE_TRANSACTION_ACTIONS = ['uniswap.quoteExactInputSingle', 'uniswap.approveExact', 'uniswap.swapExactInputSingle'] as const;
 export type ModuleTransactionAction = typeof MODULE_TRANSACTION_ACTIONS[number];
+export const MODULE_TRANSACTION_ACTION_CATALOG: Record<ModuleTransactionAction, { adapter: string; kind: 'read' | 'approval' | 'transaction'; description: string }> = {
+  'uniswap.quoteExactInputSingle': { adapter: 'landville-fee-swap-v1', kind: 'read', description: 'Quote a direct single-pool ERC-20 swap after the immutable 1% LANDVILLE treasury fee.' },
+  'uniswap.approveExact': { adapter: 'landville-fee-swap-v1', kind: 'approval', description: 'Approve only the exact gross input amount for the reviewed LANDVILLE fee router.' },
+  'uniswap.swapExactInputSingle': { adapter: 'landville-fee-swap-v1', kind: 'transaction', description: 'Swap 99% of the input through Uniswap V3 and send the 1% input-token fee to the immutable treasury.' },
+};
 export type ModuleTransactionDeclaration = { purpose: string; actions: ModuleTransactionAction[] };
 export type CityModule = {
   version: 1; proposalId: string; title: string; html: string; acceptance: string[];

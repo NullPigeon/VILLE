@@ -81,7 +81,8 @@ export function CityModuleFrame({ id, preview = false }: { id: string; preview?:
           }
           const transactionHash = await sendModuleTransaction(transaction as { from: string; to: string; data: string; value: string });
           target.postMessage({ type: MODULE_CAPABILITY_RESPONSE, requestId: request.requestId, ok: true, data: {
-            action: result.action, transactionHash, amountOutMinimum: result.amountOutMinimum,
+            action: result.action, adapter: result.adapter, transactionHash, amountOutMinimum: result.amountOutMinimum,
+            platformFee: result.platformFee,
             explorerUrl: `${activeRobinhoodChain.explorerUrl}/tx/${transactionHash}`,
           } }, '*');
           return;
@@ -127,5 +128,5 @@ export function CityModuleFrame({ id, preview = false }: { id: string; preview?:
     return () => window.removeEventListener('message', onMessage);
   }, [id, linkedWallet, preview, sendModuleTransaction]);
   if (!address) return <section className="lv-panel chat-sidebar-body"><h2>BECOME A CITIZEN</h2><p>Explore the world freely. Sign in to interact with its objects.</p><Link href="/citizens" className="lv-button primary">CREATE ACCOUNT / SIGN IN</Link></section>;
-  return <><p className="admin-warning">{preview ? 'ADMIN PREVIEW: storage and World publishing are simulated and clear on reload. Image generations are real and billed. Wallet transactions are disabled. Test every interaction before release.' : 'Independent city module. LANDVILLE relays only reviewed permissions. A transaction-enabled module can request a fixed, validated Robinhood action, but only your linked wallet can approve and sign it. Scrapy never receives wallet access or keys.'}</p><iframe ref={frame} key={`${id}:${address}:${preview}`} title={`City module ${id}`} src={preview ? `/api/admin/build-jobs/${id}/preview` : `/api/modules/${id}`} sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: '100%', height: '75vh', border: '1px solid #626d26', background: '#10110d' }} /></>;
+  return <><p className="admin-warning">{preview ? 'ADMIN PREVIEW: storage and World publishing are simulated and clear on reload. Image generations are real and billed. Wallet transactions are disabled. Test every interaction before release.' : 'Independent city module. LANDVILLE relays only reviewed transaction adapters. The host validates inputs and creates calldata; only your linked wallet can approve and sign. Scrapy never receives wallet access, keys or arbitrary contract permissions.'}</p><iframe ref={frame} key={`${id}:${address}:${preview}`} title={`City module ${id}`} src={preview ? `/api/admin/build-jobs/${id}/preview` : `/api/modules/${id}`} sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: '100%', height: '75vh', border: '1px solid #626d26', background: '#10110d' }} /></>;
 }

@@ -8,12 +8,14 @@ import { createHmac, randomUUID } from 'node:crypto';
 import ts from 'typescript';
 import { NextRequest } from 'next/server.js';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
-import { decodeFunctionData, encodeAbiParameters } from 'viem';
+import { decodeFunctionData, encodeAbiParameters, encodeFunctionData } from 'viem';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, '..');
 const wallet = `0x${'a'.repeat(40)}`;
 const other = `0x${'b'.repeat(40)}`;
+const feeRouter = `0x${'d'.repeat(40)}`;
+const treasury = `0x${'e'.repeat(40)}`;
 const snapshot = { wallet, chainId: 4663, tokenAddress: `0x${'c'.repeat(40)}`, tokenDecimals: 18, tokenBalance: '250000000000000000000000', tokenBalanceFormatted: '250,000', weight: 2, blockNumber: '1234', capturedAt: new Date().toISOString(), source: 'chain' };
 const proposalRequestId = randomUUID();
 const proposalSourceCitizen = { id: `citizen-${proposalRequestId}`, body: 'Build a public radio for LANDVILLE.', request_id: proposalRequestId };
@@ -615,22 +617,62 @@ void test('host builds fixed-recipient Uniswap transactions and derives minimum 
     [{ type: 'uint256' }, { type: 'uint160' }, { type: 'uint32' }, { type: 'uint256' }],
     [amountOut, 1n, 2, 90_000n],
   );
-  const f = fixture((call) => call.url === 'https://rpc.mainnet.chain.robinhood.com' ? json({ jsonrpc: '2.0', id: 1, result: encodedQuote }) : undefined);
+  const inspectionAbi = [
+    { type: 'function', name: 'feeBps', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint16' }] },
+    { type: 'function', name: 'treasury', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
+    { type: 'function', name: 'swapRouter', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
+  ];
+  const f = fixture((call) => {
+    if (call.url !== 'https://rpc.mainnet.chain.robinhood.com') return undefined;
+    if (call.body.method === 'eth_getCode') return json({ jsonrpc: '2.0', id: 1, result: '0x60006000' });
+    const target = call.body.params?.[0]?.to?.toLowerCase();
+    const data = call.body.params?.[0]?.data;
+    if (target === feeRouter) {
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'feeBps' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'uint16' }], [100]) });
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'treasury' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'address' }], [treasury]) });
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'swapRouter' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'address' }], ['0xcaf681a66d020601342297493863e78c959e5cb2']) });
+    }
+    return json({ jsonrpc: '2.0', id: 1, result: encodedQuote });
+  }, {
+    LANDVILLE_TRANSACTION_ROUTER_ADDRESS: feeRouter,
+    SCRAPY_TREASURY_ADDRESS: treasury,
+  });
   const bridge = f.load('@/lib/server/module-transaction');
   const tokenIn = `0x${'1'.repeat(40)}`;
   const tokenOut = `0x${'2'.repeat(40)}`;
   const plan = await bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1000', slippageBps: 100 }, wallet);
-  assert.equal(plan.transaction.to, bridge.ROBINHOOD_UNISWAP.swapRouter02);
+  assert.equal(plan.transaction.to, feeRouter);
   assert.equal(plan.transaction.value, '0x0'); assert.equal(plan.amountOutMinimum, '9900');
-  const routerAbi = [{ type: 'function', name: 'exactInputSingle', stateMutability: 'payable', inputs: [{ name: 'params', type: 'tuple', components: [
-    { name: 'tokenIn', type: 'address' }, { name: 'tokenOut', type: 'address' }, { name: 'fee', type: 'uint24' }, { name: 'recipient', type: 'address' },
-    { name: 'amountIn', type: 'uint256' }, { name: 'amountOutMinimum', type: 'uint256' }, { name: 'sqrtPriceLimitX96', type: 'uint160' },
-  ] }], outputs: [{ name: 'amountOut', type: 'uint256' }] }];
-  const decoded = decodeFunctionData({ abi: routerAbi, data: plan.transaction.data });
-  assert.equal(decoded.args[0].recipient.toLowerCase(), wallet); assert.equal(decoded.args[0].amountOutMinimum, 9900n);
-  assert.equal(f.calls.find((call) => call.url === 'https://rpc.mainnet.chain.robinhood.com').body.method, 'eth_call');
+  assert.equal(plan.platformFee.amount, '10'); assert.equal(plan.platformFee.treasury, treasury);
+  assert.equal(plan.quote.grossAmountIn, '1000'); assert.equal(plan.quote.swapAmountIn, '990');
+  const adapterAbi = [{ type: 'function', name: 'swapExactInputSingle', stateMutability: 'nonpayable', inputs: [
+    { name: 'tokenIn', type: 'address' }, { name: 'tokenOut', type: 'address' }, { name: 'poolFee', type: 'uint24' },
+    { name: 'grossAmountIn', type: 'uint256' }, { name: 'amountOutMinimum', type: 'uint256' },
+  ], outputs: [{ name: 'amountOut', type: 'uint256' }] }];
+  const decoded = decodeFunctionData({ abi: adapterAbi, data: plan.transaction.data });
+  assert.equal(decoded.args[0].toLowerCase(), tokenIn); assert.equal(decoded.args[1].toLowerCase(), tokenOut);
+  assert.equal(decoded.args[3], 1000n); assert.equal(decoded.args[4], 9900n);
+  assert.ok(f.calls.some((call) => call.body.method === 'eth_getCode'));
+  assert.ok(f.calls.some((call) => call.body.method === 'eth_call' && call.body.params[0].to.toLowerCase() === bridge.ROBINHOOD_UNISWAP.quoterV2));
+  const approval = await bridge.prepareModuleTransaction({ operation: 'uniswap.approveExact', token: tokenIn, amount: '1000' }, wallet);
+  assert.equal(approval.spender, feeRouter); assert.equal(approval.transaction.to, tokenIn);
   await assert.rejects(() => bridge.prepareModuleTransaction({ operation: 'uniswap.approveExact', token: tokenIn, amount: '1', spender: other }, wallet), /Unsupported wallet transaction input/);
   await assert.rejects(() => bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1', slippageBps: 50, recipient: other }, wallet), /Unsupported wallet transaction input/);
+});
+
+void test('transaction adapter fails closed without fixed router and treasury configuration', async () => {
+  const f = fixture(() => undefined);
+  const bridge = f.load('@/lib/server/module-transaction');
+  assert.throws(() => bridge.transactionAdapterConfiguration(), /not configured/);
+});
+
+void test('fee router has immutable policy and no owner or arbitrary-call surface', () => {
+  const source = fs.readFileSync(path.join(root, 'contracts/LandvilleTransactionRouter.sol'), 'utf8');
+  assert.match(source, /uint16 public constant feeBps = 100/);
+  assert.match(source, /address public immutable treasury/);
+  assert.match(source, /address public immutable swapRouter/);
+  assert.match(source, /recipient: msg\.sender/);
+  assert.doesNotMatch(source, /delegatecall|function\s+(?:owner|execute|upgrade|setTreasury|withdraw)\b/i);
 });
 
 void test('a published module can persist private state only in its declared collection', async () => {

@@ -20,9 +20,11 @@ Use separate credentials and a separate database for Preview/staging.
 | `OPENAI_API_KEY` | A valid API project key with access and billing available | Secret |
 | `OPENAI_MODEL` | `gpt-5.4-mini` (current application default) | Config |
 | `ROBINHOOD_MAINNET_RPC_URL` | `https://rpc.mainnet.chain.robinhood.com`, or a compatible dedicated mainnet RPC | Config, or Secret if it embeds credentials |
+| `SCRAPY_TREASURY_ADDRESS` | Public treasury wallet that receives adapter fees and creator-reward funding | Config |
 | `LANDVILLE_ADMIN_WALLETS` | Your operator wallet address; comma-separated for multiple operators | Config |
 | `LANDVILLE_BUILDER_ENABLED` | `false` until the separate builder setup is complete | Config |
 | `LANDVILLE_WALLET_TRANSACTIONS_ENABLED` | `false` until the transaction bridge PR is reviewed; change to `true` only in Production when ready | Config |
+| `LANDVILLE_TRANSACTION_ROUTER_ADDRESS` | Public address of the source-verified LANDVILLE fee router deployment | Config |
 
 Instead of `SUPABASE_SECRET_KEY`, you may use the project's legacy
 `SUPABASE_SERVICE_ROLE_KEY`. Set one valid server credential, not placeholder values
@@ -37,9 +39,11 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 Do not change an already valid session secret unnecessarily: changing it signs out
 existing sessions. This is not your wallet private key. Never provide a seed phrase.
 
-Wallet transactions use fixed Uniswap contracts on Robinhood Mainnet and the
-citizen's own linked wallet. This switch is an operator kill switch; no private key
-or treasury credential belongs in the transaction bridge configuration.
+Wallet transactions use reviewed LANDVILLE adapters and the citizen's own linked
+wallet. The first adapter performs direct Uniswap V3 ERC-20 swaps and atomically
+sends a fixed 1% of the input token to `SCRAPY_TREASURY_ADDRESS`. Follow the contract
+deployment and verification gate in `contracts/README.md` before enabling the kill
+switch. No private key belongs in the module transaction bridge configuration.
 
 Optional: `NEXT_PUBLIC_ROBINHOOD_MAINNET_RPC_URL` controls the browser wallet's RPC;
 its default is the public mainnet endpoint. Never put a credential in a public variable.
