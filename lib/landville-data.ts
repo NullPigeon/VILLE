@@ -15,6 +15,15 @@ export type WorldObjectRecord = {
   kind: 'venue' | 'utility' | 'art' | 'media' | 'meme';
   x: number;
   y: number;
+  likes: number;
+  likedByViewer: boolean;
+};
+
+export type ModuleLikeBudget = {
+  allowance: number;
+  used: number;
+  remaining: number;
+  resetsAt: string;
 };
 
 export type WorldCitizenRecord = {

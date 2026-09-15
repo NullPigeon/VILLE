@@ -2,23 +2,26 @@
 /* oxlint-disable react/react-compiler -- remote state hydration and polling run after mount */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { BuildUpdate, ProposalRecord, VoteChoice, WorldCitizenRecord, WorldObjectRecord } from '@/lib/landville-data';
-import type { VoteReceipt } from '@/lib/governance';
+import type { BuildUpdate, ModuleLikeBudget, ProposalRecord, VoteChoice, WorldCitizenRecord, WorldObjectRecord } from '@/lib/landville-data';
+import { BASE_WEEKLY_MODULE_LIKES, calculateWeeklyModuleLikes, type VoteReceipt } from '@/lib/governance';
 import { activeProposalForWallet, activeProposalsForWallet } from '@/lib/proposal-lifecycle';
 import { useWallet } from '@/components/landville/wallet-provider';
 
 type NewProposal = Pick<ProposalRecord, 'category' | 'district'> & { sourceReplyId: string };
-type RemoteState = { proposals: ProposalRecord[]; objects: WorldObjectRecord[]; citizens: WorldCitizenRecord[]; voted: Record<string, VoteReceipt>; wallet: string; isAdmin: boolean };
-type Store = Omit<RemoteState, 'wallet'> & {
+type LikeWeekState = { used: number; verifiedAllowance: number; weekStart: string; resetsAt: string };
+type RemoteState = { proposals: ProposalRecord[]; objects: WorldObjectRecord[]; citizens: WorldCitizenRecord[]; voted: Record<string, VoteReceipt>; likeWeek: LikeWeekState; wallet: string; isAdmin: boolean };
+type Store = Omit<RemoteState, 'wallet' | 'likeWeek'> & {
   activeProposal: ProposalRecord | undefined;
   activeProposals: ProposalRecord[];
+  likeBudget: ModuleLikeBudget;
   status: 'loading' | 'ready' | 'unavailable'; error: string;
   refresh(): Promise<void>;
   createProposal(input: NewProposal): Promise<ProposalRecord>;
   vote(id: string, choice: VoteChoice): Promise<VoteReceipt>;
+  likeModule(id: string): Promise<void>;
   updateBuild(id: string, input: BuildUpdate): Promise<ProposalRecord>;
 };
-const empty: RemoteState = { proposals: [], objects: [], citizens: [], voted: {}, wallet: '', isAdmin: false };
+const empty: RemoteState = { proposals: [], objects: [], citizens: [], voted: {}, likeWeek: { used: 0, verifiedAllowance: BASE_WEEKLY_MODULE_LIKES, weekStart: '', resetsAt: '' }, wallet: '', isAdmin: false };
 const StoreContext = createContext<Store | null>(null);
 
 async function serverAction<T>(url: string, body: unknown, method = 'POST'): Promise<T> {
@@ -68,6 +71,14 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
     activeProposals: activeProposalsForWallet(state.proposals, wallet.address),
     voted: wallet.address && state.wallet === wallet.address ? state.voted : {},
     isAdmin: Boolean(wallet.address && state.wallet === wallet.address && state.isAdmin),
+    likeBudget: (() => {
+      const ownState = wallet.address && state.wallet === wallet.address ? state.likeWeek || empty.likeWeek : empty.likeWeek;
+      const allowance = wallet.snapshot
+        ? calculateWeeklyModuleLikes(wallet.snapshot.tokenBalance, wallet.snapshot.tokenDecimals)
+        : BASE_WEEKLY_MODULE_LIKES;
+      const used = Number(ownState.used || 0);
+      return { allowance, used, remaining: Math.max(0, allowance - used), resetsAt: ownState.resetsAt || '' };
+    })(),
     status, error, refresh,
     async createProposal(input) {
       if (!wallet.address) throw new Error('Create your citizen account before submitting a proposal.');
@@ -81,12 +92,17 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
       await refresh();
       return result.receipt;
     },
+    async likeModule(id) {
+      if (!wallet.address) throw new Error('Create or sign in to your citizen account before liking a module.');
+      await serverAction(`/api/modules/${encodeURIComponent(id)}/like`, {});
+      await refresh();
+    },
     async updateBuild(id, input) {
       const result = await serverAction<{ proposal: ProposalRecord }>(`/api/admin/builds/${encodeURIComponent(id)}`, input, 'PATCH');
       await refresh();
       return result.proposal;
     },
-  }), [state, wallet.address, status, error, refresh]);
+  }), [state, wallet.address, wallet.snapshot, status, error, refresh]);
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 }

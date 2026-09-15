@@ -7,12 +7,14 @@ import {
   Bot,
   Building2,
   CalendarDays,
+  Heart,
   User,
   Vote,
   X,
 } from 'lucide-react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { useLandville } from '@/components/landville/provider';
+import { useWallet } from '@/components/landville/wallet-provider';
 
 type WorldSlot = {
   x: number;
@@ -85,14 +87,28 @@ function citizenPlacement(index: number): CSSProperties & Record<string, string>
 }
 
 export default function WorldPage() {
-  const { objects, citizens } = useLandville();
+  const { objects, citizens, likeBudget, likeModule } = useLandville();
+  const wallet = useWallet();
   const [selectedId, setSelectedId] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const [likeError, setLikeError] = useState('');
   const selected = objects.find((item) => item.id === selectedId);
+  const selectedIsOwn = Boolean(selected?.creatorWallet && selected.creatorWallet.toLowerCase() === wallet.address.toLowerCase());
 
   function inspectObject(id: string) {
     setSelectedId(id);
+    setLikeError('');
     setDrawerOpen(true);
+  }
+
+  async function submitLike() {
+    if (!selected || likeBusy) return;
+    setLikeBusy(true);
+    setLikeError('');
+    try { await likeModule(selected.id); }
+    catch (caught) { setLikeError(caught instanceof Error ? caught.message : 'The like could not be recorded.'); }
+    finally { setLikeBusy(false); }
   }
 
   return (
@@ -102,6 +118,12 @@ export default function WorldPage() {
       immersive
     >
       <section className="world-canvas world-stage world-blank-canvas" aria-label="Interactive LANDVILLE city map">
+        <div className="world-like-meter" aria-label="Weekly module likes">
+          <Heart />
+          {wallet.address
+            ? <><b>{likeBudget.remaining} / {likeBudget.allowance}</b><small>LIKES LEFT THIS WEEK</small></>
+            : <><b>5 + SCRAPY</b><small>SIGN IN TO LIKE MODULES</small></>}
+        </div>
         <svg className="world-road-map" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <g className="world-road-beds">
             <path d="M 2 51 C 20 45 34 49 50 50 S 79 56 98 44" />
@@ -140,7 +162,10 @@ export default function WorldPage() {
               <Building2 />
               <iframe title={`${object.title} static preview`} src={`/api/modules/${encodeURIComponent(object.id)}/preview`} sandbox="" loading="lazy" referrerPolicy="no-referrer" tabIndex={-1} />
             </div>
-            <div className="world-object-label"><strong>{object.title}</strong><small>{object.creator}</small></div>
+            <div className="world-object-label">
+              <strong>{object.title}</strong><small>{object.creator}</small>
+              <span className={object.likedByViewer ? 'world-object-likes liked' : 'world-object-likes'}><Heart /> {object.likes}</span>
+            </div>
             <button onClick={() => inspectObject(object.id)} aria-label={`Inspect ${object.title}`} />
           </article>
         ))}
@@ -175,6 +200,18 @@ export default function WorldPage() {
               <div><dt><Vote /> FINAL POWER</dt><dd>{selected.yesPercent}% YES</dd></div>
               <div><dt><CalendarDays /> BUILT</dt><dd>{selected.builtAt}</dd></div>
             </dl>
+            <section className="world-like-control" aria-label="Module likes">
+              <div><Heart className={selected.likedByViewer ? 'liked' : ''} /><span><b>{selected.likes} LIKES</b><small>{likeBudget.remaining} OF {likeBudget.allowance} LEFT THIS UTC WEEK</small></span></div>
+              <p>Every citizen gets 5 weekly likes, plus 1 for each complete 250K SCRAPY. Likes do not accumulate.</p>
+              <button
+                className="lv-button primary"
+                onClick={() => void submitLike()}
+                disabled={!wallet.address || selectedIsOwn || selected.likedByViewer || likeBudget.remaining < 1 || likeBusy}
+              >
+                <Heart /> {likeBusy ? 'STAMPING...' : selectedIsOwn ? 'YOUR OWN MODULE' : selected.likedByViewer ? 'LIKED' : likeBudget.remaining < 1 ? 'NO LIKES LEFT' : 'LIKE THIS MODULE'}
+              </button>
+              {likeError && <span className="world-like-error">{likeError}</span>}
+            </section>
             <Link className="lv-button primary" href="/chat">ASK MAYOR ABOUT IT <Bot /></Link>
             {selected.modulePath && <Link className="lv-button primary" href={selected.modulePath}>OPEN {selected.title}</Link>}
           </div>

@@ -1,7 +1,7 @@
 import 'server-only';
 import { type ProposalRecord, type ProposalStatus, type WorldCitizenRecord, type WorldObjectRecord } from '@/lib/landville-data';
 import { type VotingPowerSnapshot, type VoteReceipt, walletUsername } from '@/lib/governance';
-import { database } from '@/lib/server/database';
+import { database, rpc } from '@/lib/server/database';
 import { ApiError } from '@/lib/server/api';
 import { citizenIdentities } from '@/lib/server/citizens';
 import { citizenLabel } from '@/lib/citizen-identity';
@@ -14,6 +14,13 @@ export type ProposalRow = {
 export type VoteRow = { proposal_id: string; wallet: string; choice: 'YES' | 'NO'; snapshot: VotingPowerSnapshot; created_at: string };
 type ObjectRow = { proposal_id: string; creator_wallet: string; module_path: string; release_ref: string; x: number; y: number; built_at: string; landville_proposals: ProposalRow };
 type WorldCitizenRow = { citizen_wallet: string; source_module_id: string; x: number; y: number; published_at: string };
+type ModuleLikeState = {
+  modules: Record<string, { likes: number; likedByViewer: boolean }>;
+  used: number;
+  verifiedAllowance: number;
+  weekStart: string;
+  resetsAt: string;
+};
 
 export function proposalRecord(row: ProposalRow): ProposalRecord {
   const hoursLeft = Math.max(0, Math.ceil((Date.parse(row.closes_at) - Date.now()) / 3_600_000));
@@ -35,7 +42,7 @@ export function objectRecord(row: ObjectRow): WorldObjectRecord {
     title: proposal.title, description: proposal.summary, district: proposal.district,
     yesPercent: Math.round(Number(proposal.yes) / Math.max(1, Number(proposal.yes) + Number(proposal.no)) * 100),
     builtAt: row.built_at.slice(0, 10), kind: 'utility', x: Number(row.x), y: Number(row.y),
-    modulePath: row.module_path, releaseRef: row.release_ref,
+    modulePath: row.module_path, releaseRef: row.release_ref, likes: 0, likedByViewer: false,
   };
 }
 
@@ -51,19 +58,25 @@ export async function allRows<T>(query: string) {
 }
 
 export async function readTown(wallet = '') {
-  const [proposals, objects, citizens, votes] = await Promise.all([
+  const [proposals, objects, citizens, votes, likeState] = await Promise.all([
     allRows<ProposalRow>('landville_proposals?select=*&order=created_at.desc,id.desc'),
     allRows<ObjectRow>('landville_objects?select=*,landville_proposals(*)&order=built_at.asc,proposal_id.asc'),
     allRows<WorldCitizenRow>('landville_world_citizens?select=citizen_wallet,source_module_id,x,y,published_at&order=published_at.asc,citizen_wallet.asc'),
     wallet ? allRows<VoteRow>(`landville_votes?select=*&wallet=eq.${wallet}&order=proposal_id.asc`) : Promise.resolve([]),
+    rpc<ModuleLikeState>('landville_module_like_state', { p_wallet: wallet }),
   ]);
+  const moduleLikes = likeState?.modules || {};
   const identities = await citizenIdentities([...proposals.map((row) => row.creator_wallet), ...objects.map((row) => row.creator_wallet), ...citizens.map((row) => row.citizen_wallet)]);
   return {
     proposals: proposals.map((row) => ({ ...proposalRecord(row), creator: citizenLabel(identities.get(row.creator_wallet)) })),
-    objects: objects.map((row) => ({ ...objectRecord(row), creator: citizenLabel(identities.get(row.creator_wallet)) })),
+    objects: objects.map((row) => ({ ...objectRecord(row), creator: citizenLabel(identities.get(row.creator_wallet)),
+      likes: Number(moduleLikes[row.proposal_id]?.likes || 0),
+      likedByViewer: Boolean(moduleLikes[row.proposal_id]?.likedByViewer) })),
     citizens: citizens.map((row): WorldCitizenRecord => ({ wallet: row.citizen_wallet, creator: citizenLabel(identities.get(row.citizen_wallet)),
       imagePath: `/api/world/citizens/${row.citizen_wallet}/image`, sourceModuleId: row.source_module_id,
       x: Number(row.x), y: Number(row.y), publishedAt: row.published_at })),
     voted: Object.fromEntries(votes.map((vote) => [vote.proposal_id, voteReceipt(vote)])),
+    likeWeek: { used: Number(likeState.used || 0), verifiedAllowance: Number(likeState.verifiedAllowance || 5),
+      weekStart: likeState.weekStart, resetsAt: likeState.resetsAt },
   };
 }

@@ -1,5 +1,6 @@
 export const BASE_VOTE_WEIGHT = 1;
 export const TOKENS_PER_VOTE = 250_000;
+export const BASE_WEEKLY_MODULE_LIKES = 5;
 
 export type VotingPowerSnapshot = {
   wallet: string;
@@ -21,6 +22,12 @@ export type VoteReceipt = VotingPowerSnapshot & {
 export function calculateVoteWeight(rawBalance: bigint, decimals: number) {
   const unit = BigInt(TOKENS_PER_VOTE) * 10n ** BigInt(decimals);
   return BASE_VOTE_WEIGHT + Number(rawBalance / unit);
+}
+
+export function calculateWeeklyModuleLikes(rawBalance: bigint | string, decimals: number) {
+  const balance = typeof rawBalance === 'bigint' ? rawBalance : BigInt(rawBalance);
+  const unit = BigInt(TOKENS_PER_VOTE) * 10n ** BigInt(decimals);
+  return BASE_WEEKLY_MODULE_LIKES + Number(balance / unit);
 }
 
 export function shortWallet(address: string) {
