@@ -133,6 +133,7 @@ for (const [route, url, method] of [
   ['app/api/treasury/proposals/[id]/vote/route.ts', '/api/treasury/proposals/TP-1/vote', 'POST'],
   ['app/api/modules/[id]/data/route.ts', '/api/modules/LV-1/data', 'POST'],
   ['app/api/modules/[id]/transaction/route.ts', '/api/modules/LV-1/transaction', 'POST'],
+  ['app/api/modules/[id]/like/route.ts', '/api/modules/LV-1/like', 'POST'],
   ['app/api/admin/builds/[id]/route.ts', '/api/admin/builds/LV-1', 'PATCH'],
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
   ['app/api/admin/build-jobs/[id]/release/route.ts', '/api/admin/build-jobs/LV-1/release', 'POST'],
@@ -1275,3 +1276,31 @@ for (const code of ['BUILD_ALREADY_RUNNING', 'BUILD_QUEUE_ORDER']) void test(`${
   assert.equal(response.status, 409);
   assert.equal((await response.json()).proposal, undefined);
 });
+
+void test('module likes use the signed citizen and a server-read SCRAPY snapshot', async () => {
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_like_module')) return json({ used: 1, verifiedAllowance: 6 });
+    return undefined;
+  });
+  const response = await f.load('app/api/modules/[id]/like/route.ts').POST(
+    f.request('/api/modules/LV-1/like', { wallet: other, tokenBalance: '999999999999' }, { signed: true }),
+    { params: Promise.resolve({ id: 'LV-1' }) },
+  );
+  assert.equal(response.status, 200);
+  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_like_module'));
+  assert.equal(call.body.p_wallet, wallet);
+  assert.equal(call.body.p_module_id, 'LV-1');
+  assert.deepEqual(call.body.p_snapshot, snapshot);
+  assert.equal(f.balanceReads, 1);
+});
+
+for (const [code, status] of [['OWN_MODULE_LIKE', 403], ['WEEKLY_MODULE_LIKE_LIMIT', 429]]) {
+  void test(`${code} returns an honest module-like error`, async () => {
+    const f = fixture((call) => call.url.endsWith('/rpc/landville_like_module') ? json({ message: code }, 400) : undefined);
+    const response = await f.load('app/api/modules/[id]/like/route.ts').POST(
+      f.request('/api/modules/LV-1/like', {}, { signed: true }),
+      { params: Promise.resolve({ id: 'LV-1' }) },
+    );
+    assert.equal(response.status, status);
+  });
+}
