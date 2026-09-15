@@ -371,6 +371,47 @@ void test('a moderated named character is rewritten once without losing identity
   assert.ok(safeGenerations.every((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt)));
 });
 
+void test('a twice-moderated character receives a distinct original fallback before the batch continues', async () => {
+  const hash = '5'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Keep the requested role and selected rendering style in LANDVILLE.',
+    maxImages: 3,
+  };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/responses') {
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'A black-haired flying hero in a fitted cobalt suit with a crimson cape. Style: pixel-art character.' }] }] });
+    }
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      if (/Superman|fitted cobalt suit/i.test(call.body.prompt)) return json({ error: { code: 'moderation_blocked', type: 'image_generation_user_error' } }, 400);
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    OPENAI_MODEL: 'gpt-5.4-mini',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: superman. Style: pixel-art character. Vibe: dark and mysterious. Scrapy twist: a civic badge.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const rewrites = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/responses');
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(rewrites.length, 1);
+  assert.equal(generations.length, 5);
+  const originalFallbacks = generations.filter((generation) => /original optimistic flying municipal rescuer/.test(generation.body.prompt));
+  assert.equal(originalFallbacks.length, 3);
+  assert.ok(originalFallbacks.every((generation) => !/Superman|fitted cobalt suit/i.test(generation.body.prompt)));
+  assert.ok(originalFallbacks.every((generation) => /SELECTED STYLE — HARD REQUIREMENT: True 2D pixel art/.test(generation.body.prompt)));
+  assert.ok(originalFallbacks.every((generation) => /Scrapy twist: a civic badge\./i.test(generation.body.prompt)));
+});
+
 void test('an incomplete character choice retries without discarding completed choices', async () => {
   const hash = '8'.repeat(64);
   const imageGeneration = {
