@@ -149,6 +149,17 @@ function preserveKnownIdentity(brief: string, rewritten: string) {
   return `${anchor} ${sanitized} ${traits}`.trim().slice(0, 900);
 }
 
+function originalSafeRewrite(brief: string) {
+  const normalized = brief.toLowerCase();
+  const subject = normalized.includes('batman')
+    ? 'An original nocturnal rooftop guardian in asymmetric charcoal civic armor, a short ragged shoulder cape, an angular hood with two narrow fins, a utility satchel and no emblem.'
+    : normalized.includes('superman')
+      ? 'An original optimistic flying municipal rescuer with black hair, a deep-blue utility jumpsuit, a rust-red half cape worn from one shoulder, heavy work boots, acid-lime repair seams and no chest symbol.'
+      : 'An original all-ages LANDVILLE citizen based on the requested role and personality, with a distinct silhouette that does not reproduce any named character or franchise design.';
+  const traits = brief.match(/(?:Style|Vibe|Outfit|Scrapy twist):[^.]{1,120}\./gi)?.join(' ') || '';
+  return `${subject} ${traits}`.trim().slice(0, 900);
+}
+
 async function rewriteModeratedBrief(key: string, brief: string) {
   const fallback = localModerationRewrite(brief);
   try {
@@ -177,7 +188,7 @@ async function rewriteModeratedBrief(key: string, brief: string) {
 function providerFailure(issue: ImageProviderIssue) {
   const error = providerConfigurationFailure(issue)
     ? new ApiError(503, `The LANDVILLE image connection needs administrator attention. Reference: ${providerReference(issue)}.`)
-    : new ApiError(502, `Scrapy's image press was rejected by the provider after an automatic retry. Your work order is valid. Reference: ${providerReference(issue)}.`);
+    : new ApiError(502, `Scrapy's image press was rejected by the provider after two automatic adaptations. Your work order is valid. Reference: ${providerReference(issue)}.`);
   error.code = providerReference(issue);
   return error;
 }
@@ -201,7 +212,7 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
   let moderationRewrite: Promise<string> | undefined;
   const generateChoice = async (choiceIndex: number) => {
     let lastIssue: ImageProviderIssue | undefined;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       let response: Response;
       try {
         response = await fetch('https://api.openai.com/v1/images/generations', {
@@ -223,12 +234,18 @@ export async function generateModuleImage(declaration: ModuleImageGenerationDecl
       if (!response.ok) {
         if (response.status === 429) throw new ApiError(429, 'The image workshop is busy. Try again later.');
         lastIssue = await readProviderIssue(response);
-        if (isModerationFailure(lastIssue) && attempt === 0) {
-          moderationRewrite ||= rewriteModeratedBrief(key, brief);
-          moderatedBrief = await moderationRewrite;
-          continue;
+        if (isModerationFailure(lastIssue)) {
+          if (attempt === 0) {
+            moderationRewrite ||= rewriteModeratedBrief(key, brief);
+            moderatedBrief = await moderationRewrite;
+            continue;
+          }
+          if (attempt === 1) {
+            moderatedBrief = originalSafeRewrite(brief);
+            continue;
+          }
         }
-        if (providerConfigurationFailure(lastIssue) || attempt === 1) {
+        if (providerConfigurationFailure(lastIssue) || attempt >= 1) {
           console.error('LANDVILLE image provider rejection:', {
             status: lastIssue.status,
             type: lastIssue.type,
