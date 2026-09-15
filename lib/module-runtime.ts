@@ -32,11 +32,16 @@ export type WorldCitizenInput = {
   imageIndex?: 0 | 1 | 2;
 };
 
+export type RobinhoodWalletInput =
+  | { operation: 'uniswap.quoteExactInputSingle'; tokenIn: string; tokenOut: string; fee: 100 | 500 | 3000 | 10000; amountIn: string }
+  | { operation: 'uniswap.approveExact'; token: string; amount: string }
+  | { operation: 'uniswap.swapExactInputSingle'; tokenIn: string; tokenOut: string; fee: 100 | 500 | 3000 | 10000; amountIn: string; slippageBps: number };
+
 export type ModuleCapabilityRequest = {
   type: typeof MODULE_CAPABILITY_REQUEST;
   requestId: string;
-  capability: 'market.dexscreener' | 'chain.robinhood' | 'module.storage' | 'module.image.generate' | 'world.citizen.publish';
-  input: MarketDataInput | RobinhoodChainInput | ModuleStorageInput | ModuleImageInput | WorldCitizenInput;
+  capability: 'market.dexscreener' | 'chain.robinhood' | 'module.storage' | 'module.image.generate' | 'world.citizen.publish' | 'wallet.robinhood';
+  input: MarketDataInput | RobinhoodChainInput | ModuleStorageInput | ModuleImageInput | WorldCitizenInput | RobinhoodWalletInput;
 };
 
 export function parseModuleCapabilityRequest(value: unknown): ModuleCapabilityRequest | null {
@@ -48,7 +53,8 @@ export function parseModuleCapabilityRequest(value: unknown): ModuleCapabilityRe
   if (request.capability === 'module.storage' && !['private.get', 'private.set', 'private.delete', 'shared.list', 'shared.create', 'shared.update', 'shared.delete', 'counter.get', 'counter.increment'].includes(request.input.operation)) return null;
   if (request.capability === 'module.image.generate' && request.input.operation !== 'generate') return null;
   if (request.capability === 'world.citizen.publish' && !['status', 'publish', 'unpublish'].includes(request.input.operation)) return null;
-  if (!['market.dexscreener', 'chain.robinhood', 'module.storage', 'module.image.generate', 'world.citizen.publish'].includes(request.capability)) return null;
+  if (request.capability === 'wallet.robinhood' && !['uniswap.quoteExactInputSingle', 'uniswap.approveExact', 'uniswap.swapExactInputSingle'].includes(request.input.operation)) return null;
+  if (!['market.dexscreener', 'chain.robinhood', 'module.storage', 'module.image.generate', 'world.citizen.publish', 'wallet.robinhood'].includes(request.capability)) return null;
   return request;
 }
 
@@ -88,6 +94,14 @@ export const MODULE_RUNTIME_GUIDE = {
       request: { type: MODULE_CAPABILITY_REQUEST, requestId: 'unique-id', capability: 'world.citizen.publish', input: { operation: 'status | publish | unpublish', imageIndex: 'required for publish; 0, 1 or 2 from the generated images array' } },
       response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: '{ published, publishedAt, selectedImageIndex }', error: 'string when not ok' },
       transport: 'Use the parent postMessage bridge. Offer PUBLISH MY CITIZEN TO WORLD only after the citizen selects a returned image, send its imageIndex, explain that the selected image and username become public, and offer REMOVE FROM WORLD when published. The LANDVILLE host asks for confirmation; never fake or bypass it.',
+    },
+    'wallet.robinhood': {
+      description: 'Reviewed, user-signed ERC-20 swaps through the official Uniswap V3 SwapRouter02 on Robinhood mainnet. LANDVILLE creates the exact approval or swap transaction, fixes the recipient to the citizen\'s linked wallet and asks that wallet to confirm. The module never receives a provider, signature, private key or arbitrary calldata permission.',
+      limits: 'Single-pool ERC-20 to ERC-20 exact-input swaps only. Supported fee tiers are 100, 500, 3000 and 10000. Slippage must be 1-500 basis points. A quote does not guarantee execution or token legitimacy/liquidity. Native ETH, multi-hop routes, arbitrary contracts, transfers, fee collection and treasury routing are not supported.',
+      declarations: { shape: '{ purpose: exact product reason, actions: subset of uniswap.quoteExactInputSingle | uniswap.approveExact | uniswap.swapExactInputSingle }', maximum: 1 },
+      request: { type: MODULE_CAPABILITY_REQUEST, requestId: 'unique-id', capability: 'wallet.robinhood', input: { operation: 'uniswap.quoteExactInputSingle | uniswap.approveExact | uniswap.swapExactInputSingle', tokenIn: 'ERC-20 address for quote/swap', tokenOut: 'ERC-20 address for quote/swap', token: 'ERC-20 address for approval', fee: '100 | 500 | 3000 | 10000', amountIn: 'positive base-unit integer string', amount: 'positive base-unit integer string for exact approval', slippageBps: '1-500 for swap' } },
+      response: { type: MODULE_CAPABILITY_RESPONSE, requestId: 'same-id', ok: 'boolean', data: 'quote data, or { transactionHash, explorerUrl, action, amountOutMinimum } after wallet confirmation', error: 'string when rejected, unavailable or failed' },
+      transport: 'Use the parent postMessage bridge. Quote before requesting approval or swap. Explain token addresses, raw/base-unit amounts, pool fee and slippage in the module UI. LANDVILLE shows a second trusted confirmation and the wallet shows the final transaction. Never claim success before a transactionHash response.',
     },
   },
 } as const;

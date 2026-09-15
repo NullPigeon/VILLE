@@ -39,6 +39,11 @@ export async function GET(request: NextRequest) {
         model: process.env.LANDVILLE_MODULE_IMAGE_MODEL || 'gpt-image-2.5-flare',
         keyPresent: Boolean(process.env.OPENAI_API_KEY?.trim()),
       },
+      walletTransactions: {
+        enabled: process.env.LANDVILLE_WALLET_TRANSACTIONS_ENABLED === 'true',
+        chainId: 4663,
+        mode: 'Uniswap V3 direct ERC-20 / user-signed',
+      },
       builderEnabled: process.env.LANDVILLE_BUILDER_ENABLED === 'true',
       builderConfigurationPresent: Boolean((process.env.LANDVILLE_WORKER_SECRET?.length || 0) >= 32 &&
         process.env.LANDVILLE_BUILD_ACTOR && isAdmin(process.env.LANDVILLE_BUILD_ACTOR) &&

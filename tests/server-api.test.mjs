@@ -8,6 +8,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import ts from 'typescript';
 import { NextRequest } from 'next/server.js';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { decodeFunctionData, encodeAbiParameters } from 'viem';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, '..');
@@ -129,6 +130,7 @@ for (const [route, url, method] of [
   ['app/api/treasury/proposals/route.ts', '/api/treasury/proposals', 'POST'],
   ['app/api/treasury/proposals/[id]/vote/route.ts', '/api/treasury/proposals/TP-1/vote', 'POST'],
   ['app/api/modules/[id]/data/route.ts', '/api/modules/LV-1/data', 'POST'],
+  ['app/api/modules/[id]/transaction/route.ts', '/api/modules/LV-1/transaction', 'POST'],
   ['app/api/admin/builds/[id]/route.ts', '/api/admin/builds/LV-1', 'PATCH'],
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
   ['app/api/admin/build-jobs/[id]/release/route.ts', '/api/admin/build-jobs/LV-1/release', 'POST'],
@@ -584,6 +586,51 @@ void test('module chain bridge cannot sign, send transactions or choose an RPC',
     assert.equal(response.status, 400);
   }
   assert.ok(!f.calls.some((call) => call.url.includes('127.0.0.1') || call.url.includes('rpc.mainnet.chain.robinhood.com')));
+});
+
+void test('transaction route requires a reviewed action and the citizen linked wallet', async () => {
+  const hash = '7'.repeat(64);
+  let prepared;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.includes('landville_citizens?select=linked_wallet')) return json([{ linked_wallet: other }]);
+    return undefined;
+  }, { LANDVILLE_WALLET_TRANSACTIONS_ENABLED: 'true' }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], transactions: { purpose: 'Allow an exact reviewed token approval.', actions: ['uniswap.approveExact'] } } }, hash }) },
+    '@/lib/server/module-transaction': {
+      prepareModuleTransaction: async (input, from) => (prepared = { input, from, transaction: { from, to: input.token, data: '0x1234', value: '0x0' }, confirmation: 'Approve exact token amount?', action: input.operation }),
+      quoteExactInputSingle: async () => { throw new Error('not expected'); },
+    },
+  });
+  const route = f.load('app/api/modules/[id]/transaction/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/transaction', { input: { operation: 'uniswap.approveExact', token: `0x${'1'.repeat(40)}`, amount: '50' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200); assert.equal(prepared.from, other);
+  const blocked = await route.POST(f.request('/api/modules/LV-1/transaction', { input: { operation: 'uniswap.swapExactInputSingle', tokenIn: wallet, tokenOut: other, fee: 3000, amountIn: '1', slippageBps: 50 } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(blocked.status, 403);
+});
+
+void test('host builds fixed-recipient Uniswap transactions and derives minimum output from its own quote', async () => {
+  const amountOut = 10_000n;
+  const encodedQuote = encodeAbiParameters(
+    [{ type: 'uint256' }, { type: 'uint160' }, { type: 'uint32' }, { type: 'uint256' }],
+    [amountOut, 1n, 2, 90_000n],
+  );
+  const f = fixture((call) => call.url === 'https://rpc.mainnet.chain.robinhood.com' ? json({ jsonrpc: '2.0', id: 1, result: encodedQuote }) : undefined);
+  const bridge = f.load('@/lib/server/module-transaction');
+  const tokenIn = `0x${'1'.repeat(40)}`;
+  const tokenOut = `0x${'2'.repeat(40)}`;
+  const plan = await bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1000', slippageBps: 100 }, wallet);
+  assert.equal(plan.transaction.to, bridge.ROBINHOOD_UNISWAP.swapRouter02);
+  assert.equal(plan.transaction.value, '0x0'); assert.equal(plan.amountOutMinimum, '9900');
+  const routerAbi = [{ type: 'function', name: 'exactInputSingle', stateMutability: 'payable', inputs: [{ name: 'params', type: 'tuple', components: [
+    { name: 'tokenIn', type: 'address' }, { name: 'tokenOut', type: 'address' }, { name: 'fee', type: 'uint24' }, { name: 'recipient', type: 'address' },
+    { name: 'amountIn', type: 'uint256' }, { name: 'amountOutMinimum', type: 'uint256' }, { name: 'sqrtPriceLimitX96', type: 'uint160' },
+  ] }], outputs: [{ name: 'amountOut', type: 'uint256' }] }];
+  const decoded = decodeFunctionData({ abi: routerAbi, data: plan.transaction.data });
+  assert.equal(decoded.args[0].recipient.toLowerCase(), wallet); assert.equal(decoded.args[0].amountOutMinimum, 9900n);
+  assert.equal(f.calls.find((call) => call.url === 'https://rpc.mainnet.chain.robinhood.com').body.method, 'eth_call');
+  await assert.rejects(() => bridge.prepareModuleTransaction({ operation: 'uniswap.approveExact', token: tokenIn, amount: '1', spender: other }, wallet), /Unsupported wallet transaction input/);
+  await assert.rejects(() => bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1', slippageBps: 50, recipient: other }, wallet), /Unsupported wallet transaction input/);
 });
 
 void test('a published module can persist private state only in its declared collection', async () => {

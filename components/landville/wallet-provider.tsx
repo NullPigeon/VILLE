@@ -28,6 +28,7 @@ type WalletContextValue = {
   connectWallet(): Promise<string>;
   refreshVotingPower(): Promise<VotingPowerSnapshot>;
   addScrapyToken(): Promise<void>;
+  sendModuleTransaction(transaction: { from: string; to: string; data: string; value: string }): Promise<string>;
   disconnectWallet(): Promise<void>;
 };
 
@@ -57,6 +58,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     logout: logoutPrivy,
     ready: privyReady,
     sendEmailCode: sendPrivyEmailCode,
+    sendTransaction: sendPrivyTransaction,
     verifyEmailCode: verifyPrivyEmailCode,
   } = usePrivyAuth();
   const [address, setAddress] = useState('');
@@ -215,6 +217,25 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         });
         if (accepted === false) throw new Error('Token import was declined.');
       },
+      async sendModuleTransaction(transaction) {
+        if (!linkedWallet || transaction.from.toLowerCase() !== linkedWallet.toLowerCase()) throw new Error('THE TRANSACTION WALLET DOES NOT MATCH YOUR LINKED WALLET');
+        try {
+          return await sendPrivyTransaction(transaction, linkedWallet);
+        } catch (caught) {
+          const reason = caught instanceof Error ? caught.message : '';
+          if (!['CONNECT THE LINKED WALLET TO CONTINUE', 'WALLET CONNECTION IS STILL LOADING', 'PRIVY SIGN-IN IS NOT CONFIGURED'].includes(reason)) throw caught;
+          const provider = (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
+          if (!provider) throw caught;
+          await addRobinhoodNetwork();
+          const accounts = await provider.request({ method: 'eth_accounts' });
+          if (!Array.isArray(accounts) || !accounts.some((account) => typeof account === 'string' && account.toLowerCase() === linkedWallet.toLowerCase())) {
+            throw new Error('THE CONNECTED WALLET DOES NOT MATCH YOUR LINKED WALLET');
+          }
+          const hash = await provider.request({ method: 'eth_sendTransaction', params: [transaction] });
+          if (typeof hash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new Error('WALLET DID NOT RETURN A TRANSACTION HASH');
+          return hash.toLowerCase();
+        }
+      },
       async disconnectWallet() {
         const response = await fetch('/api/auth/session', { method: 'DELETE' });
         if (!response.ok) throw new Error('Could not sign out. Try again.');
@@ -232,7 +253,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [
       address, linkedWallet, email, authMethod, error, snapshot, status, profile,
       refreshProfile, router, privyAuthenticated, privyConfigured, linkPrivyWallet,
-      linkPrivyEmail, loginWithWallet, logoutPrivy, sendPrivyEmailCode, syncPrivySession, verifyPrivyEmailCode,
+      linkPrivyEmail, loginWithWallet, logoutPrivy, sendPrivyEmailCode, sendPrivyTransaction, syncPrivySession, verifyPrivyEmailCode,
     ],
   );
 

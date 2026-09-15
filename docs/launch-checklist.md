@@ -22,6 +22,7 @@ Use separate credentials and a separate database for Preview/staging.
 | `ROBINHOOD_MAINNET_RPC_URL` | `https://rpc.mainnet.chain.robinhood.com`, or a compatible dedicated mainnet RPC | Config, or Secret if it embeds credentials |
 | `LANDVILLE_ADMIN_WALLETS` | Your operator wallet address; comma-separated for multiple operators | Config |
 | `LANDVILLE_BUILDER_ENABLED` | `false` until the separate builder setup is complete | Config |
+| `LANDVILLE_WALLET_TRANSACTIONS_ENABLED` | `false` until the transaction bridge PR is reviewed; change to `true` only in Production when ready | Config |
 
 Instead of `SUPABASE_SECRET_KEY`, you may use the project's legacy
 `SUPABASE_SERVICE_ROLE_KEY`. Set one valid server credential, not placeholder values
@@ -35,6 +36,10 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 Do not change an already valid session secret unnecessarily: changing it signs out
 existing sessions. This is not your wallet private key. Never provide a seed phrase.
+
+Wallet transactions use fixed Uniswap contracts on Robinhood Mainnet and the
+citizen's own linked wallet. This switch is an operator kill switch; no private key
+or treasury credential belongs in the transaction bridge configuration.
 
 Optional: `NEXT_PUBLIC_ROBINHOOD_MAINNET_RPC_URL` controls the browser wallet's RPC;
 its default is the public mainnet endpoint. Never put a credential in a public variable.

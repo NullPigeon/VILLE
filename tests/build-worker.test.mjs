@@ -13,7 +13,7 @@ const acceptanceReport = ['The Count control increments the visible total in the
 const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
 const intentReport = ['The requested subject is present.', 'The requested story and tone are present.', 'The requested interaction is implemented.'];
 const reviewResult = { html, storage: [], acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
-const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.', storagePlan: [], runtimeImagePlan: { enabled: false, purpose: '', visualDirection: '', maxImages: 1 }, worldCitizenPlan: { enabled: false, purpose: '' } };
+const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.', storagePlan: [], runtimeImagePlan: { enabled: false, purpose: '', visualDirection: '', maxImages: 1 }, worldCitizenPlan: { enabled: false, purpose: '' }, walletTransactionPlan: { enabled: false, purpose: '', actions: [] } };
 const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==', subjectReferences: [], creativeDirection: null };
 const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
@@ -98,6 +98,15 @@ void test('reviewed capability declarations accept normal JSON-quoted JavaScript
   const worldCitizen = { purpose: 'Publish the generated character as this citizen\'s public World resident.' };
   assert.doesNotThrow(() => artifactFor(work, { html: quotedHtml, imageGeneration, worldCitizen }));
 });
+void test('wallet actions require an exact reviewed declaration', () => {
+  const transactionHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'quote',capability:'wallet.robinhood',input:{operation:'uniswap.quoteExactInputSingle',tokenIn:'0x1111111111111111111111111111111111111111',tokenOut:'0x2222222222222222222222222222222222222222',fee:3000,amountIn:'1'}},'*')</script></body>`);
+  const transactions = { purpose: 'Quote a reviewed direct Uniswap V3 token swap for the citizen.', actions: ['uniswap.quoteExactInputSingle'] };
+  const record = JSON.parse(artifactFor(work, { html: transactionHtml, transactions }).content);
+  assert.deepEqual(record.capabilities.transactions, transactions);
+  assert.throws(() => artifactFor(work, { html: transactionHtml }), /not declared/);
+  assert.throws(() => artifactFor(work, { html, transactions }), /declared but not used/);
+  assert.throws(() => artifactFor(work, { html: transactionHtml, transactions: { ...transactions, actions: ['uniswap.swapExactInputSingle'] } }), /not declared/);
+});
 void test('one generated image is materialized only at the fixed marker', () => {
   const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
   assert.match(materializeGeneratedAsset(marked, 'dGVzdA=='), /src="data:image\/png;base64,dGVzdA=="/);
@@ -142,6 +151,7 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   assert.match(buildAi.body.input[0].content[0].text, /approvedArchitecture/);
   assert.match(buildAi.body.input[0].content[0].text, /market\.dexscreener/);
   assert.match(buildAi.body.input[0].content[0].text, /chain\.robinhood/);
+  assert.match(buildAi.body.input[0].content[0].text, /wallet\.robinhood/);
   const reviewAi = f.calls.filter((call) => call.url.includes('api.openai.com'))[2];
   assert.deepEqual(reviewAi.body.tools, [{ type: 'image_generation' }]);
   assert.match(f.calls.find((call) => call.url.endsWith('pulls')).body.body, /Scrapy character gate/);
@@ -252,6 +262,22 @@ void test('a contract-invalid draft receives one focused repair pass', async () 
   assert.equal(draftCalls, 2);
   const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
   assert.equal(artifact.capabilities.imageGeneration.maxImages, 3);
+});
+void test('builder preserves reviewed wallet actions in the artifact and flags the PR', async () => {
+  const transactionHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'quote',capability:'wallet.robinhood',input:{operation:'uniswap.quoteExactInputSingle',tokenIn:'0x1111111111111111111111111111111111111111',tokenOut:'0x2222222222222222222222222222222222222222',fee:3000,amountIn:'1'}},'*');window.parent.postMessage({type:'landville:capability-request',requestId:'approve',capability:'wallet.robinhood',input:{operation:'uniswap.approveExact',token:'0x1111111111111111111111111111111111111111',amount:'1'}},'*');window.parent.postMessage({type:'landville:capability-request',requestId:'swap',capability:'wallet.robinhood',input:{operation:'uniswap.swapExactInputSingle',tokenIn:'0x1111111111111111111111111111111111111111',tokenOut:'0x2222222222222222222222222222222222222222',fee:3000,amountIn:'1',slippageBps:50}},'*');</script></body>`);
+  const walletTransactionPlan = { enabled: true, purpose: 'Let the citizen quote and sign one direct Uniswap V3 ERC-20 swap.', actions: ['uniswap.quoteExactInputSingle', 'uniswap.approveExact', 'uniswap.swapExactInputSingle'] };
+  const architecture = { ...architectureResult, walletTransactionPlan };
+  const f = harness((call) => {
+    if (!call.url.includes('api.openai.com')) return undefined;
+    const name = call.body?.text?.format?.name;
+    const result = name === 'city_architecture' ? architecture : name === 'city_module' ? { html: transactionHtml, storage: [] } : { ...reviewResult, html: transactionHtml };
+    return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(result) }] }] });
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
+  assert.deepEqual(artifact.capabilities.transactions.actions, walletTransactionPlan.actions);
+  const pull = f.calls.find((call) => call.url.endsWith('pulls')).body;
+  assert.match(pull.title, /WALLET REVIEW/); assert.match(pull.body, /user-signed Robinhood transactions/);
 });
 void test('a failed creative review receives one automatic repair pass', async () => {
   let reviews = 0;
