@@ -27,6 +27,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260912151000_reduce_creator_reward_cap.sql
 \ir ../supabase/migrations/20260913090000_module_image_generation.sql
 \ir ../supabase/migrations/20260914150000_module_image_choices.sql
+\ir ../supabase/migrations/20260915113000_weekly_module_likes.sql
 
 do $$
 declare
@@ -357,6 +358,72 @@ begin
       'A zero-balance citizen must not file this Treasury action.','OTHER',null,null,snapshot,10000000000000000000);
     raise exception 'Non-holder submitted a Treasury proposal';
   exception when raise_exception then if sqlerrm <> 'TREASURY_HOLDER_REQUIRED' then raise; end if; end;
+end $$;
+
+insert into public.landville_proposals(id, request_id, creator_wallet, title, summary, category, district, status, eligibility_snapshot, yes, no, created_at, closes_at)
+select 'LV-' || module_number, gen_random_uuid(), '0x' || repeat('a',40),
+  'Like test ' || module_number, 'A published fixture used to verify weekly module likes.',
+  'UTILITY', 'THE DUMP', 'BUILT', '{}', 5, 0, now()-interval '3 hours', now()-interval '1 hour'
+from generate_series(90,95) module_number;
+insert into public.landville_objects(proposal_id, creator_wallet, module_path, release_ref, artifact_path, artifact_hash, x, y)
+select 'LV-' || module_number, '0x' || repeat('a',40), '/modules/LV-' || module_number,
+  'deployment:test-' || module_number, 'city-modules/LV-' || module_number || '.json', repeat('a',64), 50, 50
+from generate_series(90,95) module_number;
+
+do $$
+declare
+  base_wallet text := '0x' || repeat('b',40);
+  holder_wallet text := '0x' || repeat('c',40);
+  base_snapshot jsonb;
+  holder_snapshot jsonb;
+  state jsonb;
+  module_id text;
+begin
+  base_snapshot := jsonb_build_object(
+    'wallet',base_wallet,'chainId',4663,'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','0','tokenBalanceFormatted','0','weight',1,
+    'blockNumber','0','capturedAt',clock_timestamp(),'source','unlinked'
+  );
+  holder_snapshot := jsonb_build_object(
+    'wallet',holder_wallet,'chainId',4663,'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','250000000000000000000000','tokenBalanceFormatted','250000','weight',2,
+    'blockNumber','7000','capturedAt',clock_timestamp(),'source','chain'
+  );
+
+  foreach module_id in array array['LV-1','LV-90','LV-91','LV-92','LV-93'] loop
+    state := public.landville_like_module(module_id,base_wallet,base_snapshot);
+  end loop;
+  if (state->>'used')::integer <> 5 or (state->>'verifiedAllowance')::integer <> 5 then
+    raise exception 'Base weekly like allowance is incorrect';
+  end if;
+  state := public.landville_like_module('LV-1',base_wallet,base_snapshot);
+  if (state->>'used')::integer <> 5 or (select count(*) from public.landville_module_likes where wallet=base_wallet) <> 5 then
+    raise exception 'Duplicate module like was not idempotent';
+  end if;
+  begin
+    perform public.landville_like_module('LV-94',base_wallet,base_snapshot);
+    raise exception 'Base citizen exceeded five weekly likes';
+  exception when raise_exception then if sqlerrm <> 'WEEKLY_MODULE_LIKE_LIMIT' then raise; end if; end;
+  begin
+    perform public.landville_like_module('LV-1','0x' || repeat('a',40),jsonb_set(base_snapshot,'{wallet}',to_jsonb('0x' || repeat('a',40))));
+    raise exception 'Creator liked their own module';
+  exception when raise_exception then if sqlerrm <> 'OWN_MODULE_LIKE' then raise; end if; end;
+
+  foreach module_id in array array['LV-1','LV-90','LV-91','LV-92','LV-93','LV-94'] loop
+    state := public.landville_like_module(module_id,holder_wallet,holder_snapshot);
+  end loop;
+  if (state->>'used')::integer <> 6 or (state->>'verifiedAllowance')::integer <> 6 then
+    raise exception '250K SCRAPY did not add one weekly like';
+  end if;
+  begin
+    perform public.landville_like_module('LV-95',holder_wallet,holder_snapshot);
+    raise exception 'Holder exceeded token-adjusted weekly likes';
+  exception when raise_exception then if sqlerrm <> 'WEEKLY_MODULE_LIKE_LIMIT' then raise; end if; end;
+
+  if has_table_privilege('anon','public.landville_module_likes','SELECT')
+    or has_function_privilege('authenticated','public.landville_like_module(text,text,jsonb)','EXECUTE') then
+    raise exception 'Module like records or RPC are exposed to browser roles';
+  end if;
 end $$;
 
 -- Leave one eligible job for concurrent-claim checks in the Node runner.
