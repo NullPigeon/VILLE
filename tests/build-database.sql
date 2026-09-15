@@ -21,6 +21,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260906075437_rebind_lv1_crop_review.sql
 \ir ../supabase/migrations/20260906123502_allow_two_active_proposals.sql
 \ir ../supabase/migrations/20260906130910_email_otp_citizen_accounts.sql
+\ir ../supabase/migrations/20260906151500_merge_privy_wallet_citizens.sql
 \ir ../supabase/migrations/20260906183000_two_hour_votes.sql
 \ir ../supabase/migrations/20260911120000_treasury_governance.sql
 \ir ../supabase/migrations/20260912150000_require_five_module_voters.sql
