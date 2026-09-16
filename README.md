@@ -4,7 +4,9 @@
 
 A shared digital town that grows through citizen proposals and votes. Approved ideas become interactive objects on the World canvas: games, tools, art and other usable parts of the website.
 
-[Enter LANDVILLE](https://landville.xyz) · [Town Chat](https://landville.xyz/chat) · [Proposals](https://landville.xyz/proposals)
+[Enter LANDVILLE](https://landville.xyz) · [Town Chat](https://landville.xyz/chat) · [Proposals](https://landville.xyz/proposals) · [Scrapy Field Guide](https://landville.xyz/docs)
+
+The public **Scrapy Field Guide** explains every page, token benefits, weekly likes, the builder/review process, supported module services and future directions in plain language. [Page links & copy-ready descriptions](https://landville.xyz/docs/links) are available for sharing. Guide content is maintained in `lib/field-guide.ts`; see [guide release notes](docs/field-guide-release.md) for verification and update instructions.
 
 ## What citizens can do
 
