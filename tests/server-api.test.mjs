@@ -8,11 +8,14 @@ import { createHmac, randomUUID } from 'node:crypto';
 import ts from 'typescript';
 import { NextRequest } from 'next/server.js';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { decodeFunctionData, encodeAbiParameters, encodeFunctionData } from 'viem';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, '..');
 const wallet = `0x${'a'.repeat(40)}`;
 const other = `0x${'b'.repeat(40)}`;
+const feeRouter = `0x${'d'.repeat(40)}`;
+const treasury = `0x${'e'.repeat(40)}`;
 const snapshot = { wallet, chainId: 4663, tokenAddress: `0x${'c'.repeat(40)}`, tokenDecimals: 18, tokenBalance: '250000000000000000000000', tokenBalanceFormatted: '250,000', weight: 2, blockNumber: '1234', capturedAt: new Date().toISOString(), source: 'chain' };
 const proposalRequestId = randomUUID();
 const proposalSourceCitizen = { id: `citizen-${proposalRequestId}`, body: 'Build a public radio for LANDVILLE.', request_id: proposalRequestId };
@@ -129,6 +132,7 @@ for (const [route, url, method] of [
   ['app/api/treasury/proposals/route.ts', '/api/treasury/proposals', 'POST'],
   ['app/api/treasury/proposals/[id]/vote/route.ts', '/api/treasury/proposals/TP-1/vote', 'POST'],
   ['app/api/modules/[id]/data/route.ts', '/api/modules/LV-1/data', 'POST'],
+  ['app/api/modules/[id]/transaction/route.ts', '/api/modules/LV-1/transaction', 'POST'],
   ['app/api/modules/[id]/like/route.ts', '/api/modules/LV-1/like', 'POST'],
   ['app/api/admin/builds/[id]/route.ts', '/api/admin/builds/LV-1', 'PATCH'],
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
@@ -585,6 +589,91 @@ void test('module chain bridge cannot sign, send transactions or choose an RPC',
     assert.equal(response.status, 400);
   }
   assert.ok(!f.calls.some((call) => call.url.includes('127.0.0.1') || call.url.includes('rpc.mainnet.chain.robinhood.com')));
+});
+
+void test('transaction route requires a reviewed action and the citizen linked wallet', async () => {
+  const hash = '7'.repeat(64);
+  let prepared;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.includes('landville_citizens?select=linked_wallet')) return json([{ linked_wallet: other }]);
+    return undefined;
+  }, { LANDVILLE_WALLET_TRANSACTIONS_ENABLED: 'true' }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], transactions: { purpose: 'Allow an exact reviewed token approval.', actions: ['uniswap.approveExact'] } } }, hash }) },
+    '@/lib/server/module-transaction': {
+      prepareModuleTransaction: async (input, from) => (prepared = { input, from, transaction: { from, to: input.token, data: '0x1234', value: '0x0' }, confirmation: 'Approve exact token amount?', action: input.operation }),
+      quoteExactInputSingle: async () => { throw new Error('not expected'); },
+    },
+  });
+  const route = f.load('app/api/modules/[id]/transaction/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/transaction', { input: { operation: 'uniswap.approveExact', token: `0x${'1'.repeat(40)}`, amount: '50' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200); assert.equal(prepared.from, other);
+  const blocked = await route.POST(f.request('/api/modules/LV-1/transaction', { input: { operation: 'uniswap.swapExactInputSingle', tokenIn: wallet, tokenOut: other, fee: 3000, amountIn: '1', slippageBps: 50 } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(blocked.status, 403);
+});
+
+void test('host builds fixed-recipient Uniswap transactions and derives minimum output from its own quote', async () => {
+  const amountOut = 10_000n;
+  const encodedQuote = encodeAbiParameters(
+    [{ type: 'uint256' }, { type: 'uint160' }, { type: 'uint32' }, { type: 'uint256' }],
+    [amountOut, 1n, 2, 90_000n],
+  );
+  const inspectionAbi = [
+    { type: 'function', name: 'feeBps', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint16' }] },
+    { type: 'function', name: 'treasury', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
+    { type: 'function', name: 'swapRouter', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
+  ];
+  const f = fixture((call) => {
+    if (call.url !== 'https://rpc.mainnet.chain.robinhood.com') return undefined;
+    if (call.body.method === 'eth_getCode') return json({ jsonrpc: '2.0', id: 1, result: '0x60006000' });
+    const target = call.body.params?.[0]?.to?.toLowerCase();
+    const data = call.body.params?.[0]?.data;
+    if (target === feeRouter) {
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'feeBps' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'uint16' }], [100]) });
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'treasury' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'address' }], [treasury]) });
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'swapRouter' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'address' }], ['0xcaf681a66d020601342297493863e78c959e5cb2']) });
+    }
+    return json({ jsonrpc: '2.0', id: 1, result: encodedQuote });
+  }, {
+    LANDVILLE_TRANSACTION_ROUTER_ADDRESS: feeRouter,
+    SCRAPY_TREASURY_ADDRESS: treasury,
+  });
+  const bridge = f.load('@/lib/server/module-transaction');
+  const tokenIn = `0x${'1'.repeat(40)}`;
+  const tokenOut = `0x${'2'.repeat(40)}`;
+  const plan = await bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1000', slippageBps: 100 }, wallet);
+  assert.equal(plan.transaction.to, feeRouter);
+  assert.equal(plan.transaction.value, '0x0'); assert.equal(plan.amountOutMinimum, '9900');
+  assert.equal(plan.platformFee.amount, '10'); assert.equal(plan.platformFee.treasury, treasury);
+  assert.equal(plan.quote.grossAmountIn, '1000'); assert.equal(plan.quote.swapAmountIn, '990');
+  const adapterAbi = [{ type: 'function', name: 'swapExactInputSingle', stateMutability: 'nonpayable', inputs: [
+    { name: 'tokenIn', type: 'address' }, { name: 'tokenOut', type: 'address' }, { name: 'poolFee', type: 'uint24' },
+    { name: 'grossAmountIn', type: 'uint256' }, { name: 'amountOutMinimum', type: 'uint256' },
+  ], outputs: [{ name: 'amountOut', type: 'uint256' }] }];
+  const decoded = decodeFunctionData({ abi: adapterAbi, data: plan.transaction.data });
+  assert.equal(decoded.args[0].toLowerCase(), tokenIn); assert.equal(decoded.args[1].toLowerCase(), tokenOut);
+  assert.equal(decoded.args[3], 1000n); assert.equal(decoded.args[4], 9900n);
+  assert.ok(f.calls.some((call) => call.body.method === 'eth_getCode'));
+  assert.ok(f.calls.some((call) => call.body.method === 'eth_call' && call.body.params[0].to.toLowerCase() === bridge.ROBINHOOD_UNISWAP.quoterV2));
+  const approval = await bridge.prepareModuleTransaction({ operation: 'uniswap.approveExact', token: tokenIn, amount: '1000' }, wallet);
+  assert.equal(approval.spender, feeRouter); assert.equal(approval.transaction.to, tokenIn);
+  await assert.rejects(() => bridge.prepareModuleTransaction({ operation: 'uniswap.approveExact', token: tokenIn, amount: '1', spender: other }, wallet), /Unsupported wallet transaction input/);
+  await assert.rejects(() => bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1', slippageBps: 50, recipient: other }, wallet), /Unsupported wallet transaction input/);
+});
+
+void test('transaction adapter fails closed without fixed router and treasury configuration', async () => {
+  const f = fixture(() => undefined);
+  const bridge = f.load('@/lib/server/module-transaction');
+  assert.throws(() => bridge.transactionAdapterConfiguration(), /not configured/);
+});
+
+void test('fee router has immutable policy and no owner or arbitrary-call surface', () => {
+  const source = fs.readFileSync(path.join(root, 'contracts/LandvilleTransactionRouter.sol'), 'utf8');
+  assert.match(source, /uint16 public constant feeBps = 100/);
+  assert.match(source, /address public immutable treasury/);
+  assert.match(source, /address public immutable swapRouter/);
+  assert.match(source, /recipient: msg\.sender/);
+  assert.doesNotMatch(source, /delegatecall|function\s+(?:owner|execute|upgrade|setTreasury|withdraw)\b/i);
 });
 
 void test('a published module can persist private state only in its declared collection', async () => {

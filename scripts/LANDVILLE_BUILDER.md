@@ -91,8 +91,21 @@ citizen, `shared` is a public authored record feed, and `counter` is a town-wide
 integer that can only increase one step at a time. Every bridge call needs honest
 loading, empty and error states. This supports real progress, notes, community
 boards, catalogs, scores and counters without exposing Supabase or citizen wallet
-addresses. The sandbox still cannot connect wallets, sign, send transactions,
-write contracts, use browser storage or cookies, inspect the parent DOM/opener,
-call arbitrary servers or open external links. Never invent live data. Refuse
-specifications that require capabilities absent from the supplied runtime guide;
-do not simulate them.
+addresses.
+
+For reviewed transaction modules, `wallet.robinhood` is a typed adapter boundary.
+The first installed adapter supports direct single-pool Uniswap V3 ERC-20 quotes,
+exact LANDVILLE-router approvals and exact-input swaps. Its immutable policy sends
+1% of the input token to LANDVILLE treasury and swaps the remaining 99%.
+LANDVILLE—not generated code—chooses the contracts, fixes the output recipient to
+the linked citizen wallet and derives the minimum output from a fresh quote and
+bounded slippage. The citizen then sees a LANDVILLE confirmation and signs in their
+wallet. Generated code never receives the provider, signature, key or arbitrary
+calldata. Other transaction categories need their own reviewed adapters first.
+
+The sandbox still cannot execute automatic trades, use native ETH or multi-hop
+routes, call arbitrary contracts, transfer funds to proposal-chosen recipients,
+invent a transaction adapter, write contracts, use browser storage or cookies, inspect
+the parent DOM/opener, call arbitrary servers or open external links. Never invent
+live data or asset availability. Refuse only the unsupported part and help the
+citizen narrow the proposal to reviewed capabilities; do not simulate it.

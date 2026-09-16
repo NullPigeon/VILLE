@@ -69,7 +69,7 @@ export default function AdminPage() {
     {!isAdmin ? <section className="lv-panel chat-sidebar-body"><h2>ADMIN ACCESS REQUIRED</h2><p>{status === 'loading' ? 'Checking access…' : 'Sign in with an authorized operator wallet.'}</p><Link className="lv-button" href="/citizens">MY PROFILE / SIGN IN</Link></section> : <>
       <ReadinessPanel />
       <p className="admin-warning">Votes close after 2 hours. YES must exceed NO. Review a sandbox-compatible specification, then the enabled worker builds one module at a time. Review its PR, wait for City checks, test the acceptance checklist and merge manually. Only a verified production release adds the object to the World.</p>
-      <p className="admin-warning">V1 modules can use only their reviewed LANDVILLE data and storage permissions. They cannot access wallets directly, sign transactions or run arbitrary network requests. Keep the approved goal unchanged.</p>
+      <p className="admin-warning">V1 modules can use only reviewed LANDVILLE permissions. Transaction modules may request fixed Uniswap actions, but cannot access a wallet directly, choose arbitrary calldata or sign for a citizen. Keep the approved goal unchanged.</p>
       {jobError && <p role="alert" className="admin-warning">{jobError} <button onClick={() => void loadJobs()}>RETRY LOAD</button></p>}
       <section className="lv-panel"><header className="lv-panel-head"><h2>BUILD QUEUE</h2><span>{queue.length} PROPOSALS</span></header><div style={{ overflowX: 'auto' }}><table className="build-table"><thead><tr><th>PROPOSAL</th><th>VOTES / DEADLINE</th><th>BUILDER</th><th>ACTION</th></tr></thead><tbody>{queue.map((proposal) => {
         const job = jobs.find((item) => item.proposal_id === proposal.id);

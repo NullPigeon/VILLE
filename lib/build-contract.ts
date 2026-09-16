@@ -10,9 +10,20 @@ export type ModuleStorageMode = 'private' | 'shared' | 'counter';
 export type ModuleStorageDeclaration = { name: string; mode: ModuleStorageMode; description: string };
 export type ModuleImageGenerationDeclaration = { purpose: string; visualDirection: string; maxImages: 1 | 3 };
 export type WorldCitizenDeclaration = { purpose: string };
+// Every write action maps to one reviewed host adapter. Adding an action requires
+// server-side calldata construction and tests; generated modules never get a
+// generic contract-call escape hatch.
+export const MODULE_TRANSACTION_ACTIONS = ['uniswap.quoteExactInputSingle', 'uniswap.approveExact', 'uniswap.swapExactInputSingle'] as const;
+export type ModuleTransactionAction = typeof MODULE_TRANSACTION_ACTIONS[number];
+export const MODULE_TRANSACTION_ACTION_CATALOG: Record<ModuleTransactionAction, { adapter: string; kind: 'read' | 'approval' | 'transaction'; description: string }> = {
+  'uniswap.quoteExactInputSingle': { adapter: 'landville-fee-swap-v1', kind: 'read', description: 'Quote a direct single-pool ERC-20 swap after the immutable 1% LANDVILLE treasury fee.' },
+  'uniswap.approveExact': { adapter: 'landville-fee-swap-v1', kind: 'approval', description: 'Approve only the exact gross input amount for the reviewed LANDVILLE fee router.' },
+  'uniswap.swapExactInputSingle': { adapter: 'landville-fee-swap-v1', kind: 'transaction', description: 'Swap 99% of the input through Uniswap V3 and send the 1% input-token fee to the immutable treasury.' },
+};
+export type ModuleTransactionDeclaration = { purpose: string; actions: ModuleTransactionAction[] };
 export type CityModule = {
   version: 1; proposalId: string; title: string; html: string; acceptance: string[];
-  capabilities?: { storage: ModuleStorageDeclaration[]; imageGeneration?: ModuleImageGenerationDeclaration; worldCitizen?: WorldCitizenDeclaration };
+  capabilities?: { storage: ModuleStorageDeclaration[]; imageGeneration?: ModuleImageGenerationDeclaration; worldCitizen?: WorldCitizenDeclaration; transactions?: ModuleTransactionDeclaration };
 };
 
 export const MAX_MODULE_HTML_LENGTH = 7_500_000;
@@ -63,6 +74,17 @@ export function validateWorldCitizenDeclaration(value: unknown): WorldCitizenDec
   }
   return { purpose: declaration.purpose.trim() };
 }
+export function validateTransactionDeclaration(value: unknown): ModuleTransactionDeclaration {
+  const declaration = value as ModuleTransactionDeclaration;
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration) ||
+    Object.keys(declaration).some((key) => !['purpose', 'actions'].includes(key)) ||
+    typeof declaration.purpose !== 'string' || declaration.purpose.trim().length < 10 || declaration.purpose.length > 300 ||
+    !Array.isArray(declaration.actions) || declaration.actions.length < 1 || declaration.actions.length > MODULE_TRANSACTION_ACTIONS.length ||
+    declaration.actions.some((action) => !MODULE_TRANSACTION_ACTIONS.includes(action)) || new Set(declaration.actions).size !== declaration.actions.length) {
+    throw new Error('Invalid city module transaction declaration.');
+  }
+  return { purpose: declaration.purpose.trim(), actions: declaration.actions };
+}
 function validateDeclaredStorageUsage(html: string, storage: ModuleStorageDeclaration[]) {
   if (!/capability\s*:\s*(['"])module\.storage\1/.test(html)) return;
   if (!storage.length) throw new Error('Module storage is used but not declared.');
@@ -89,6 +111,17 @@ function validateDeclaredWorldCitizenUsage(html: string, declaration?: WorldCiti
   if (declaration && !used) throw new Error('World citizen publishing is declared but not used.');
   if (declaration && !imageGeneration) throw new Error('World citizen publishing requires reviewed image generation.');
 }
+function validateDeclaredTransactionUsage(html: string, declaration?: ModuleTransactionDeclaration) {
+  const used = /(?:['"]?capability['"]?)\s*:\s*(['"])wallet\.robinhood\1/.test(html);
+  if (used && !declaration) throw new Error('Wallet transactions are used but not declared.');
+  if (declaration && !used) throw new Error('Wallet transactions are declared but not used.');
+  if (!declaration) return;
+  const actionPattern = /(?:['"]?operation['"]?)\s*:\s*(['"])(uniswap\.(?:quoteExactInputSingle|approveExact|swapExactInputSingle))\1/g;
+  const usedActions = new Set(Array.from(html.matchAll(actionPattern), (match) => match[2] as ModuleTransactionAction));
+  if (!usedActions.size) throw new Error('Wallet transaction calls must use literal operations.');
+  for (const action of usedActions) if (!declaration.actions.includes(action)) throw new Error(`Wallet transaction action ${action} is not declared.`);
+  for (const action of declaration.actions) if (!usedActions.has(action)) throw new Error(`Wallet transaction action ${action} is declared but not used.`);
+}
 export function validateModule(value: unknown, id: string): CityModule {
   const artifactModule = value as CityModule;
   if (!validProposalId(id) || !artifactModule || artifactModule.version !== 1 || artifactModule.proposalId !== id || typeof artifactModule.title !== 'string' || artifactModule.title.length < 4 || artifactModule.title.length > 80 ||
@@ -99,14 +132,16 @@ export function validateModule(value: unknown, id: string): CityModule {
   let capabilities: CityModule['capabilities'];
   if (artifactModule.capabilities !== undefined) {
     const storage = artifactModule.capabilities?.storage;
-    if (!artifactModule.capabilities || Object.keys(artifactModule.capabilities).some((key) => !['storage', 'imageGeneration', 'worldCitizen'].includes(key))) throw new Error('Invalid city module capabilities.');
+    if (!artifactModule.capabilities || Object.keys(artifactModule.capabilities).some((key) => !['storage', 'imageGeneration', 'worldCitizen', 'transactions'].includes(key))) throw new Error('Invalid city module capabilities.');
     capabilities = { storage: validateStorageDeclarations(storage),
       ...(artifactModule.capabilities.imageGeneration === undefined ? {} : { imageGeneration: validateImageGenerationDeclaration(artifactModule.capabilities.imageGeneration) }),
-      ...(artifactModule.capabilities.worldCitizen === undefined ? {} : { worldCitizen: validateWorldCitizenDeclaration(artifactModule.capabilities.worldCitizen) }) };
+      ...(artifactModule.capabilities.worldCitizen === undefined ? {} : { worldCitizen: validateWorldCitizenDeclaration(artifactModule.capabilities.worldCitizen) }),
+      ...(artifactModule.capabilities.transactions === undefined ? {} : { transactions: validateTransactionDeclaration(artifactModule.capabilities.transactions) }) };
   }
   validateDeclaredStorageUsage(artifactModule.html, capabilities?.storage || []);
   validateDeclaredImageGenerationUsage(artifactModule.html, capabilities?.imageGeneration);
   validateDeclaredWorldCitizenUsage(artifactModule.html, capabilities?.worldCitizen, capabilities?.imageGeneration);
+  validateDeclaredTransactionUsage(artifactModule.html, capabilities?.transactions);
   return { version: 1, proposalId: id, title: artifactModule.title, html: artifactModule.html, acceptance: artifactModule.acceptance, ...(capabilities ? { capabilities } : {}) };
 }
 export const MODULE_CSP = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";
