@@ -6,7 +6,7 @@ import { guideArticles, GUIDE_NAME, GUIDE_REVIEWED } from '@/lib/field-guide';
 export const metadata: Metadata = {
   title: `${GUIDE_NAME} — LANDVILLE documentation`,
   description:
-    'Learn every LANDVILLE page, SCRAPY token benefits, voting, weekly likes, creator rewards and how the AI builder works.',
+    'Learn every LANDVILLE page, SCRAPY token benefits, voting, weekly likes, the Treasury development status and how the AI builder works.',
   alternates: { canonical: '/docs' },
 };
 

@@ -1,0 +1,241 @@
+.treasury-reconstruction {
+  position: relative;
+  min-height: 570px;
+  border: 1px solid #697844;
+  background:
+    radial-gradient(
+      circle at 22% 40%,
+      rgba(208, 255, 0, 0.09),
+      transparent 28%
+    ),
+    #10140c;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(210px, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  padding: 58px clamp(25px, 6vw, 80px);
+  gap: clamp(35px, 6vw, 90px);
+}
+.treasury-reconstruction-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(143, 161, 82, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(143, 161, 82, 0.08) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(90deg, #000, transparent 75%);
+  pointer-events: none;
+}
+.treasury-reconstruction-mark {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid #637140;
+  background: repeating-linear-gradient(
+    135deg,
+    #1a2112 0 14px,
+    #11160d 14px 28px
+  );
+  transform: rotate(-2deg);
+  box-shadow: 12px 12px #080a06;
+}
+.treasury-reconstruction-mark:before,
+.treasury-reconstruction-mark:after {
+  content: '';
+  position: absolute;
+  width: 42%;
+  height: 8px;
+  background: #d0ff00;
+  transform: rotate(-35deg);
+}
+.treasury-reconstruction-mark:after {
+  transform: rotate(35deg);
+}
+.treasury-reconstruction-mark svg:first-child {
+  width: 45%;
+  height: 45%;
+  color: #ded7bd;
+  stroke-width: 1;
+  z-index: 1;
+}
+.treasury-reconstruction-mark svg:last-child {
+  position: absolute;
+  right: 12%;
+  bottom: 12%;
+  width: 30%;
+  height: 30%;
+  padding: 8px;
+  background: #161d0e;
+  border: 1px solid #d0ff00;
+  color: #d0ff00;
+  z-index: 2;
+}
+.treasury-reconstruction-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 740px;
+}
+.treasury-reconstruction-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #d0ff00;
+  font: 10px/1.4 monospace;
+  letter-spacing: 1.4px;
+  margin: 0 0 20px;
+}
+.treasury-reconstruction-status i {
+  width: 8px;
+  height: 8px;
+  background: #d0ff00;
+  box-shadow: 0 0 13px #d0ff00;
+  animation: treasury-pulse 1.8s steps(2, end) infinite;
+}
+.treasury-reconstruction h2 {
+  font-size: clamp(42px, 6vw, 78px);
+  line-height: 0.88;
+  letter-spacing: -4px;
+  max-width: 780px;
+  margin: 0 0 28px;
+  color: #eee8cd;
+}
+.treasury-reconstruction-copy > p:not(.treasury-reconstruction-status) {
+  max-width: 670px;
+  color: #c3c9ae;
+  font:
+    15px/1.8 Arial,
+    sans-serif;
+  margin: 0 0 13px;
+}
+.treasury-reconstruction-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 13px;
+  margin-top: 30px;
+}
+.treasury-reconstruction-actions .lv-button svg {
+  width: 17px;
+}
+.treasury-reconstruction > footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 13px 18px;
+  border-top: 1px solid #43502e;
+  background: #171d11;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #aeb993;
+  font: 9px/1.4 monospace;
+  letter-spacing: 1px;
+}
+.treasury-reconstruction > footer svg {
+  width: 15px;
+  color: #d0ff00;
+}
+.treasury-reconstruction-note {
+  margin: 18px 0 40px;
+  border: 1px solid #3e472d;
+  background: #11150d;
+  display: grid;
+  grid-template-columns: auto repeat(3, 1fr) auto;
+  align-items: stretch;
+}
+.treasury-reconstruction-note > span,
+.treasury-reconstruction-note > div,
+.treasury-reconstruction-note > a {
+  padding: 18px;
+  border-right: 1px solid #343d28;
+}
+.treasury-reconstruction-note > span {
+  display: flex;
+  align-items: center;
+  color: #d0ff00;
+  font: 9px/1.4 monospace;
+  letter-spacing: 1px;
+}
+.treasury-reconstruction-note > div {
+  display: grid;
+  gap: 5px;
+}
+.treasury-reconstruction-note b {
+  font: 10px monospace;
+  color: #ddd7bf;
+}
+.treasury-reconstruction-note small {
+  font:
+    11px/1.45 Arial,
+    sans-serif;
+  color: #9da789;
+}
+.treasury-reconstruction-note > a {
+  border-right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #d0ff00;
+  font: bold 9px monospace;
+}
+.treasury-reconstruction-note > a svg {
+  width: 15px;
+}
+@keyframes treasury-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (max-width: 950px) {
+  .treasury-reconstruction {
+    grid-template-columns: 160px 1fr;
+  }
+  .treasury-reconstruction-note {
+    grid-template-columns: 1fr 1fr;
+  }
+  .treasury-reconstruction-note > * {
+    border-bottom: 1px solid #343d28;
+  }
+  .treasury-reconstruction-note > a {
+    border-bottom: 0;
+  }
+}
+@media (max-width: 650px) {
+  .treasury-reconstruction {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 35px 20px 78px;
+  }
+  .treasury-reconstruction-mark {
+    width: 140px;
+  }
+  .treasury-reconstruction h2 {
+    font-size: 45px;
+    letter-spacing: -2.5px;
+  }
+  .treasury-reconstruction-copy > p:not(.treasury-reconstruction-status) {
+    font-size: 14px;
+  }
+  .treasury-reconstruction-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .treasury-reconstruction-actions .lv-button {
+    width: 100%;
+  }
+  .treasury-reconstruction-note {
+    grid-template-columns: 1fr;
+  }
+  .treasury-reconstruction-note > * {
+    border-right: 0;
+  }
+  .treasury-reconstruction-note > a {
+    justify-content: space-between;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .treasury-reconstruction-status i {
+    animation: none;
+  }
+}

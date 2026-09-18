@@ -52,11 +52,11 @@ export const townDestinations = [
   {
     id: 'treasury',
     number: '04',
-    title: 'Treasury',
+    title: 'Treasury — Reconstruction',
     href: '/treasury',
     description:
-      'Check the ETH pool, creator rewards and holder proposals for treasury funds.',
-    district: 'THE PUBLIC LEDGER',
+      'The Treasury interface is under reconstruction; governance and reward actions are unavailable during development.',
+    district: 'UNDER RECONSTRUCTION',
     guide: 'treasury',
   },
   {
@@ -141,7 +141,7 @@ export const guideArticles: GuideArticle[] = [
         title: 'What you can do here',
         paragraphs: [
           'World brings published modules together on a city map. Select a building to inspect its title, creator and available actions, then open the module. The map grows as new releases are verified. A successful build or merged pull request does not by itself place an object on this map.',
-          'Use the navigation menu to move to Town Chat, Proposals, Treasury, your profile or this guide. The home map is a directory of platform pages; World contains the experiences the community has built.',
+          'Use the navigation menu to move to Town Chat, Proposals, the Treasury reconstruction notice, your profile or this guide. The home map is a directory of platform pages; World contains the experiences the community has built.',
         ],
       },
       {
@@ -328,68 +328,41 @@ export const guideArticles: GuideArticle[] = [
   {
     slug: 'treasury',
     group: 'Explore the pages',
-    title: 'Treasury & creator rewards',
+    title: 'Treasury — under reconstruction',
     summary:
-      'Read the ETH balance, reward ledger and holder decisions without confusing a vote with a payment.',
+      'Development status for the public ledger, holder governance and creator-reward interface.',
     destination: '/treasury',
     sections: [
       {
-        id: 'pool',
-        title: 'The treasury page',
+        id: 'status',
+        title: 'Current status: in development',
         paragraphs: [
-          'Treasury shows the public treasury wallet, its ETH balance, creator-reward policy, reward ledger and treasury proposals. You can open the wallet or a paid reward in the chain explorer. The displayed pool is ETH; tokens received as fees are not automatically converted to ETH.',
-          'Treasury is a wallet with a server-side reward-payment system, not a fully autonomous DAO contract. Scrapy’s generated modules do not receive its private key. The operator controls the wallet and enables the separate reward-payment service.',
+          'The LANDVILLE Treasury page is under reconstruction. The public dashboard, holder proposals, Treasury voting and creator-reward controls are not available from the website during this development period.',
+          'Opening /treasury shows a reconstruction notice instead of balances or interactive controls. Do not treat mock-ups, earlier screenshots or documentation of the intended system as evidence that a Treasury action is currently live.',
         ],
       },
       {
-        id: 'rewards',
-        title: 'When a creator becomes eligible',
+        id: 'rebuild',
+        title: 'What is being rebuilt',
         paragraphs: [
-          'A reward record is created when a new module is first verified and published in World. The recipient is the wallet linked to the author of the idea. There is no separate reward vote.',
-          'The creator must hold the configured SCRAPY minimum when eligibility is checked. The initial threshold is 1,000,000 SCRAPY; check the live Treasury page because an approved policy proposal can change it. This is an eligibility snapshot, not a continuous-locking requirement.',
-          'The reward is the smaller of 0.005 ETH or 1% of available treasury ETH under the reward system. Rebuilds, bug fixes and later revisions do not earn another reward. Payouts also require funds, an enabled payment service and successful processing; an eligible record is not proof of payment.',
+          'The planned Treasury experience includes a transparent public ledger, clearly scoped holder governance and an auditable creator-reward status. These parts need to be presented with accurate chain data, explicit availability states and safe transaction boundaries.',
+          'The reconstruction does not give the AI agent control of funds. Generated modules never receive Treasury credentials, wallet private keys or unrestricted transaction access.',
         ],
       },
       {
-        id: 'ledger',
-        title: 'Read the reward ledger',
+        id: 'unavailable',
+        title: 'Unavailable during reconstruction',
         paragraphs: [
-          'The ledger records the held balance used for eligibility, the reward amount, current status and a transaction link when available.',
+          'Citizens cannot file Treasury proposals, cast Treasury votes or initiate creator-reward actions from the current interface. No release date is promised until the rebuilt flow has passed implementation, security and production verification.',
+          'Build voting, weekly module likes, Town Chat and the rest of the published LANDVILLE experience remain separate from the Treasury reconstruction.',
         ],
-        table: {
-          headings: ['Status', 'Meaning'],
-          rows: [
-            [
-              'CHECKING ELIGIBILITY',
-              'The service has not finished checking the creator’s linked wallet.',
-            ],
-            [
-              'INELIGIBLE',
-              'The recorded check did not satisfy the reward requirements.',
-            ],
-            [
-              'WAITING FUNDS / READY',
-              'Payment is waiting for funding or processing.',
-            ],
-            [
-              'PAYMENT PENDING',
-              'The payout has entered transaction processing.',
-            ],
-            ['PAID', 'The ledger records a completed reward payment.'],
-            [
-              'PAYMENT REVIEW',
-              'An uncertain or problematic payment needs operator review.',
-            ],
-          ],
-        },
       },
       {
-        id: 'decisions',
-        title: 'Holder proposals and 48-hour votes',
+        id: 'chain-records',
+        title: 'Public chain records remain independent',
         paragraphs: [
-          'SCRAPY holders can propose uses for treasury funds or a change to the creator-reward holding threshold. Treasury voting uses holdings at the proposal’s recorded snapshot block, rather than buying additional weight during the vote.',
-          'Only one treasury vote is live at a time. Others queue. Each lasts 48 hours, with no quorum: YES must exceed NO and there must be positive YES power. If an ETH amount is requested, it cannot exceed 10% of the balance observed when the proposal is filed. There is no additional 24-hour cooldown between proposals.',
-          'A passed REWARD_POLICY proposal changes the configured holding threshold. A passed purchase, staking, distribution or other free-form proposal records the community decision; it does not automatically execute an arbitrary transaction. Those actions require a separately supported execution path.',
+          'Robinhood Chain records remain publicly inspectable through a block explorer. The deployed transaction router’s fixed fee destination is a separate on-chain fact; it does not make the Treasury dashboard or governance interface available.',
+          'When the page returns, this chapter will be updated with the verified live rules. Until then, the reconstruction notice is the authoritative product status.',
         ],
       },
     ],
@@ -413,7 +386,7 @@ export const guideArticles: GuideArticle[] = [
         id: 'benefits',
         title: 'Current benefits',
         paragraphs: [
-          'Holding SCRAPY changes participation allowances and reward eligibility. It is not required to browse the town or submit a build idea.',
+          'Holding SCRAPY changes the participation allowances listed below. It is not required to browse the town or submit a build idea. Treasury participation and creator rewards are currently under reconstruction and are not active benefits.',
         ],
         table: {
           headings: ['Feature', 'Without SCRAPY', 'With SCRAPY'],
@@ -428,13 +401,13 @@ export const guideArticles: GuideArticle[] = [
             ['Daily chat messages', '10', '50 with any positive balance'],
             [
               'Treasury proposals and voting',
-              'Read-only participation',
-              'Holder access, with voting snapshot rules',
+              'Under reconstruction',
+              'Under reconstruction',
             ],
             [
               'Creator-reward eligibility',
-              'Not eligible under initial policy',
-              'Initially at least 1,000,000 SCRAPY; live policy applies',
+              'Under reconstruction',
+              'Under reconstruction',
             ],
           ],
         },
@@ -460,8 +433,8 @@ export const guideArticles: GuideArticle[] = [
         id: 'not-included',
         title: 'What holding does not currently provide',
         paragraphs: [
-          'Holding SCRAPY does not currently create automatic staking yield, a claim on treasury assets, automatic fee distributions, or a guaranteed creator payment. Treasury proposals about these ideas are not the same as implemented financial products.',
-          'A holder still needs a passing build vote and a verified first release for creator-reward consideration. Increasing your voting weight does not replace the requirement for five distinct participants in a build vote.',
+          'Holding SCRAPY does not currently create automatic staking yield, a claim on Treasury assets, automatic fee distributions or a guaranteed creator payment. The Treasury and creator-reward experience is under reconstruction.',
+          'Increasing your voting weight does not replace the requirement for five distinct participants in a build vote. Build governance remains separate from the unavailable Treasury interface.',
         ],
       },
     ],
@@ -698,8 +671,8 @@ export const guideArticles: GuideArticle[] = [
         id: 'fee',
         title: 'Where the 1% fee goes',
         paragraphs: [
-          'The router sends 1% of the input token to its fixed treasury address and swaps the remaining 99%. The purchased token goes to the caller’s wallet. Uniswap’s pool fee and network gas are separate costs.',
-          'For example, with 100 input tokens, the platform fee is 1 input token and 99 enter the swap. The output amount depends on the pool and slippage. The fee is not automatically converted to ETH, so receiving token fees does not directly increase the Treasury page’s ETH balance.',
+          'The router sends 1% of the input token to its fixed fee destination and swaps the remaining 99%. The purchased token goes to the caller’s wallet. Uniswap’s pool fee and network gas are separate costs. The destination address is not displayed in LANDVILLE while the Treasury interface is under reconstruction.',
+          'For example, with 100 input tokens, the platform fee is 1 input token and 99 enter the swap. The output amount depends on the pool and slippage. Fee routing is separate from the unavailable Treasury dashboard and does not make its governance or reward controls active.',
         ],
       },
       {
@@ -715,7 +688,7 @@ export const guideArticles: GuideArticle[] = [
         title: 'Deployment references',
         paragraphs: [
           'Network: Robinhood Mainnet, chain ID 4663. LANDVILLE fee router: 0x92a9a8308eD793D59c2653773F296F73BA9085B3.',
-          'Treasury: 0xfF088b1aD9f15cd464593d995b2b37E71F133918. Upstream Uniswap SwapRouter02: 0xCaf681a66D020601342297493863E78C959E5cb2. These are public contract/wallet references, never private keys.',
+          'Upstream Uniswap SwapRouter02: 0xCaf681a66D020601342297493863E78C959E5cb2. The Treasury destination is intentionally not displayed in the LANDVILLE interface while the Treasury is under reconstruction. On-chain contract data remains publicly inspectable.',
         ],
       },
     ],
