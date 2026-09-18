@@ -184,8 +184,8 @@ export default function HomePage() {
             <p>
               Every citizen starts with voting power and five weekly likes. Each
               full 250K SCRAPY adds one vote of power and one weekly like.
-              Holding also unlocks a higher chat allowance and treasury
-              participation.
+              Holding also unlocks a higher chat allowance. Treasury
+              participation is currently under reconstruction.
             </p>
             <Link className="lv-text-link" href="/docs/scrapy-token">
               UNDERSTAND THE TOKEN & RULES <ArrowUpRight size={16} />

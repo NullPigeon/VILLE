@@ -644,7 +644,7 @@ void test('host builds fixed-recipient Uniswap transactions and derives minimum 
   const plan = await bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1000', slippageBps: 100 }, wallet);
   assert.equal(plan.transaction.to, feeRouter);
   assert.equal(plan.transaction.value, '0x0'); assert.equal(plan.amountOutMinimum, '9900');
-  assert.equal(plan.platformFee.amount, '10'); assert.equal(plan.platformFee.treasury, treasury);
+  assert.equal(plan.platformFee.amount, '10'); assert.equal('treasury' in plan.platformFee, false);
   assert.equal(plan.quote.grossAmountIn, '1000'); assert.equal(plan.quote.swapAmountIn, '990');
   const adapterAbi = [{ type: 'function', name: 'swapExactInputSingle', stateMutability: 'nonpayable', inputs: [
     { name: 'tokenIn', type: 'address' }, { name: 'tokenOut', type: 'address' }, { name: 'poolFee', type: 'uint24' },

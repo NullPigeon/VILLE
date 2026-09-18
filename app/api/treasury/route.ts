@@ -1,11 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { apiFailure } from '@/lib/server/api';
-import { readWalletSession, SESSION_COOKIE } from '@/lib/wallet-session';
-import { readTreasuryBoard } from '@/lib/server/treasury';
+import { NextRequest } from 'next/server';
+import { ApiError, apiFailure } from '@/lib/server/api';
 
 export async function GET(request: NextRequest) {
   try {
-    const wallet = readWalletSession(request.cookies.get(SESSION_COOKIE)?.value)?.address || '';
-    return NextResponse.json(await readTreasuryBoard(wallet), { headers: { 'Cache-Control': 'no-store' } });
-  } catch (error) { return apiFailure(error); }
+    void request;
+    throw new ApiError(
+      503,
+      'Treasury is under reconstruction. Public data and actions are temporarily unavailable.',
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
 }

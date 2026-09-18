@@ -158,7 +158,7 @@ export async function quoteExactInputSingle(input: RobinhoodWalletInput, http: t
   return {
     source: 'LANDVILLE fee adapter + Uniswap V3 / Robinhood Mainnet', chainId: activeRobinhoodChain.id,
     adapter: adapter.adapter, tokenIn, tokenOut, fee, amountIn: grossAmountIn.toString(), grossAmountIn: grossAmountIn.toString(),
-    platformFee: { bps: adapter.feeBps, token: tokenIn, amount: platformFeeAmount.toString(), treasury: adapter.treasury },
+    platformFee: { bps: adapter.feeBps, token: tokenIn, amount: platformFeeAmount.toString() },
     swapAmountIn: swapAmountIn.toString(), amountOut: decoded[0].toString(), gasEstimate: decoded[3].toString(), quotedAt: new Date().toISOString(),
   };
 }
@@ -189,7 +189,7 @@ export async function prepareModuleTransaction(input: RobinhoodWalletInput, from
   return {
     action: input.operation, adapter: adapter.adapter,
     transaction: { from, to: adapter.router, data, value: '0x0' as const },
-    confirmation: `Spend exactly ${quote.grossAmountIn} base units of ${quote.tokenIn}: ${quote.platformFee.amount} (1%) goes to LANDVILLE treasury ${adapter.treasury}, and ${quote.swapAmountIn} is swapped for at least ${amountOutMinimum} base units of ${quote.tokenOut}. Uniswap pool fee: ${quote.fee / 10_000}%. Slippage: ${slippageBps / 100}%.`,
+    confirmation: `Spend exactly ${quote.grossAmountIn} base units of ${quote.tokenIn}: ${quote.platformFee.amount} (1%) is the LANDVILLE platform fee, and ${quote.swapAmountIn} is swapped for at least ${amountOutMinimum} base units of ${quote.tokenOut}. Uniswap pool fee: ${quote.fee / 10_000}%. Slippage: ${slippageBps / 100}%.`,
     quote, platformFee: quote.platformFee, amountOutMinimum: amountOutMinimum.toString(),
   };
 }
