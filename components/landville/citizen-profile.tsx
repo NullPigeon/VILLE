@@ -18,6 +18,7 @@ import type { CitizenRecord } from '@/lib/landville-data';
 import styles from './citizen-profile.module.css';
 import { SCRAPY_TOKEN, scrapyAccess, scrapyTokenExplorerUrl } from '@/lib/scrapy-token';
 import { EmailOtpForm } from '@/components/landville/email-otp-form';
+import { AgentConfigurator } from '@/components/landville/agent-configurator';
 
 export function CitizenProfile({ identity }: { identity?: string }) {
   const { voted } = useLandville();
@@ -106,6 +107,9 @@ export function CitizenProfile({ identity }: { identity?: string }) {
         <div className={styles.actions}>{wallet.linkedWallet ? <><Button className="lv-button" disabled={checking} onClick={checkHoldings}>{checking ? 'CHECKING…' : 'CHECK VOTING POWER'}</Button><Button className="lv-button" onClick={() => wallet.addScrapyToken().then(() => setNotice('$SCRAPY added to wallet.')).catch((error: Error) => setNotice(error.message))}><WalletCards /> ADD $SCRAPY TO WALLET</Button></> : <Button className="lv-button primary" onClick={() => wallet.connectWallet().catch(() => undefined)}><Wallet /> LINK WALLET</Button>}</div>
       </section>}
 
+      {isOwnWallet && citizen && <AgentConfigurator key={`agent-${requestedWallet}`} owner={requestedWallet} />}
+      {!isOwnWallet && citizen && <PublicYardLink owner={requestedWallet} />}
+
       {requestedWallet && <section className={styles.records}>
         <header><div><span className={styles.label}>CITIZEN ACTIVITY</span><h3>{isOwnWallet ? 'Your part of the town.' : 'Activity for this address.'}</h3></div><span className={styles.localTag}>SHARED CITIZEN REGISTRY</span></header>
         {recordError ? <p role="alert">{recordError}</p> : !citizen ? <p>Loading citizen record…</p> : authored.length || citizen.votesCast ? <>
@@ -118,4 +122,16 @@ export function CitizenProfile({ identity }: { identity?: string }) {
       </section>}
     </div>
   </ProductShell>;
+}
+
+function PublicYardLink({ owner }: { owner: string }) {
+  const [house, setHouse] = useState('');
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/yards/${encodeURIComponent(owner)}`).then((response) => response.ok ? response.json() : null)
+      .then((result: { yard?: { houseName: string } } | null) => { if (active && result?.yard) setHouse(result.yard.houseName); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [owner]);
+  return house ? <Link className="lv-button" href={`/yard/${owner}`}>VISIT {house.toUpperCase()} <ArrowUpRight /></Link> : null;
 }

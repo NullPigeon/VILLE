@@ -1,6 +1,7 @@
 'use client';
+import './yard-map.css';
 
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -15,6 +16,8 @@ import {
 import { ProductShell } from '@/components/landville/product-shell';
 import { useLandville } from '@/components/landville/provider';
 import { useWallet } from '@/components/landville/wallet-provider';
+import { AgentHouseArt } from '@/components/landville/agent-house-art';
+import type { PublicYard } from '@/lib/personal-agent';
 
 type WorldSlot = {
   x: number;
@@ -93,8 +96,19 @@ export default function WorldPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeError, setLikeError] = useState('');
+  const [yards, setYards] = useState<PublicYard[]>([]);
   const selected = objects.find((item) => item.id === selectedId);
   const selectedIsOwn = Boolean(selected?.creatorWallet && selected.creatorWallet.toLowerCase() === wallet.address.toLowerCase());
+  const ownYard = yards.find((yard) => yard.ownerWallet === wallet.address);
+  const featuredYards = ownYard ? [ownYard, ...yards.filter((yard) => yard.ownerWallet !== wallet.address).slice(0, 5)] : yards.slice(0, 6);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/yards', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null)
+      .then((result: { yards?: PublicYard[] } | null) => { if (active && result?.yards) setYards(result.yards); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   function inspectObject(id: string) {
     setSelectedId(id);
@@ -184,6 +198,12 @@ export default function WorldPage() {
           </Link>
         ))}
 
+        {featuredYards.map((yard, index) => <Link
+          key={yard.ownerWallet} className="world-yard-house"
+          style={{ '--yard-x': `${[14, 86, 18, 82, 37, 65][index]}%`, '--yard-y': `${[27, 29, 77, 81, 15, 86][index]}%` } as CSSProperties}
+          href={`/yard/${yard.ownerWallet}`} aria-label={`Visit ${yard.houseName}, ${yard.ownerLabel}'s yard`}
+        ><AgentHouseArt style={yard.houseStyle} /><span>{yard.houseName}</span></Link>)}
+
         {drawerOpen && <button className="world-drawer-scrim" onClick={() => setDrawerOpen(false)} aria-label="Close object menu" />}
         {selected && <aside id="world-object-drawer" className={drawerOpen ? 'world-drawer open' : 'world-drawer'} aria-hidden={!drawerOpen}>
           <header className="world-drawer-head">
@@ -217,6 +237,7 @@ export default function WorldPage() {
           </div>
         </aside>}
       </section>
+      <section className="world-yard-district" aria-label="Citizen yards"><div><small>EXPANDING DISTRICT / PERSONAL LOTS</small><h2>Citizen yards</h2><p>Every home on the map belongs to a citizen and their personal robot. Visit a lot, or build yours from your profile.</p><Link className="lv-button" href="/citizens">BUILD MY YARD</Link></div><div className="world-yard-list">{yards.length ? yards.map((yard) => <Link href={`/yard/${yard.ownerWallet}`} key={yard.ownerWallet}><AgentHouseArt style={yard.houseStyle} /><span><b>{yard.houseName}</b><small>{yard.ownerLabel} · {yard.name}</small></span></Link>) : <p>No citizen yards built yet. Be first on the map.</p>}</div></section>
     </ProductShell>
   );
 }

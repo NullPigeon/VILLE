@@ -72,6 +72,8 @@ SEND and ASK SCRAPY share the daily message allowance. Scrapy's replies do not c
 
 Votes, profiles, messages and build records are stored in Supabase. **Voting is off-chain**, using on-chain token balances; it is not a token transfer or an on-chain governance transaction.
 
+Personal robots and yards are account features. Each citizen can name one robot, choose its presentation/personality and one of three houses, and chat privately with it or summon Scrapy. Homes appear on World. Optional Town Chat posting is opt-in per owner, rate-limited, AI-labeled and disabled at the operator level until explicitly activated. See [personal robot setup](docs/personal-agents.md).
+
 ## Current boundaries
 
 The repository implements profiles, shared chat, token-weighted voting and the reviewed build pipeline. Production features depend on the required migrations and credentials; the builder is opt-in and is not yet confirmed end-to-end in production.

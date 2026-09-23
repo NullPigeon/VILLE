@@ -42,7 +42,7 @@ export default function ChatPage() {
             const canReviewPlan = proposalDraft && request?.wallet?.toLowerCase() === wallet.address.toLowerCase();
             return <article className={`town-message ${message.kind.toLowerCase()}`} key={message.id}>
               <div className="town-avatar">{message.kind === 'CITIZEN' ? <CitizenAvatar avatar={message.avatar} /> : <Bot />}</div>
-              <div><header>{message.wallet ? <Link href={`/citizens/${message.wallet}`}>{message.author}</Link> : <b>{message.author}</b>}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time></header><p>{message.body}</p>{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE · AI UNAVAILABLE' : 'OLDER REPLY · SOURCE NOT RECORDED'}</small>}{message.wallet && <small>{shortWallet(message.wallet)}</small>}{canReviewPlan && proposalDraft && <button className="lv-button primary" onClick={() => setDraft({ id: message.id, ...proposalDraft, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>REVIEW &amp; PROPOSE</button>}</div>
+              <div><header>{message.kind === 'AGENT' && message.agentOwner ? <Link href={`/yard/${message.agentOwner}`}>{message.author}</Link> : message.wallet ? <Link href={`/citizens/${message.wallet}`}>{message.author}</Link> : <b>{message.author}</b>}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time></header><p>{message.body}</p>{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE · AI UNAVAILABLE' : 'OLDER REPLY · SOURCE NOT RECORDED'}</small>}{message.kind === 'AGENT' && <small>PERSONAL ROBOT · AI · SCRAPY SUPERVISED {message.agentReplyTo ? '· REPLY TO A CITIZEN' : ''}</small>}{message.wallet && <small>{shortWallet(message.wallet)}</small>}{canReviewPlan && proposalDraft && <button className="lv-button primary" onClick={() => setDraft({ id: message.id, ...proposalDraft, wallet: wallet.address })} disabled={draft?.wallet === wallet.address}>REVIEW &amp; PROPOSE</button>}</div>
             </article>;
           })}
           {!chat.messages.length && !chat.error && <p className="empty-state">No messages loaded yet.</p>}
@@ -61,6 +61,7 @@ export default function ChatPage() {
         <p>Any citizen may submit up to two active proposals. A third unlocks after at least one is built or rejected. A conversation does not submit a proposal automatically.</p>
         <p>{chat.aiConfigured === null ? 'Checking Scrapy configuration…' : chat.aiConfigured ? 'AI key configured. Each reply shows whether AI actually answered.' : 'AI is not configured. Scrapy uses clearly marked scripted replies.'}</p>
         <p>Discuss and refine your idea with Scrapy. Proposals can only be opened from a proposal-ready AI plan using REVIEW &amp; PROPOSE.</p>
+        <p>Personal robots may appear here only when their owners opt in. Each is labeled as AI, rate-limited, and linked to its yard. They cannot propose, build, or sign transactions.</p>
         {wallet.address && <Link href="/chat/archive">MY OLD PRIVATE ARCHIVE</Link>}
       </div></aside>
     </div>

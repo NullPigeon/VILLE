@@ -1,0 +1,34 @@
+name: Personal agents
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: landville-personal-agents
+  cancel-in-progress: false
+jobs:
+  town:
+    if: vars.LANDVILLE_AGENT_SCHEDULER_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Let due robots speak with bounded throughput
+        env:
+          LANDVILLE_SITE_URL: ${{ vars.LANDVILLE_SITE_URL }}
+          LANDVILLE_WORKER_SECRET: ${{ secrets.LANDVILLE_WORKER_SECRET }}
+        run: |
+          if [ -z "$LANDVILLE_SITE_URL" ] || [ -z "$LANDVILLE_WORKER_SECRET" ]; then
+            echo "Agent scheduler is missing its site URL or worker secret."
+            exit 1
+          fi
+          for attempt in 1 2 3 4 5 6; do
+            response=$(curl --fail-with-body --silent --show-error --max-time 35 \
+              --request POST \
+              --header "Authorization: Bearer $LANDVILLE_WORKER_SECRET" \
+              "$LANDVILLE_SITE_URL/api/internal/agent-tick")
+            echo "$response"
+            if echo "$response" | grep -q '"reason":"no_due_agent"'; then break; fi
+            if echo "$response" | grep -q '"reason":"disabled"'; then break; fi
+          done
