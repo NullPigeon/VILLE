@@ -1304,3 +1304,90 @@ for (const [code, status] of [['OWN_MODULE_LIKE', 403], ['WEEKLY_MODULE_LIKE_LIM
     assert.equal(response.status, status);
   });
 }
+
+const robotRow = {
+  owner_wallet: wallet, name: 'Bolt', presentation: 'MASCULINE', personality: 'CHEEKY',
+  house_style: 'SCRAP_SHACK', house_name: 'Rust Nest', town_mode: 'OFF',
+  interval_minutes: 120, next_town_at: new Date().toISOString(), created_at: new Date().toISOString(),
+};
+
+void test('personal robot settings use the signed citizen and reject impersonation or owner overrides', async () => {
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_upsert_personal_agent') ? json(robotRow) : undefined);
+  const route = f.load('app/api/agents/me/route.ts');
+  const payload = { name: 'Bolt', presentation: 'MASCULINE', personality: 'CHEEKY', houseStyle: 'SCRAP_SHACK', houseName: 'Rust Nest', townMode: 'OFF', intervalMinutes: 120 };
+  assert.equal((await route.PUT(f.request('/api/agents/me', payload))).status, 401);
+  assert.equal((await route.PUT(f.request('/api/agents/me', { ...payload, ownerWallet: other }, { signed: true, method: 'PUT' }))).status, 400);
+  assert.equal((await route.PUT(f.request('/api/agents/me', { ...payload, name: 'Scrapy Mayor' }, { signed: true, method: 'PUT' }))).status, 400);
+  const response = await route.PUT(f.request('/api/agents/me', payload, { signed: true, method: 'PUT' }));
+  assert.equal(response.status, 200);
+  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_upsert_personal_agent'));
+  assert.equal(call.body.p_owner, wallet);
+  assert.equal(call.body.p_town_mode, 'OFF');
+});
+
+void test('yard chat is owner-only, and unavailable AI never fabricates or saves a reply', async () => {
+  const f = fixture((call) => call.url.includes('landville_personal_agents?') ? json([robotRow]) : undefined);
+  const route = f.load('app/api/agents/chat/route.ts');
+  assert.equal((await route.GET(f.request('/api/agents/chat', {}, { method: 'GET' }))).status, 401);
+  const response = await route.POST(f.request('/api/agents/chat', {
+    body: 'Hello Bolt', requestId: randomUUID(), summonMayor: false,
+  }, { signed: true }));
+  assert.equal(response.status, 503);
+  assert.ok(!f.calls.some((entry) => entry.url.endsWith('/rpc/landville_save_yard_exchange')));
+  assert.ok(!f.calls.some((entry) => entry.url.includes('landville_messages?') && entry.method === 'POST'));
+});
+
+void test('yard chat stores the signed owner and labels a generated robot reply', async () => {
+  const exchange = randomUUID();
+  const now = new Date().toISOString();
+  const rows = [
+    { id: randomUUID(), owner_wallet: wallet, request_id: exchange, role: 'CITIZEN', body: 'Any bolts?', created_at: now },
+    { id: randomUUID(), owner_wallet: wallet, request_id: exchange, role: 'AGENT', body: 'A whole garage of them.', created_at: now },
+  ];
+  const f = fixture((call) => {
+    if (call.url.includes('landville_personal_agents?')) return json([robotRow]);
+    if (call.url.includes('api.openai.com/v1/responses')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'A whole garage of them.' }] }] });
+    if (call.url.endsWith('/rpc/landville_save_yard_exchange')) return json(rows);
+    return undefined;
+  }, { OPENAI_API_KEY: 'unit-test-key' });
+  const response = await f.load('app/api/agents/chat/route.ts').POST(f.request('/api/agents/chat', {
+    body: 'Any bolts?', requestId: exchange, summonMayor: false,
+  }, { signed: true }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).messages[1].role, 'AGENT');
+  const save = f.calls.find((call) => call.url.endsWith('/rpc/landville_save_yard_exchange'));
+  assert.equal(save.body.p_owner, wallet);
+  assert.equal(save.body.p_role, 'AGENT');
+  assert.ok(!f.calls.some((call) => call.url.includes('landville_messages?') && call.method === 'POST'));
+});
+
+void test('robot Town posting requires the worker secret and an explicit operator switch', async () => {
+  const secret = 'unit-test-personal-agent-worker-secret-12345';
+  const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret });
+  const route = f.load('app/api/internal/agent-tick/route.ts');
+  assert.equal((await route.POST(f.request('/api/internal/agent-tick'))).status, 401);
+  const response = await route.POST(f.request('/api/internal/agent-tick', {}, { headers: { Authorization: `Bearer ${secret}` } }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).reason, 'disabled');
+  assert.equal(f.calls.length, 0);
+});
+
+void test('enabled robot Town posting is AI-labeled, attributed and replies only to another citizen', async () => {
+  const secret = 'unit-test-personal-agent-worker-secret-12345';
+  const lease = randomUUID();
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_claim_agent_post')) return json({ ...robotRow, town_mode: 'REPLY', next_town_at: new Date(0).toISOString(), lease_id: lease });
+    if (call.url.includes('landville_messages?') && call.url.includes('kind=eq.AGENT')) return json([]);
+    if (call.url.includes('landville_messages?')) return json([{ id: 'citizen-request', author: 'Another citizen', wallet: other, body: 'Is the yard open?', kind: 'CITIZEN', channel: 'TOWN', owner_wallet: null, created_at: new Date().toISOString() }]);
+    if (call.url.includes('api.openai.com/v1/responses')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'Open for bolts and bad jokes.' }] }] });
+    if (call.url.endsWith('/rpc/landville_finish_agent_post')) return json({ id: `agent-${lease}` });
+    return undefined;
+  }, { LANDVILLE_WORKER_SECRET: secret, LANDVILLE_AGENT_AUTONOMY_ENABLED: 'true', OPENAI_API_KEY: 'unit-test-key' });
+  const response = await f.load('app/api/internal/agent-tick/route.ts').POST(f.request('/api/internal/agent-tick', {}, { headers: { Authorization: `Bearer ${secret}` } }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).posted, true);
+  const finish = f.calls.find((call) => call.url.endsWith('/rpc/landville_finish_agent_post'));
+  assert.equal(finish.body.p_owner, wallet);
+  assert.equal(finish.body.p_reply_to, 'citizen-request');
+  assert.equal(finish.body.p_body, 'Open for bolts and bad jokes.');
+});

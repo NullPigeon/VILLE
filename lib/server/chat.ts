@@ -15,9 +15,11 @@ type MessageRow = {
   channel: ChatChannel; owner_wallet: string | null; request_id: string | null; hold_snapshot: VotingPowerSnapshot | null;
   ai_source?: 'openai' | 'scripted' | null;
   ask_scrapy?: boolean;
+  agent_owner_wallet?: string | null;
+  agent_reply_to?: string | null;
 };
 const channelFilter = (channel: ChatChannel, wallet: string) => `channel=eq.${channel}&${channel === 'WORKSHOP' ? `owner_wallet=eq.${wallet}` : 'owner_wallet=is.null'}`;
-const messageRecord = (row: MessageRow): TownMessage => ({ id: row.id, author: row.author, wallet: row.wallet, body: row.body, kind: row.kind, createdAt: row.created_at, aiSource: row.ai_source || null, askScrapy: row.kind === 'CITIZEN' && row.ask_scrapy === true });
+const messageRecord = (row: MessageRow): TownMessage => ({ id: row.id, author: row.author, wallet: row.wallet, body: row.body, kind: row.kind, createdAt: row.created_at, aiSource: row.ai_source || null, askScrapy: row.kind === 'CITIZEN' && row.ask_scrapy === true, agentOwner: row.agent_owner_wallet || null, agentReplyTo: row.agent_reply_to || null });
 async function messageRecords(rows: MessageRow[]) {
   const identities = await citizenIdentities(rows.filter((row) => row.kind === 'CITIZEN' && row.wallet).map((row) => row.wallet!));
   return rows.map((row): TownMessage => {

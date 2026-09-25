@@ -29,6 +29,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260913090000_module_image_generation.sql
 \ir ../supabase/migrations/20260914150000_module_image_choices.sql
 \ir ../supabase/migrations/20260915113000_weekly_module_likes.sql
+\ir ../supabase/migrations/20260923120000_personal_agents_and_yards.sql
 
 do $$
 declare
@@ -425,6 +426,55 @@ begin
     or has_function_privilege('authenticated','public.landville_like_module(text,text,jsonb)','EXECUTE') then
     raise exception 'Module like records or RPC are exposed to browser roles';
   end if;
+end $$;
+
+-- Leave one eligible job for concurrent-claim checks in the Node runner.
+do $$
+declare
+  owner text := '0x' || repeat('b',40);
+  source_wallet text := '0x' || repeat('ab',20);
+  target_wallet text := '0x' || repeat('cd',20);
+  exchange uuid := gen_random_uuid();
+  agent public.landville_personal_agents;
+  saved public.landville_messages;
+begin
+  agent := public.landville_upsert_personal_agent(owner,'Bolt','MASCULINE','CHEEKY',
+    'SCRAP_SHACK','Rust Nest','REPLY',60);
+  if agent.owner_wallet <> owner or agent.house_name <> 'Rust Nest' then
+    raise exception 'Personal robot was not saved';
+  end if;
+  perform public.landville_save_yard_exchange(owner,exchange,'Hello Bolt','Greetings, citizen.','AGENT');
+  if (select count(*) from public.landville_yard_messages where owner_wallet=owner and request_id=exchange) <> 2 then
+    raise exception 'Private yard exchange did not save atomically';
+  end if;
+  perform public.landville_save_yard_exchange(owner,exchange,'Hello Bolt','Greetings, citizen.','AGENT');
+  if (select count(*) from public.landville_yard_messages where owner_wallet=owner and request_id=exchange) <> 2 then
+    raise exception 'Yard idempotency created a duplicate';
+  end if;
+  insert into public.landville_messages(id,author,wallet,body,kind,channel,owner_wallet)
+    values ('agent-target-test','Citizen','0x' || repeat('c',40),'Any scrap left?','CITIZEN','TOWN',null);
+  update public.landville_personal_agents set next_town_at=now()-interval '1 minute' where owner_wallet=owner;
+  agent := public.landville_claim_agent_post();
+  if agent.owner_wallet <> owner or agent.lease_id is null then raise exception 'Due robot was not claimed'; end if;
+  saved := public.landville_finish_agent_post(owner,agent.lease_id,'Plenty of bolts, limited patience.','agent-target-test');
+  if saved.kind <> 'AGENT' or saved.agent_owner_wallet <> owner or saved.agent_reply_to <> 'agent-target-test'
+    or saved.wallet is not null then raise exception 'Public robot post lost attribution'; end if;
+  if has_table_privilege('anon','public.landville_yard_messages','SELECT')
+    or has_table_privilege('authenticated','public.landville_personal_agents','SELECT')
+    or has_function_privilege('authenticated','public.landville_finish_agent_post(text,uuid,text,text)','EXECUTE')
+  then raise exception 'Robot storage or RPC exposed to browser roles'; end if;
+
+  insert into public.landville_citizens(wallet,privy_user_id,email)
+    values(source_wallet,'did:privy:yardmerge','yardmerge@example.com');
+  insert into public.landville_citizens(wallet,linked_wallet) values(target_wallet,target_wallet);
+  perform public.landville_upsert_personal_agent(source_wallet,'Mox','FEMININE','CHAOTIC',
+    'RELAY_GARAGE','The Relay','OFF',120);
+  perform public.landville_save_yard_exchange(source_wallet,gen_random_uuid(),'Hi','Hello','AGENT');
+  perform public.landville_merge_privy_wallet_citizens('did:privy:yardmerge',target_wallet);
+  if not exists (select 1 from public.landville_personal_agents where owner_wallet=target_wallet)
+    or not exists (select 1 from public.landville_yard_messages where owner_wallet=target_wallet)
+    or exists (select 1 from public.landville_citizens where wallet=source_wallet)
+  then raise exception 'Account merge lost its robot or yard history'; end if;
 end $$;
 
 -- Leave one eligible job for concurrent-claim checks in the Node runner.
