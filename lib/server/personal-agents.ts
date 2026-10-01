@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { PersonalAgent, PublicYard, YardMessage } from '@/lib/personal-agent';
 import { citizenLabel } from '@/lib/citizen-identity';
 import { citizenIdentities } from '@/lib/server/citizens';
+import { ApiError } from '@/lib/server/api';
 import { database } from '@/lib/server/database';
 
 export type AgentRow = {
@@ -47,13 +48,28 @@ export async function readPublicYards(): Promise<PublicYard[]> {
 }
 
 export async function readPublicYard(owner: string): Promise<PublicYard | null> {
-  const agent = await readPersonalAgent(owner);
+  let agent: PersonalAgent | null;
+  try {
+    agent = await readPersonalAgent(owner);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 503) throw error;
+    // A transient storage connection must not turn an existing World house into a missing yard.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    agent = await readPersonalAgent(owner);
+  }
   if (!agent) return null;
-  const identities = await citizenIdentities([owner]);
+  let ownerLabel = 'Citizen';
+  try {
+    const identities = await citizenIdentities([owner]);
+    ownerLabel = citizenLabel(identities.get(owner));
+  } catch (error) {
+    // The public owner label is optional; the existing yard is not.
+    if (!(error instanceof ApiError) || error.status !== 503) throw error;
+  }
   return {
     ownerWallet: agent.ownerWallet, name: agent.name, presentation: agent.presentation,
     houseStyle: agent.houseStyle, houseName: agent.houseName,
-    ownerLabel: citizenLabel(identities.get(owner)),
+    ownerLabel,
   };
 }
 

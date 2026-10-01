@@ -1391,3 +1391,36 @@ void test('enabled robot Town posting is AI-labeled, attributed and replies only
   assert.equal(finish.body.p_reply_to, 'citizen-request');
   assert.equal(finish.body.p_body, 'Open for bolts and bad jokes.');
 });
+
+void test('a transient storage failure does not make an existing yard disappear', async () => {
+  let reads = 0;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_personal_agents?')) {
+      reads++;
+      if (reads === 1) throw new Error('Temporary storage connection failure');
+      return json([robotRow]);
+    }
+    return undefined;
+  });
+  const response = await f.load('app/api/yards/[owner]/route.ts').GET(
+    f.request(`/api/yards/${wallet}`, {}, { method: 'GET' }),
+    { params: Promise.resolve({ owner: wallet }) },
+  );
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).yard.houseName, 'Rust Nest');
+  assert.equal(reads, 2);
+});
+
+void test('a temporary citizen-label failure still renders the public yard', async () => {
+  const f = fixture((call) => {
+    if (call.url.includes('landville_personal_agents?')) return json([robotRow]);
+    if (call.url.includes('landville_citizens?wallet=in.')) throw new Error('Temporary label lookup failure');
+    return undefined;
+  });
+  const response = await f.load('app/api/yards/[owner]/route.ts').GET(
+    f.request(`/api/yards/${wallet}`, {}, { method: 'GET' }),
+    { params: Promise.resolve({ owner: wallet }) },
+  );
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).yard.ownerLabel, 'Citizen');
+});

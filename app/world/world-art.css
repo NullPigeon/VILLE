@@ -1,0 +1,267 @@
+.world-explorer {
+  background: #80613e;
+}
+.world-explorer:before {
+  opacity: 0.15;
+}
+.world-explorer:after {
+  opacity: 0.16;
+}
+.world-map-scene {
+  background:
+    radial-gradient(ellipse at 48% 47%, #c5ac7525, transparent 33%),
+    radial-gradient(ellipse at 20% 22%, #a0723e33, transparent 29%),
+    radial-gradient(ellipse at 78% 24%, #91835825, transparent 28%),
+    radial-gradient(ellipse at 23% 76%, #b1915433, transparent 32%),
+    radial-gradient(ellipse at 78% 77%, #c8a56333, transparent 28%),
+    repeating-linear-gradient(
+      113deg,
+      transparent 0 37px,
+      #ead0a00a 38px 39px,
+      transparent 40px 87px
+    ),
+    #80613e;
+  border-color: transparent;
+  box-shadow: none;
+}
+.world-city-scenery {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  pointer-events: none;
+}
+.world-square-ground {
+  position: absolute;
+  z-index: 3;
+  left: calc(50% - 200px);
+  width: 400px;
+  height: 400px;
+  pointer-events: none;
+}
+.world-district-land {
+  z-index: 0;
+}
+.world-district-land path {
+  fill: #40332130;
+  stroke: #e5bd8159;
+  stroke-dasharray: 1 7;
+}
+.world-district-land .dump {
+  fill: #533a222f;
+  stroke: #dbb38270;
+}
+.world-district-land .token {
+  fill: #33433b25;
+  stroke: #b1bf9a70;
+}
+.world-district-land .meme {
+  fill: #71484418;
+  stroke: #cead9270;
+}
+.world-map-scene .world-road-curbs path {
+  fill: none;
+  stroke: #af9a70;
+  stroke-width: 61;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.world-map-scene .world-road-curbs path:nth-child(n + 3) {
+  stroke-width: 38;
+  stroke: #a38f67;
+}
+.world-map-scene .world-road-beds path {
+  stroke: #444333;
+  stroke-width: 44;
+}
+.world-map-scene .world-road-beds path:nth-child(n + 3) {
+  stroke: #514b36;
+  stroke-width: 24;
+}
+.world-map-scene .world-road-marks path {
+  stroke: #d1bf7e;
+  opacity: 0.55;
+  stroke-dasharray: 7 11;
+}
+.world-map-scene .world-road-marks path:nth-child(n + 3) {
+  stroke: #b9b278;
+  opacity: 0.4;
+}
+.world-map-scene .world-road-map {
+  filter: drop-shadow(2px 6px 3px #060b0866);
+}
+.world-map-scene .world-road-signals path {
+  stroke: var(--city-signal);
+  opacity: 0.75;
+}
+.city-desert-terrain > path:not([fill]) {
+  stroke: #d1ad73;
+  stroke-width: 1.5;
+  fill: none;
+}
+.city-desert-terrain > path[fill] {
+  stroke: none;
+}
+.city-perimeter-shadow {
+  fill: none;
+  stroke: #35271855;
+  stroke-width: 37;
+}
+.city-perimeter-road {
+  fill: none;
+  stroke: #b7a077;
+  stroke-width: 20;
+  opacity: 0.6;
+}
+.city-canal-bank {
+  fill: none;
+  stroke: #b39664;
+  stroke-width: 30;
+}
+.city-canal-water {
+  fill: none;
+  stroke: url(#city-canal);
+  stroke-width: 21;
+}
+.city-water-ripple {
+  fill: none;
+  stroke: #c4a07199;
+  stroke-width: 1.5;
+}
+.city-local-curb {
+  fill: none;
+  stroke: #c0a579;
+  stroke-width: 22;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.7;
+}
+.city-local-road {
+  fill: none;
+  stroke: #675d43;
+  stroke-width: 15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.city-railway > path {
+  fill: none;
+  stroke: #969570;
+  stroke-width: 2;
+}
+.city-railway .city-rail-sleeper {
+  stroke: #796843;
+  stroke-width: 4;
+}
+.city-ground-label {
+  fill: #ebd3a3;
+  font: 9px monospace;
+  letter-spacing: 1.4px;
+  opacity: 0.85;
+}
+.city-factory-steam {
+  fill: none;
+  stroke: #a2ac8166;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.city-power-cable {
+  fill: none;
+  stroke: #689c7880;
+  stroke-width: 3;
+  stroke-dasharray: 3 4;
+}
+.city-street-lettering text {
+  fill: #ead7ad;
+  font: 8px monospace;
+  letter-spacing: 3px;
+  opacity: 0.65;
+}
+.city-compass text {
+  fill: #a3ae79;
+  font: 9px monospace;
+  letter-spacing: 1px;
+}
+.world-map-scene .world-plaza {
+  width: 166px;
+  height: 139px;
+  border-radius: 7px;
+  border: 2px solid #b2ba6c;
+  border-bottom: 8px solid #656f3d;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 50% 36%, #62754499, #283a26 68%);
+  box-shadow:
+    6px 9px #10200e,
+    0 0 30px color-mix(in srgb, var(--city-signal) 13%, transparent);
+}
+.world-map-scene .world-plaza > svg {
+  width: 48px;
+  height: 48px;
+  stroke-width: 1.6;
+  filter: drop-shadow(0 3px 0 #182410) drop-shadow(0 0 12px #c7ff0033);
+}
+.world-map-scene .world-plaza span {
+  color: #e6e4ac;
+  font-size: 11px;
+}
+.world-map-scene .world-plaza small {
+  color: #b5c797;
+  font-size: 5px;
+}
+.world-map-scene .world-object-card {
+  border: 1px solid #9a9062;
+  border-bottom: 5px solid #6f7046;
+  background: #283421;
+  box-shadow:
+    6px 4px #4b5335,
+    11px 13px 2px #08100899;
+}
+.world-map-scene .world-object-card:before {
+  top: -17px;
+  left: -1px;
+  width: calc(100% + 7px);
+  height: 16px;
+  border: 1px solid #989164;
+  background: repeating-linear-gradient(
+    90deg,
+    #69734c 0 24px,
+    #929064 25px,
+    #69734c 26px
+  );
+  clip-path: polygon(5% 0, 100% 0, 96% 100%, 0 100%);
+}
+.world-map-scene .world-object-preview > iframe {
+  filter: brightness(0.93) contrast(1.02) saturate(0.9);
+}
+.world-map-scene .world-object-preview:after {
+  box-shadow: inset 0 0 12px #050b0666;
+  background: linear-gradient(0deg, #0a180c20, transparent 55%);
+  border-color: #707951;
+}
+.world-map-scene .world-object-label {
+  background: #172615;
+}
+.world-map-scene .world-object-label strong {
+  color: #e4ddb3;
+}
+.world-map-scene .world-district-tag {
+  background: #172118ed;
+  border-color: #81946988;
+  box-shadow: 3px 4px #0c140be0;
+}
+.world-map-scene .world-yard-house {
+  filter: drop-shadow(4px 8px 3px #081008aa);
+}
+.world-map-scene .world-citizen-card img {
+  filter: drop-shadow(2px 5px 3px #081008bb);
+}
+.world-map-scene .world-vacant-lot {
+  border-color: #8d986166;
+  background: repeating-linear-gradient(
+    135deg,
+    #b1b86c14 0 7px,
+    transparent 7px 14px
+  );
+}
+.world-map-scene .world-street-lamp {
+  filter: drop-shadow(4px 5px 2px #08100899);
+}

@@ -11,6 +11,32 @@ import { readJsonResponse } from '@/lib/http-response';
 import type { PublicYard, YardMessage } from '@/lib/personal-agent';
 import './yard-scene.css';
 
+class YardNotFoundError extends Error {}
+
+async function loadPublicYard(owner: string): Promise<PublicYard> {
+  let firstError: unknown;
+  try {
+    const response = await fetch(`/api/yards/${encodeURIComponent(owner)}`, { cache: 'no-store' });
+    if (response.status === 404) throw new YardNotFoundError('This citizen has not built a yard yet.');
+    if (response.ok || response.status < 500) {
+      const result = await readJsonResponse<{ yard: PublicYard }>(response, 'Load yard');
+      return result.yard;
+    }
+    firstError = await readJsonResponse(response, 'Load yard').catch((error: unknown) => error);
+  } catch (error) {
+    if (error instanceof YardNotFoundError) throw error;
+    firstError = error;
+  }
+  // World just loaded this public record. Recheck its list if the single-yard read briefly failed.
+  try {
+    const response = await fetch('/api/yards', { cache: 'no-store' });
+    const result = await readJsonResponse<{ yards: PublicYard[] }>(response, 'Load town yards');
+    const yard = result.yards.find((item) => item.ownerWallet.toLowerCase() === owner.toLowerCase());
+    if (yard) return yard;
+  } catch { /* Keep the original single-yard error for the retry UI. */ }
+  throw firstError instanceof Error ? firstError : new Error('The yard is temporarily unavailable.');
+}
+
 export function YardScene({ owner }: { owner: string }) {
   const wallet = useWallet();
   const own = wallet.address.toLowerCase() === owner.toLowerCase();
@@ -18,19 +44,21 @@ export function YardScene({ owner }: { owner: string }) {
   const [messages, setMessages] = useState<YardMessage[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [yardError, setYardError] = useState('');
+  const [chatError, setChatError] = useState('');
+  const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   const feed = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/yards/${encodeURIComponent(owner)}`, { cache: 'no-store' })
-      .then((response) => readJsonResponse<{ yard: PublicYard }>(response, 'Load yard'))
-      .then((result) => { if (active) setYard(result.yard); })
-      .catch((caught: Error) => { if (active) setError(caught.message); })
+    loadPublicYard(owner)
+      .then((result) => { if (active) setYard(result); })
+      .catch((caught: Error) => { if (active) { setNotFound(caught instanceof YardNotFoundError); setYardError(caught instanceof YardNotFoundError ? caught.message : 'The yard could not be loaded right now. This does not mean your saved house was deleted. Please retry.'); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [owner]);
+  }, [owner, attempt]);
 
   useEffect(() => {
     if (!own || !yard) return;
@@ -38,7 +66,7 @@ export function YardScene({ owner }: { owner: string }) {
     fetch('/api/agents/chat', { cache: 'no-store' })
       .then((response) => readJsonResponse<{ messages: YardMessage[] }>(response, 'Load private chat'))
       .then((result) => { if (active) setMessages(result.messages); })
-      .catch((caught: Error) => { if (active) setError(caught.message); });
+      .catch((caught: Error) => { if (active) setChatError(caught.message); });
     return () => { active = false; };
   }, [own, yard]);
 
@@ -47,7 +75,7 @@ export function YardScene({ owner }: { owner: string }) {
   async function send(summonMayor: boolean) {
     const body = input.trim();
     if (!body || busy || !own) return;
-    setBusy(true); setError('');
+    setBusy(true); setChatError('');
     try {
       const response = await fetch('/api/agents/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -56,14 +84,14 @@ export function YardScene({ owner }: { owner: string }) {
       const result = await readJsonResponse<{ messages: YardMessage[] }>(response, 'Send yard message');
       setMessages((previous) => [...previous, ...result.messages]);
       setInput('');
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Message failed.'); }
+    } catch (caught) { setChatError(caught instanceof Error ? caught.message : 'Message failed.'); }
     finally { setBusy(false); }
   }
 
   return <ProductShell title={yard ? yard.houseName.toUpperCase() : 'CITIZEN YARD'} eyebrow="PERSONAL LOT / SCRAPY SUPERVISED">
     <div className="yard-page">
       <div className="yard-topline"><Link href="/world"><ArrowLeft /> BACK TO TOWN MAP</Link><span><ShieldCheck /> {own ? 'YOUR PRIVATE LOT' : 'PUBLIC YARD VIEW'}</span></div>
-      {loading ? <p>Finding this lot…</p> : !yard ? <div className="yard-empty"><h2>No yard here yet.</h2><p>{error || 'The citizen has not built a robot and home.'}</p><Link href="/citizens">GO TO PROFILE</Link></div> : <>
+      {loading ? <p>Finding this lot…</p> : !yard ? <div className="yard-empty"><h2>{notFound ? 'No yard here yet.' : 'Yard temporarily unavailable.'}</h2><p role="alert">{yardError || 'We could not load this lot. Your house has not been deleted.'}</p>{notFound ? <Link href="/citizens">GO TO PROFILE</Link> : <button className="lv-button primary" onClick={() => { setLoading(true); setYardError(''); setNotFound(false); setAttempt((value) => value + 1); }}>TRY AGAIN</button>}</div> : <>
         <section className="yard-desert" aria-label={`${yard.houseName}, ${yard.ownerLabel}'s yard`}>
           <div className="yard-sun" aria-hidden="true" /><div className="yard-dunes" aria-hidden="true" />
           <div className="yard-fence back" aria-hidden="true" />
@@ -78,7 +106,7 @@ export function YardScene({ owner }: { owner: string }) {
           <div className="yard-chat"><header><Bot /><div><h2>{own ? `TALK TO ${yard.name.toUpperCase()}` : 'PRIVATE YARD CHAT'}</h2><small>{own ? 'ONLY YOU CAN READ THIS CONVERSATION' : 'ONLY THE OWNER CAN READ OR WRITE HERE'}</small></div></header>
             {own ? <><div className="yard-feed" ref={feed} aria-live="polite">{messages.length ? messages.map((message) => <div className={`yard-bubble ${message.role.toLowerCase()}`} key={message.id}><small>{message.role === 'CITIZEN' ? 'YOU' : message.role === 'MAYOR' ? 'MAYOR SCRAPY' : yard.name.toUpperCase()}</small><p>{message.body}</p></div>) : <p className="yard-chat-empty">Your robot is waiting. Start a conversation or call the Mayor in.</p>}</div>
               <form onSubmit={(event) => { event.preventDefault(); void send(false); }}><textarea aria-label="Private message to your robot" value={input} onChange={(event) => setInput(event.target.value)} maxLength={600} placeholder={`Say something to ${yard.name}…`} disabled={busy} /><div><small>20 AI MESSAGES / UTC DAY</small><button className="lv-button" type="button" disabled={busy || !input.trim()} onClick={() => void send(true)}><Bot /> SUMMON SCRAPY</button><button className="lv-button primary" type="submit" disabled={busy || !input.trim()}><Send /> SEND</button></div></form></> : <div className="yard-visitor-note">You can visit the lot. Its conversation stays private to its owner.</div>}
-            {error && <p className="yard-error" role="alert">{error}</p>}
+            {chatError && <p className="yard-error" role="alert">{chatError}</p>}
           </div>
         </section>
       </>}
