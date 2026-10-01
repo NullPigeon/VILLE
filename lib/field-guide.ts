@@ -104,7 +104,7 @@ export const guideArticles: GuideArticle[] = [
           'You can explore the public pages before signing in. Create a citizen account when you want to participate.',
         ],
         items: [
-          'Open World and select a building to see what citizens have created.',
+          'Open World, choose a district and enter a published place or citizen yard.',
           'Open Citizen File to sign in with email or a supported EVM wallet.',
           'Visit Town Chat. Use SEND to talk to citizens, or ASK SCRAPY for an AI reply.',
           'Describe a useful idea: what it does, how people use it, where it belongs and how it should look.',
@@ -123,7 +123,7 @@ export const guideArticles: GuideArticle[] = [
         id: 'find-your-way',
         title: 'Use the map or the guide',
         paragraphs: [
-          'The home map links to the main destinations. World is the map of published community modules. This Field Guide explains each page and separates implemented capabilities, features awaiting activation, and future ideas. Roadmap entries are not a promise that those features are available today.',
+          'The home map links to the main destinations. World is the shared city scene containing every published community module, citizen yard and resident. This Field Guide separates implemented capabilities, features awaiting activation, and future ideas. Roadmap entries are not a promise that those features are available today.',
         ],
       },
     ],
@@ -140,7 +140,8 @@ export const guideArticles: GuideArticle[] = [
         id: 'explore',
         title: 'What you can do here',
         paragraphs: [
-          'World brings published modules together on a city map. Select a building to inspect its title, creator and available actions, then open the module. The map grows as new releases are verified. A successful build or merged pull request does not by itself place an object on this map.',
+          'Drag the World map to explore the city, use the zoom controls, or travel to a district. The regions match the proposal form: THE DUMP, TOKEN ALLEY, MARKET, MEME PIT and TOWNWIDE. Every published object remains on the same scene and is placed using its saved district. TOWNWIDE creations occupy the central streets. Inspect a building to see its creator and open the module. A successful build or merged pull request does not by itself publish a place.',
+          'Exploring districts and inspecting published places fills a personal discovery record on this device. Visiting all five regions earns the local City Scout marker. This is exploration progress, not server-verified reputation or a financial reward.',
           'Use the navigation menu to move to Town Chat, Proposals, the Treasury reconstruction notice, your profile or this guide. The home map is a directory of platform pages; World contains the experiences the community has built.',
         ],
       },
@@ -161,6 +162,14 @@ export const guideArticles: GuideArticle[] = [
         ],
       },
       {
+        id: 'city-signal',
+        title: 'Your SCRAPY signal in World',
+        paragraphs: [
+          'Open YOUR SCRAPY SIGNAL on the map to see the verified balance snapshot for your linked wallet, voting power and weekly module-like allowance. A positive SCRAPY balance unlocks three personal city light palettes and a glowing beacon on your own home, saved on this device.',
+          'The beacon and palette personalize your view. They do not create a new token entitlement, transfer funds, change voting rules or make your balance public to other visitors. Refresh the on-chain signal after your holdings change.',
+        ],
+      },
+      {
         id: 'residents',
         title: 'Your character in the city',
         paragraphs: [
@@ -172,7 +181,7 @@ export const guideArticles: GuideArticle[] = [
         id: 'yards',
         title: 'Citizen yards and personal robots',
         paragraphs: [
-          'Citizens who create a personal robot get a small house on the World map. Select that house to visit their fenced desert yard. The owner names the house and chooses one of three designs. These homes are citizen spaces, not community-built modules and not a replacement for the published World resident avatar.',
+          'Citizens who create a personal robot get a home on the World map. Use the home control to locate your own yard, or search the yard directory below the scene for a house, owner or robot. The owner names the house and chooses one of three designs. These homes are citizen spaces, not community-built modules and not a replacement for the published World resident avatar.',
           'You can see another citizen’s yard, but only its owner can read or write its private conversation. You can create or change your own yard from your Citizen File.',
         ],
       },
@@ -182,7 +191,8 @@ export const guideArticles: GuideArticle[] = [
     slug: 'personal-robots',
     group: 'Explore the pages',
     title: 'Your robot and yard',
-    summary: 'Create a personal AI companion, build its home and choose whether it speaks in town.',
+    summary:
+      'Create a personal AI companion, build its home and choose whether it speaks in town.',
     sections: [
       {
         id: 'create',
