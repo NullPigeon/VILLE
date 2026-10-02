@@ -1424,3 +1424,26 @@ void test('a temporary citizen-label failure still renders the public yard', asy
   assert.equal(response.status, 200);
   assert.equal((await response.json()).yard.ownerLabel, 'Citizen');
 });
+
+void test('City Points check-in is authenticated and uses one verified chain snapshot', async () => {
+  const before = { board: [], me: null, farm: null, hasAgent: true, checkedInToday: false, asOf: new Date().toISOString() };
+  const after = { ...before, checkedInToday: true, farm: { activeToday: true, ratePerDay: 4 } };
+  let current = before;
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_city_points_state')) return json(current);
+    if (call.url.endsWith('/rpc/landville_city_check_in')) { current = after; return json(after); }
+    return undefined;
+  });
+  const route = f.load('app/api/city-points/route.ts');
+  const guest = await route.GET(f.request('/api/city-points', {}, { method: 'GET' }));
+  assert.equal(guest.status, 200);
+  assert.equal(f.calls.at(-1).body.p_wallet, '');
+  assert.equal((await route.POST(f.request('/api/city-points', {}))).status, 401);
+  assert.equal((await route.POST(f.request('/api/city-points', {}, { signed: true, headers: { Origin: 'https://other.example' } }))).status, 403);
+  assert.equal((await route.POST(f.request('/api/city-points', {}, { signed: true }))).status, 200);
+  assert.equal(f.balanceReads, 1);
+  assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_city_check_in')).body.p_snapshot.source, 'chain');
+  assert.equal((await route.POST(f.request('/api/city-points', {}, { signed: true }))).status, 200);
+  assert.equal(f.balanceReads, 1);
+  assert.equal(f.calls.filter((call) => call.url.endsWith('/rpc/landville_city_check_in')).length, 1);
+});

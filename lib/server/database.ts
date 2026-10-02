@@ -61,6 +61,7 @@ const databaseErrors: Record<string, [number, string]> = {
   AGENT_DAILY_LIMIT: [429, 'Your yard reached 20 AI messages for this UTC day.'],
   AGENT_LEASE_EXPIRED: [409, 'The robot post reservation expired.'],
   AGENT_REPLY_STALE: [409, 'That Town message is no longer available for a reply.'],
+  INVALID_CITY_SNAPSHOT: [409, 'The SCRAPY check-in snapshot is invalid. Retry the mainnet check.'],
 };
 
 // Server-only HTTP adapter. Privy verifies users, while all Supabase table

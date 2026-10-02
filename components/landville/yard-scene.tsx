@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Bot, Send, ShieldCheck } from 'lucide-react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
+import { YardCityMiner } from '@/components/landville/city-miner';
 import { PersonalRobot } from '@/components/landville/personal-robot';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { readJsonResponse } from '@/lib/http-response';
@@ -101,6 +102,7 @@ export function YardScene({ owner }: { owner: string }) {
           <div className="yard-ground" aria-hidden="true" />
           <div className="yard-sign"><small>LANDVILLE LOT</small><b>{yard.houseName}</b><span>KEPT BY {yard.ownerLabel}</span></div>
         </section>
+        {own && <div className="yard-miner-slot"><YardCityMiner /></div>}
         <section className="yard-lower">
           <div className="yard-intro"><small>ONE CITIZEN · ONE ROBOT · ONE HOME</small><h2>{yard.name} lives here.</h2><p>This is {yard.ownerLabel}&apos;s corner of LANDVILLE. The robot is a personal AI companion under Scrapy&apos;s supervision. It has no wallet, spending authority, or power to build modules.</p>{own && <Link className="lv-button" href={`/citizens/${owner}`}>EDIT ROBOT & HOUSE</Link>}</div>
           <div className="yard-chat"><header><Bot /><div><h2>{own ? `TALK TO ${yard.name.toUpperCase()}` : 'PRIVATE YARD CHAT'}</h2><small>{own ? 'ONLY YOU CAN READ THIS CONVERSATION' : 'ONLY THE OWNER CAN READ OR WRITE HERE'}</small></div></header>

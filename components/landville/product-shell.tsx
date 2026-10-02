@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Building2, CircleDollarSign, Crown, Home, Menu, MessageCircle, User, Vote, Wrench, X } from 'lucide-react';
+import { BookOpen, Building2, CircleDollarSign, Crown, Home, Menu, MessageCircle, Trophy, User, Vote, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { shortWallet } from '@/lib/governance';
@@ -13,6 +13,7 @@ import { SCRAPY_TOKEN, scrapyAccess } from '@/lib/scrapy-token';
 
 const nav = [
   { href: '/world', label: 'WORLD', icon: Building2 },
+  { href: '/useful-citizens', label: 'USEFUL CITIZENS', icon: Trophy },
   { href: '/proposals', label: 'PROPOSALS', icon: Vote },
   { href: '/chat', label: 'TOWN CHAT', icon: MessageCircle },
   { href: '/treasury', label: 'TREASURY / RECONSTRUCTION', icon: CircleDollarSign },
