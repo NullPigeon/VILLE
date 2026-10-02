@@ -1,0 +1,53 @@
+/* Original Scrapy frontier art: warm cel shading, hard ink and salvaged metal. */
+.city-product .world-explorer{background:#b48951}
+.city-product .world-map-scene{background-color:#c19a5e;background-image:repeating-linear-gradient(113deg,transparent 0 62px,#f2d69722 63px 64px,transparent 65px 109px);box-shadow:inset 0 0 0 3px #5b452d}
+.city-product .world-city-scenery{filter:contrast(1.12) saturate(1.12)}
+.world-frontier-art{position:absolute;inset:0;z-index:3;width:100%;overflow:visible;pointer-events:none}
+.city-product .city-desert-terrain>path[fill]{stroke:#80613e;stroke-width:2}
+.city-product .city-desert-terrain>path:not([fill]){stroke:#efd295;stroke-width:2}
+.city-product .city-local-curb{stroke:#6a5134;stroke-width:23;opacity:.85}
+.city-product .city-local-road{stroke:#af8c54;stroke-width:16}
+.city-product .city-perimeter-shadow{stroke:#4c3728;stroke-width:30}
+.city-product .city-perimeter-road{stroke:#b49a63;stroke-width:21;opacity:1}
+.city-product .world-map-scene .world-road-curbs path{stroke:#5b4932;stroke-width:62}
+.city-product .world-map-scene .world-road-beds path{stroke:#5f5a3b;stroke-width:49}
+.city-product .world-map-scene .world-road-curbs path:nth-child(n+3){stroke:#695337;stroke-width:38}
+.city-product .world-map-scene .world-road-beds path:nth-child(n+3){stroke:#81704a;stroke-width:27}
+.city-product .world-map-scene .world-road-map{filter:drop-shadow(3px 4px 0 #3d30284d)}
+.city-product .world-map-scene .world-road-marks path{stroke:#e5c878;opacity:.8}
+.city-product .city-street-lettering text{fill:#ffe8b1;opacity:.8;font-weight:800;letter-spacing:2px;paint-order:stroke;stroke:#6b5532;stroke-width:2}
+.city-product .city-ground-label{fill:#f5dca6;paint-order:stroke;stroke:#443d29;stroke-width:2.5;font-weight:700;letter-spacing:1px}
+.city-workshop{filter:drop-shadow(3px 4px 0 #50392355)}
+.city-product .city-factory-steam{stroke:#ead7a8;stroke-width:7;opacity:.6;animation:frontier-steam 6s ease-in-out infinite}
+.frontier-pennant{transform-origin:0 -179px;animation:frontier-flag 4s ease-in-out infinite}
+.frontier-dish{transform-origin:9px -20px;animation:frontier-dish 12s ease-in-out infinite}
+.frontier-transmission{animation:frontier-transmission 4s ease-out infinite}
+.city-product .world-map-scene .world-object-card{padding:9px 7px 0;background:#565c3b;border:0;border-radius:0;box-shadow:none;filter:drop-shadow(4px 7px 0 #473c2644)}
+.city-product .world-map-scene .world-object-card:before,.city-product .world-map-scene .world-object-card:after{display:none}
+.world-object-card>.world-building-art{position:absolute;z-index:0;left:-22px;top:-40px;width:220px;height:230px;overflow:visible;pointer-events:none}
+.city-product .world-map-scene .world-object-card[data-kind=utility]{background:#426551}
+.city-product .world-map-scene .world-object-card[data-kind=art]{background:#7b5761}
+.city-product .world-map-scene .world-object-card[data-kind=media]{background:#566b7d}
+.city-product .world-map-scene .world-object-card[data-kind=venue]{background:#8b653c}
+.city-product .world-object-preview{border:3px solid #2d3525;border-radius:4px;height:101px}
+.city-product .world-object-preview>iframe{filter:contrast(1.07) saturate(1.05)}
+.city-product .world-object-preview:after{border:1px solid #e2cc8466;box-shadow:inset 3px 3px #0a110e44}
+.city-product .world-object-label{margin:6px -1px 0;border:2px solid #2e3422;background:#252e20;padding:7px;min-height:43px;border-radius:3px}
+.city-product .world-object-label strong{font:800 10px/1.3 Arial;color:#efe0ba}
+.city-product .world-object-label small{font:8px Arial;color:#c1d698}
+.city-product .world-object-card:hover,.city-product .world-object-card.selected{filter:drop-shadow(4px 6px 0 #354427) drop-shadow(0 0 12px #d3ed80)}
+.world-explore-beacon{position:absolute;z-index:3;left:50%;top:-73px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:#d4ee7b;color:#243519;border:2px solid #293320;border-radius:5px;padding:5px 8px;font:900 9px Arial;letter-spacing:.8px;white-space:nowrap;box-shadow:2px 3px #393e2455;animation:city-place-beacon 3s ease-in-out infinite;pointer-events:none}
+.world-explore-beacon:after{content:'';position:absolute;top:100%;left:calc(50% - 4px);border:5px solid transparent;border-top-color:#293320}.world-explore-beacon svg{width:12px;height:12px}
+.city-product .world-map-scene .world-district-tag{border:2px solid #302f21;border-bottom-width:5px;border-radius:4px;background:#f0d198;color:#3b3827;box-shadow:4px 5px #493c2855;font:900 12px Arial;letter-spacing:.3px;padding:10px 14px;rotate:-1deg}
+.city-product .world-map-scene .world-district-tag>b{background:#363d28;color:var(--district-color);padding:4px;border-radius:3px;font:900 10px monospace}
+.city-product .world-map-scene .world-district-tag.token{background:#aacbb0;rotate:1deg}.city-product .world-map-scene .world-district-tag.meme{background:#dbacb4;rotate:1deg}.city-product .world-map-scene .world-district-tag.market{background:#d0d892}
+.city-product .world-map-scene .world-district-tag.active{background:var(--district-color);box-shadow:4px 5px #26351b88,0 0 0 4px #f1e1a966}
+.city-product .world-plaza{border:3px solid #272e1f;border-bottom:9px solid #536638;background:#7a8b48;box-shadow:7px 10px #384326,11px 15px #4b412d44;border-radius:9px}
+.city-product .world-plaza span{color:#eef1bf;font-size:12px;font-weight:900}.city-product .world-plaza small{color:#edf0c5}
+.city-product .world-map-scene .world-yard-house{filter:drop-shadow(4px 6px 0 #40372370)}
+@keyframes frontier-flag{0%,100%{transform:skewY(-3deg) scaleX(1)}50%{transform:skewY(5deg) scaleX(.91)}}
+@keyframes frontier-dish{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(7deg)}}
+@keyframes frontier-transmission{0%,75%,100%{opacity:0}20%{opacity:.9}55%{opacity:.15}}
+@keyframes frontier-steam{0%,100%{translate:0 0;opacity:.35}50%{translate:3px -6px;opacity:.65}}
+@media(prefers-reduced-motion:reduce){.world-frontier-art *,.city-factory-steam{animation:none!important}}
+@media(max-width:460px){.city-product .world-city-status>b{font-size:13px;line-height:1.2}.city-product .world-signal-trigger{top:128px}.city-product .world-city-status>span{font-size:6px}.city-product .world-exploration-hud{max-width:180px}}

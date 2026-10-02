@@ -51,6 +51,9 @@ import { readJsonResponse } from '@/lib/http-response';
 import { WorldWelcome } from '@/components/landville/world-welcome';
 import { WorldLife } from '@/components/landville/world-life';
 import { WorldMission } from '@/components/landville/world-mission';
+import { WorldFrontierArt } from '@/components/landville/world-frontier-art';
+import { WorldBuildingArt } from '@/components/landville/world-building-art';
+import './frontier-art.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 
@@ -511,6 +514,7 @@ export default function WorldPage() {
             />
           </svg>
           <WorldCityScenery height={baseMapHeight} />
+          <WorldFrontierArt height={baseMapHeight} />
           <svg
             className="world-road-map"
             viewBox="0 0 100 100"
@@ -601,7 +605,10 @@ export default function WorldPage() {
               }
               style={mapObjectPlacement(object.id)}
               data-discovered={exploration.places.includes(object.id)}
+              data-kind={object.kind}
             >
+              <WorldBuildingArt kind={object.kind} />
+              {!exploration.places.includes(object.id) && <span className="world-explore-beacon" aria-hidden="true">EXPLORE <Compass /></span>}
               <div className="world-object-preview" aria-hidden="true">
                 <Building2 />
                 <iframe

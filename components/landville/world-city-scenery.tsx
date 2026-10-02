@@ -561,12 +561,12 @@ function Warehouse({
   color: 'rust' | 'teal' | 'olive';
 }) {
   const palette = {
-    rust: ['#746144', '#443e2d', '#a58d60'],
-    teal: ['#3c665a', '#293d33', '#77a38a'],
-    olive: ['#69714a', '#3c442d', '#a2a16b'],
+    rust: ['#ca8c4e', '#855334', '#efc886'],
+    teal: ['#649c8a', '#355c4f', '#b4c995'],
+    olive: ['#a3ac5f', '#576443', '#d6d797'],
   }[color];
   return (
-    <g transform={`translate(${x} ${y})`}>
+    <g className="city-workshop" transform={`translate(${x} ${y})`}>
       <path
         d={`M 9 10 H ${width + 13} V 61 H 9 Z`}
         fill="#060905"
@@ -575,17 +575,20 @@ function Warehouse({
       <path
         d={`M 0 0 H ${width} V 48 H 0 Z`}
         fill={palette[1]}
-        stroke={palette[2]}
+        stroke="#333020"
+        strokeWidth="3"
       />
       <path
         d={`M 0 0 L 12 -14 H ${width + 12} L ${width} 0 Z`}
         fill={palette[0]}
-        stroke={palette[2]}
+        stroke="#333020"
+        strokeWidth="3"
       />
       <path
         d={`M ${width} 0 L ${width + 12} -14 V 33 L ${width} 48 Z`}
         fill={palette[1]}
-        stroke={palette[2]}
+        stroke="#333020"
+        strokeWidth="3"
       />
       <path
         d={`M 9 -5 H ${width - 3} M 17 -10 H ${width + 4}`}
