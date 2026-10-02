@@ -2,6 +2,7 @@
 import './yard-map.css';
 import './world-explorer.css';
 import './world-art.css';
+import './city-world.css';
 
 import {
   type CSSProperties,
@@ -47,6 +48,10 @@ import {
   type WorldDistrictId,
 } from '@/lib/world-districts';
 import { readJsonResponse } from '@/lib/http-response';
+import { WorldWelcome } from '@/components/landville/world-welcome';
+import { WorldLife } from '@/components/landville/world-life';
+import { ScrapyBot } from '@/components/landville/scrapy-bot';
+import { openCityChat } from '@/components/landville/mayor-presence';
 
 const CITIZEN_SLOTS = [
   { x: 49, y: 59, mobileX: 49, mobileY: 42 },
@@ -413,8 +418,8 @@ export default function WorldPage() {
           <span>
             <i /> LANDVILLE / CHAPTER 01
           </span>
-          <b>THE CITY TAKES SHAPE.</b>
-          <small>DRAG TO EXPLORE · CHOOSE A DISTRICT</small>
+          <b>Your city. Still a little wild.</b>
+          <small>Drag to explore · Tap a building to enter</small>
           {townStatus === 'unavailable' && (
             <button onClick={() => void refresh()}>
               CITY DATA UNAVAILABLE · RETRY <RefreshCw />
@@ -528,16 +533,16 @@ export default function WorldPage() {
           <WorldSquareGround height={baseMapHeight} />
           <StreetProps height={baseMapHeight} />
 
-          <Link
-            href="/chat"
+          <button
+            onClick={() => openCityChat({ room: 'TOWN' })}
             className="world-plaza"
             style={{ top: baseMapHeight / 2 }}
             aria-label="Visit Mayor Scrapy in Town Chat"
           >
-            <Bot />
+            <ScrapyBot portrait />
             <span>SCRAPY SQUARE</span>
             <small>MEET THE MAYOR / BUILD OUTWARD</small>
-          </Link>
+          </button>
 
           {WORLD_DISTRICTS.map((item, index) => (
             <button
@@ -564,14 +569,15 @@ export default function WorldPage() {
             </button>
           ))}
 
-          <div className="world-vacant-lot vacant-west" aria-hidden="true">
+          <button className="world-vacant-lot vacant-west" onClick={() => openCityChat({ room: 'BUILD', district: 'THE DUMP' })} aria-label="Suggest a building in The Dump">
             <b>+</b>
-            <small>VACANT LOT 05</small>
-          </div>
-          <div className="world-vacant-lot vacant-east" aria-hidden="true">
+            <small>BUILD SOMETHING</small>
+          </button>
+          <button className="world-vacant-lot vacant-east" onClick={() => openCityChat({ room: 'BUILD', district: 'MARKET' })} aria-label="Suggest a building in Market">
             <b>+</b>
-            <small>VACANT LOT 06</small>
-          </div>
+            <small>YOUR IDEA HERE</small>
+          </button>
+          <WorldLife height={baseMapHeight} />
 
           {objects.map((object) => (
             <article
@@ -755,6 +761,7 @@ export default function WorldPage() {
               {groups[WORLD_DISTRICTS.indexOf(district)].length} PUBLISHED
               PLACES
             </span>
+            <button className="city-district-build" onClick={() => openCityChat({ room: 'BUILD', district: district.proposalLabel })}><Bot /> BUILD HERE</button>
             <button onClick={() => exploreDistrict('')}>
               <Map /> BACK TO CITY
             </button>
@@ -944,9 +951,9 @@ export default function WorldPage() {
                   <span className="world-like-error">{likeError}</span>
                 )}
               </section>
-              <Link className="lv-button primary" href="/chat">
-                ASK MAYOR ABOUT IT <Bot />
-              </Link>
+              <button className="lv-button" onClick={() => { setDrawerOpen(false); openCityChat({ room: 'BUILD', district: selected.district, idea: `I have an idea inspired by ${selected.title}. Help me design a new building.` }); }}>
+                BUILD SOMETHING LIKE THIS <Bot />
+              </button>
               {selected.modulePath && (
                 <Link className="lv-button primary" href={selected.modulePath}>
                   OPEN {selected.title}
@@ -955,6 +962,7 @@ export default function WorldPage() {
             </div>
           </aside>
         )}
+        <WorldWelcome />
       </section>
       <section
         id="yards"

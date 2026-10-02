@@ -8,18 +8,20 @@ export function ChatProposalDraft({
   sourceReplyId,
   titleText,
   summaryText,
+  initialDistrict = 'THE DUMP',
   onClose,
 }: {
   sourceReplyId: string;
   titleText: string;
   summaryText: string;
+  initialDistrict?: string;
   onClose(): void;
 }) {
   const { createProposal, activeProposals, status } = useLandville();
   const atLimit = activeProposals.length >= 2;
   const [draft, setDraft] = useState({
     category: 'UTILITY',
-    district: 'THE DUMP',
+    district: WORLD_DISTRICTS.some((item) => item.proposalLabel === initialDistrict) ? initialDistrict : 'THE DUMP',
   });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -43,12 +45,10 @@ export function ChatProposalDraft({
   }
   return (
     <form className="proposal-form" id="proposal-draft" onSubmit={submit}>
-      <h3>REVIEW SCRAPY&apos;S PLAN</h3>
+      <h3>Ready for the town?</h3>
       <p>
-        This proposal is locked to the public conversation above. To change the
-        idea, keep talking to Scrapy and use REVIEW &amp; PROPOSE on the updated
-        plan. Confirming opens a public vote. Any citizen may submit, with up to
-        two active proposals at once.
+        Check the plan and district. Confirm to open voting.
+        To change the idea, return to Scrapy first.
       </p>
       <label>
         OBJECT NAME

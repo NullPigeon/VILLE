@@ -9,6 +9,7 @@ import { addRobinhoodNetwork } from '@/lib/robinhood-chain';
 import { SCRAPY_TOKEN } from '@/lib/scrapy-token';
 import { readJsonResponse } from '@/lib/http-response';
 import { usePrivyAuth } from '@/components/landville/privy-auth-provider';
+import { citizenReturnPath } from '@/lib/city-navigation';
 
 type WalletStatus = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -161,7 +162,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         try {
           await verifyPrivyEmailCode(token);
           const citizen = await syncPrivySession();
-          router.push(`/citizens/${citizen}`);
+          router.push(citizenReturnPath(window.location.search, citizen));
           return citizen;
         } catch (caught) {
           const message = caught instanceof Error ? caught.message : 'Email verification failed.';

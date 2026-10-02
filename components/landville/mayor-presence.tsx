@@ -1,31 +1,49 @@
 'use client';
-
-import { useEffect, useState } from 'react';
+/* oxlint-disable react/react-compiler -- the global chat launcher listens for explicit map actions */
+import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Bot, MessageCircle, X } from 'lucide-react';
-import type { TownMessage } from '@/lib/chat-data';
-import { readJsonResponse } from '@/lib/http-response';
+import { ArrowUpRight, Bot, Users, X } from 'lucide-react';
+import type { ChatSeed } from '@/components/landville/city-chat-room';
+import { ScrapyBot } from '@/components/landville/scrapy-bot';
+import type { ChatRoom } from '@/lib/chat-data';
+import dynamic from 'next/dynamic';
+const CityChatRoom = dynamic(() => import('@/components/landville/city-chat-room').then((module) => module.CityChatRoom));
+
+export function openCityChat(seed: ChatSeed = {}) {
+  window.dispatchEvent(new CustomEvent('landville:open-chat', { detail: seed }));
+}
 
 export function MayorPresence() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<TownMessage[]>([]);
-  const [state, setState] = useState('LOADING…');
-  const [error, setError] = useState('');
+  const [room, setRoom] = useState<ChatRoom>('BUILD');
+  const [seed, setSeed] = useState<ChatSeed>();
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    const show = (event: Event) => {
+      const value = (event as CustomEvent<ChatSeed>).detail || {};
+      returnFocus.current = document.activeElement as HTMLElement | null;
+      setSeed(value); setRoom(value.room || 'BUILD'); setOpen(true);
+    };
+    window.addEventListener('landville:open-chat', show);
+    return () => window.removeEventListener('landville:open-chat', show);
+  }, []);
+  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
     if (!open) return;
-    let cancelled = false;
-    fetch('/api/chat', { cache: 'no-store' })
-      .then((response) => readJsonResponse<{ messages: TownMessage[]; aiConfigured: boolean }>(response, 'Town Chat'))
-      .then((result) => { if (!cancelled) { setMessages(result.messages.slice(-3)); setState(result.aiConfigured ? 'AI KEY CONFIGURED' : 'SCRIPTED MODE'); setError(''); } })
-      .catch(() => { if (!cancelled) setError('Cannot refresh Town Chat.'); });
-    return () => { cancelled = true; };
+    closeButton.current?.focus();
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); (returnFocus.current || trigger.current)?.focus(); } };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
   }, [open]);
 
-  return (
-    <div className={open ? 'mayor-presence open' : 'mayor-presence'}>
-      {open && <section className="mayor-presence-panel"><header><span><Bot /> MAYOR SCRAPY</span><button onClick={() => setOpen(false)} aria-label="Close Mayor presence"><X /></button></header><small>PUBLIC TOWN CHAT · {state}</small>{error && <p role="alert">{error}</p>}<div>{messages.length ? messages.map((message) => <p key={message.id}><b>{message.author}</b>{message.body}{message.kind === 'MAYOR' && <small>{message.aiSource === 'openai' ? 'AI RESPONSE' : message.aiSource === 'scripted' ? 'SCRIPTED RESPONSE' : 'SOURCE NOT RECORDED'}</small>}</p>) : state !== 'LOADING…' && !error && <p><b>NO MESSAGES YET</b>The town chat is empty. Suspiciously peaceful.</p>}</div><nav><Link href="/chat">OPEN PUBLIC TOWN CHAT</Link></nav></section>}
-      <button className="mayor-presence-trigger" onClick={() => setOpen((current) => !current)} aria-label="Open Mayor Scrapy"><Bot /><i /><MessageCircle /></button>
-    </div>
-  );
+  if (pathname === '/chat') return null;
+  return <div className={`city-chat-launcher${pathname === '/world' ? ' on-world' : ''}${open ? ' is-open' : ''}`}>
+    {open && <dialog open className="city-chat-dock" aria-label="City chat"><div className="city-dock-toolbar"><nav aria-label="Chat room"><button aria-pressed={room === 'BUILD'} onClick={() => setRoom('BUILD')}><Bot />Scrapy</button><button aria-pressed={room === 'TOWN'} onClick={() => setRoom('TOWN')}><Users />Town</button></nav><Link href={`/chat?${new URLSearchParams({ room, ...(seed?.district ? { district: seed.district } : {}) })}`} aria-label="Open full chat"><ArrowUpRight /></Link><button ref={closeButton} onClick={() => { setOpen(false); (returnFocus.current || trigger.current)?.focus(); }} aria-label="Close city chat"><X /></button></div><CityChatRoom key={room} room={room} compact seed={seed} onSeedConsumed={() => setSeed(undefined)} /></dialog>}
+    <button ref={trigger} className="city-scrapy-trigger" aria-label={open ? 'Close city chat' : 'Talk to Scrapy'} aria-expanded={open} onClick={() => { returnFocus.current = trigger.current; setOpen((value) => !value); }}><ScrapyBot portrait /><span>{open ? 'See you around.' : 'Need a hand?'}<b>{open ? 'Close chat' : 'Talk to Scrapy'}</b></span>{open ? <X /> : <ArrowUpRight />}</button>
+  </div>;
 }

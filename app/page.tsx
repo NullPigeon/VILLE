@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  ArrowDown,
   ArrowUpRight,
   BookOpen,
   Heart,
@@ -15,6 +14,12 @@ import { CopyText } from '@/components/landville/copy-text';
 import { townDestinations } from '@/lib/field-guide';
 import { SCRAPY_TOKEN } from '@/lib/scrapy-token';
 import './home.css';
+import './home-refresh.css';
+import { CityStart } from '@/components/landville/city-start';
+
+const homeDestinations = townDestinations.map((destination) => destination.id === 'treasury'
+  ? { ...destination, id: 'useful-citizens', title: 'Useful Citizens', href: '/useful-citizens', description: 'Earn City Points. See who is helping build the town.', district: 'MAKE YOUR MARK' }
+  : destination);
 
 export const metadata: Metadata = {
   title: 'LANDVILLE — A town built by you & Scrapy',
@@ -59,19 +64,8 @@ export default function HomePage() {
             </h1>
           </div>
           <div className="lv-intro-copy">
-            <p>
-              LANDVILLE is a digital town built by its citizens with{' '}
-              <strong>Scrapy, an AI mayor.</strong> Share an idea. Citizens
-              vote. Scrapy builds the approved module.
-            </p>
-            <div className="lv-actions">
-              <Link className="lv-button" href="/world">
-                EXPLORE THE WORLD <ArrowUpRight size={18} />
-              </Link>
-              <a className="lv-text-link" href="#first-quest">
-                NEW HERE? START HERE <ArrowDown size={15} />
-              </a>
-            </div>
+            <p>Your ideas. Scrapy’s tools. A desert town we build together.</p>
+            <CityStart />
           </div>
         </section>
         <Link className="lv-season-banner" href="/useful-citizens">
@@ -79,7 +73,7 @@ export default function HomePage() {
           <span><small>CITY BUILD HACKATHON / SEASON 01</small><strong>MEET THE USEFUL CITIZENS.</strong><em>Daily check-ins, agent mining, new buildings and the likes they earn now count toward the monthly leaderboard.</em></span>
           <ArrowUpRight size={22} />
         </Link>
-        <HomeCityMap destinations={townDestinations} />
+        <HomeCityMap destinations={homeDestinations} />
         <section
           className="lv-quests"
           id="first-quest"
@@ -91,9 +85,7 @@ export default function HomePage() {
               <h2 id="quest-title">Your first quest.</h2>
             </div>
             <p>
-              You don’t need tokens to look around.
-              <br />
-              Create an account when you’re ready to take part.
+              Three small steps. No code or tokens needed to start.
             </p>
           </div>
           <div className="lv-quest-grid">
@@ -101,8 +93,7 @@ export default function HomePage() {
               <span className="lv-step">01 / LOOK AROUND</span>
               <h3>Find your corner.</h3>
               <p>
-                Explore buildings in World. Sign in when you want to try a
-                community-made game, tool or experience.
+                Open the map. Pick a building. See what’s inside.
               </p>
               <span className="lv-quest-action">
                 ENTER WORLD <ArrowUpRight size={17} />
@@ -112,8 +103,7 @@ export default function HomePage() {
               <span className="lv-step">02 / GET YOUR CITIZEN FILE</span>
               <h3>Make yourself at home.</h3>
               <p>
-                Sign in with email or a supported wallet. Set up your profile
-                and join the town.
+                Join with email or a wallet. Create your robot and yard.
               </p>
               <span className="lv-quest-action">
                 CREATE AN ACCOUNT <ArrowUpRight size={17} />
@@ -123,8 +113,7 @@ export default function HomePage() {
               <span className="lv-step">03 / BRING AN IDEA</span>
               <h3>Tell the mayor.</h3>
               <p>
-                Describe what you want to build in Town Chat. Choose ASK SCRAPY,
-                then review the plan.
+                Tell Scrapy your idea. Review the plan. Let the town vote.
               </p>
               <span className="lv-quest-action">
                 TALK TO SCRAPY <ArrowUpRight size={17} />
@@ -140,9 +129,8 @@ export default function HomePage() {
               <br />A place you can use.
             </h2>
             <p>
-              A module is a working part of LANDVILLE: a game, gallery,
-              community space or useful tool. Scrapy turns approved ideas into
-              code, with checks and human review before anything joins the city.
+              Games, tools, strange little places. Scrapy builds approved ideas,
+              and reviewed creations join World.
             </p>
             <Link className="lv-text-link" href="/docs/module-capabilities">
               SEE WHAT SCRAPY CAN BUILD <ArrowUpRight size={16} />
@@ -188,10 +176,8 @@ export default function HomePage() {
               More say in town.
             </h2>
             <p>
-              Every citizen starts with voting power and five weekly likes. Each
-              full 250K SCRAPY adds one vote of power and one weekly like.
-              Holding also unlocks a higher chat allowance. Treasury
-              participation is currently under reconstruction.
+              More voting power. More weekly likes. Hold 250K+ SCRAPY and
+              check in daily to run a points miner in your agent’s yard.
             </p>
             <Link className="lv-text-link" href="/docs/scrapy-token">
               UNDERSTAND THE TOKEN & RULES <ArrowUpRight size={16} />
@@ -232,7 +218,7 @@ export default function HomePage() {
           LANDVILLE<span>A town is only as interesting as its citizens.</span>
         </Link>
         <nav aria-label="Footer navigation">
-          {townDestinations.map((destination) => (
+          {homeDestinations.map((destination) => (
             <Link key={destination.id} href={destination.href}>
               {destination.title}
             </Link>

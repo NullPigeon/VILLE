@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowUpRight, Building2, Heart, Pickaxe, Sparkles, Trophy } from 'lucide-react';
+import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { ProductShell } from '@/components/landville/product-shell';
 import { CityMiner, useCityPoints } from '@/components/landville/city-miner';
 import { formatCityPoints, liveFarmPoints, type CityScore } from '@/lib/city-points';
@@ -31,14 +32,14 @@ export default function UsefulCitizensPage() {
     <div className="uc-page">
       <section className="uc-hero">
         <div className="uc-sun" aria-hidden="true" /><div className="uc-skyline" aria-hidden="true" />
-        <div className="uc-hero-copy"><span className="uc-kicker"><i /> CITY BUILD HACKATHON · SEASON 01</span><h2>BUILD THE CITY.<br /><em>LEAVE A MARK.</em></h2><p>Scrapy builds with the citizens. Bring a useful idea, get it approved, put a real object in World, and earn the city&apos;s recognition when people use it.</p><div className="uc-hero-links"><Link href="/chat">PITCH TO SCRAPY <ArrowUpRight size={16} /></Link><Link href="/world">EXPLORE WORLD <ArrowUpRight size={16} /></Link></div></div>
-        <div className="uc-stamp"><Trophy size={27} /><strong>USEFUL<br />CITIZENS</strong><small>YOUR WORK BUILDS THE WORLD</small></div>
+        <div className="uc-hero-copy"><span className="uc-kicker"><i /> CITY BUILD HACKATHON · SEASON 01</span><h2>BUILD THE CITY.<br /><em>LEAVE A MARK.</em></h2><p>Check in. Build something useful. Earn your place in town.</p><div className="uc-hero-links"><Link href="/chat?room=BUILD">PITCH TO SCRAPY <ArrowUpRight size={16} /></Link><Link href="/world">EXPLORE WORLD <ArrowUpRight size={16} /></Link></div></div>
+        <div className="uc-stamp"><ScrapyBot /><strong>USEFUL<br />CITIZENS</strong><small>YOUR WORK BUILDS THE WORLD</small></div>
       </section>
 
       <div className="uc-season"><span><i /> LIVE SEASON / {season.toUpperCase()}</span><span>POINTS RESET {state?.resetsAt ? new Date(state.resetsAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' }).toUpperCase() : 'MONTHLY'} · 00:00 UTC</span></div>
       <div className="uc-layout"><div className="uc-main">
         <section className="uc-board" aria-label="Useful Citizens leaderboard"><header><div><small>THE PEOPLE MOVING LANDVILLE FORWARD</small><h2>USEFUL CITIZENS</h2></div><span>TOP 50 / {season.toUpperCase()}</span></header>
-          {state?.board.length ? <div className="uc-rows">{state.board.map((citizen) => <CitizenRow key={citizen.wallet} citizen={citizen} live={state.me?.wallet === citizen.wallet ? livePoints : citizen.points} />)}</div> : <div className="uc-empty"><Trophy size={38} /><h3>THE BOARD IS OPEN.</h3><p>The first check-in, approved idea, and new building will put citizens here.</p></div>}
+          {state?.board.length ? <div className="uc-rows">{state.board.map((citizen) => <CitizenRow key={citizen.wallet} citizen={citizen} live={state.me?.wallet === citizen.wallet ? livePoints : citizen.points} />)}</div> : <div className="uc-empty"><Trophy size={38} /><h3>{!state ? error ? 'COULD NOT LOAD THE BOARD.' : 'LOADING CITIZENS…' : 'YOUR NAME COULD BE HERE.'}</h3><p>{!state ? error ? 'Try again in a moment.' : 'Checking this month’s scores.' : 'Check in or get your first idea approved to join the board.'}</p></div>}
           {error && <p className="uc-error" role="alert">{error}</p>}
           {state?.me && state.me.rank > 50 && <div className="uc-your-rank"><small>YOUR PLACE</small><CitizenRow citizen={state.me} live={livePoints} /></div>}
         </section>
