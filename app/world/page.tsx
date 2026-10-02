@@ -50,6 +50,7 @@ import {
 import { readJsonResponse } from '@/lib/http-response';
 import { WorldWelcome } from '@/components/landville/world-welcome';
 import { WorldLife } from '@/components/landville/world-life';
+import { WorldMission } from '@/components/landville/world-mission';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 
@@ -104,6 +105,12 @@ export default function WorldPage() {
     places: string[];
   }>({ districts: [], places: [] });
   const [signalOpen, setSignalOpen] = useState(false);
+  const [discovery, setDiscovery] = useState('');
+  useEffect(() => {
+    if (!discovery) return;
+    const timer = window.setTimeout(() => setDiscovery(''), 3500);
+    return () => window.clearTimeout(timer);
+  }, [discovery]);
   const [signalTheme, setSignalTheme] = useState('acid');
   const [signalBusy, setSignalBusy] = useState(false);
   const [signalError, setSignalError] = useState('');
@@ -229,6 +236,10 @@ export default function WorldPage() {
   }, [progressKey]);
 
   function remember(kind: 'districts' | 'places', id: string) {
+    if (!exploration[kind].includes(id)) {
+      const name = kind === 'districts' ? WORLD_DISTRICTS.find((item) => item.id === id)?.name : objects.find((item) => item.id === id)?.title;
+      if (name) setDiscovery(name);
+    }
     const next = {
       ...exploration,
       [kind]: [...new Set([...exploration[kind], id])],
@@ -414,6 +425,7 @@ export default function WorldPage() {
           setDragging(false);
         }}
       >
+        {discovery && <output key={discovery} className="city-discovery-toast"><Compass /><span>NEW DISCOVERY<b>{discovery}</b></span><Check /></output>}
         <header className="world-city-status">
           <span>
             <i /> LANDVILLE / CHAPTER 01
@@ -588,6 +600,7 @@ export default function WorldPage() {
                   : 'world-object-card'
               }
               style={mapObjectPlacement(object.id)}
+              data-discovered={exploration.places.includes(object.id)}
             >
               <div className="world-object-preview" aria-hidden="true">
                 <Building2 />
@@ -710,7 +723,23 @@ export default function WorldPage() {
             {discoveredPlaces} / {objects.length} PLACES DISCOVERED · ON THIS
             DEVICE
           </small>
-          <div className="world-minimap" aria-label="District shortcuts">
+          <WorldMission
+            explored={exploration.districts.length > 0}
+            discovered={discoveredPlaces > 0}
+            hasPlaces={objects.length > 0}
+            hasYard={Boolean(ownYard)}
+            profileHref={wallet.address ? `/citizens/${wallet.address}#your-agent` : '/citizens'}
+            onExplore={() => exploreDistrict(WORLD_DISTRICTS[groups.findIndex((group) => group.length) >= 0 ? groups.findIndex((group) => group.length) : 0].id)}
+            onDiscover={() => {
+              const target = objects.find((item) => !exploration.places.includes(item.id)) || objects[0];
+              if (!target) return;
+              const place = WORLD_DISTRICTS.find((item) => item.id === objectDistrict(target))!;
+              setActiveDistrict(place.id);
+              moveCamera(mapWidth * place.x / 100, baseMapHeight * place.y / 100, bounds.current.width < 760 ? .8 : 1.05);
+              inspectObject(target.id);
+            }}
+          />
+          <details className="city-minimap-disclosure"><summary>District shortcuts</summary><div className="world-minimap" aria-label="District shortcuts">
             {WORLD_DISTRICTS.map((item) => (
               <button
                 key={item.id}
@@ -723,7 +752,7 @@ export default function WorldPage() {
               </button>
             ))}
             <span className="world-minimap-square" aria-hidden="true" />
-          </div>
+          </div></details>
         </aside>
         <div className="world-camera-tools" aria-label="Map controls">
           <button onClick={() => zoomMap(0.15)} aria-label="Zoom in">
