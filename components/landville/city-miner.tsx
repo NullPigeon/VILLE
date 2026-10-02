@@ -71,16 +71,17 @@ export function CityMiner({ city, compact = false }: {
     {active ? <p className="city-miner-detail"><RadioTower size={16} /> +{state?.farm?.ratePerDay} points per 24h · verified at block {state?.farm?.blockNumber} · active until 00:00 UTC</p>
       : <p className="city-miner-detail">Check in every UTC day to start your agent&apos;s miner. Accrual begins at check-in and stops at midnight.</p>}
     {state?.verificationUnavailable && <p className="city-miner-alert">Mainnet check failed. Your daily check-in counted; retry today to activate the miner.</p>}
+    {state?.minimumNotMet && <p className="city-miner-alert">Daily check-in counted. Hold at least 250,000 SCRAPY in your linked wallet, then verify again to start mining.</p>}
     {error && <p className="city-miner-alert" role="alert">{error}</p>}
     <div className="city-miner-actions">
       {wallet.address ? <button type="button" onClick={() => void checkIn()} disabled={busy || active}>
-        {busy ? 'VERIFYING MAINNET…' : active ? 'MINER ACTIVE TODAY' : state?.checkedInToday ? 'ACTIVATE MINER' : 'DAILY CHECK-IN +2'}
+        {busy ? 'VERIFYING MAINNET…' : active ? 'MINER ACTIVE TODAY' : state?.checkedInToday ? 'VERIFY 250K HOLD' : 'DAILY CHECK-IN +2'}
       </button> : <Link href="/citizens">SIGN IN TO CHECK IN <ArrowUpRight size={14} /></Link>}
       {wallet.address && !state?.hasAgent && <Link href={`/citizens/${wallet.address}`}>CREATE YOUR AGENT <ArrowUpRight size={14} /></Link>}
       {wallet.address && !wallet.linkedWallet && <Link href={`/citizens/${wallet.address}`}>LINK WALLET FOR MINER <ArrowUpRight size={14} /></Link>}
       {compact && <Link href="/useful-citizens">SEE USEFUL CITIZENS <ArrowUpRight size={14} /></Link>}
     </div>
-    {!compact && <small className="city-miner-foot">A robot and at least 1 SCRAPY in a linked wallet are required for mining. A fresh chain balance sets today&apos;s rate.</small>}
+    {!compact && <small className="city-miner-foot">A robot and at least 250,000 SCRAPY in a linked wallet are required for mining. A fresh chain balance sets today&apos;s rate.</small>}
   </section>;
 }
 

@@ -27,16 +27,20 @@ export async function POST(request: NextRequest) {
     }
     let snapshot = null;
     let verificationUnavailable = false;
+    let minimumNotMet = false;
     if (before.hasAgent) {
       try {
         const verified = await readVotingSnapshot(wallet);
-        if (verified.source === 'chain' && BigInt(verified.tokenBalance) >= 10n ** 18n) snapshot = verified;
+        if (verified.source === 'chain') {
+          if (BigInt(verified.tokenBalance) >= 250_000n * 10n ** 18n) snapshot = verified;
+          else minimumNotMet = true;
+        }
       } catch (error) {
         if (!(error instanceof ApiError) || ![502,503].includes(error.status)) throw error;
         verificationUnavailable = true;
       }
     }
     const state = await rpc<CityPointsState>('landville_city_check_in', { p_wallet: wallet, p_snapshot: snapshot });
-    return NextResponse.json({ ...state, verificationUnavailable }, { headers: { 'Cache-Control': 'private, no-store' } });
+    return NextResponse.json({ ...state, verificationUnavailable, minimumNotMet }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) { return apiFailure(error); }
 }

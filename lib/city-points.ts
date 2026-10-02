@@ -31,6 +31,7 @@ export type CityPointsState = {
   resetsAt: string;
   launchedAt: string;
   verificationUnavailable?: boolean;
+  minimumNotMet?: boolean;
 };
 
 export function liveFarmPoints(farm: CityFarm | null, now: number) {

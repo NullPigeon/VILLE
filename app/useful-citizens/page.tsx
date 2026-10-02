@@ -8,10 +8,10 @@ import { formatCityPoints, liveFarmPoints, type CityScore } from '@/lib/city-poi
 import './useful-citizens.css';
 
 const tiers = [
-  ['1 – 9,999', '1'],
-  ['10,000 – 99,999', '2'],
-  ['100,000 – 999,999', '4'],
-  ['1,000,000+', '8'],
+  ['250,000 – 2,499,999', '1'],
+  ['2,500,000 – 9,999,999', '2'],
+  ['10,000,000 – 19,999,999', '4'],
+  ['20,000,000+', '8'],
 ];
 
 function CitizenRow({ citizen, live }: { citizen: CityScore; live: number }) {
@@ -44,7 +44,7 @@ export default function UsefulCitizensPage() {
         </section>
         <section className="uc-rules"><header><small>THE SCORING MANIFESTO</small><h2>MAKE SOMETHING MATTER.</h2></header><div className="uc-rule-grid">
           <article><Sparkles /><small>01 / SHOW UP</small><strong>+2 PTS</strong><p>Daily citizen check-in. One per UTC day.</p></article>
-          <article><Pickaxe /><small>02 / RUN YOUR MINER</small><strong>+1 TO +8 / DAY</strong><p>Create an agent, link a wallet, hold SCRAPY, and check in. Points accumulate each second until midnight.</p></article>
+          <article><Pickaxe /><small>02 / RUN YOUR MINER</small><strong>+1 TO +8 / DAY</strong><p>Create an agent, link a wallet, hold at least 250,000 SCRAPY, and check in. Points accumulate each second until midnight.</p></article>
           <article><Building2 /><small>03 / SHAPE THE CITY</small><strong>+50 / +250</strong><p>50 for an approved proposal. 250 when its new building is published in World.</p></article>
           <article><Heart /><small>04 / EARN RESPECT</small><strong>+3 / LIKE</strong><p>Each like your building receives counts. Maximum 20 scoring likes per citizen per month.</p></article>
         </div></section>
