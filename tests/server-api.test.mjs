@@ -1447,3 +1447,18 @@ void test('City Points check-in is authenticated and uses one verified chain sna
   assert.equal(f.balanceReads, 1);
   assert.equal(f.calls.filter((call) => call.url.endsWith('/rpc/landville_city_check_in')).length, 1);
 });
+
+void test('below 250K SCRAPY still earns the daily check-in but cannot start the miner', async () => {
+  const before = { board: [], me: null, farm: null, hasAgent: true, checkedInToday: false, asOf: new Date().toISOString() };
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_city_points_state')) return json(before);
+    if (call.url.endsWith('/rpc/landville_city_check_in')) return json({ ...before, checkedInToday: true });
+    return undefined;
+  }, {}, { '@/lib/server/voting': { readVotingSnapshot: async () => ({
+    ...snapshot, tokenBalance: '249999000000000000000000', weight: 1,
+  }) } });
+  const response = await f.load('app/api/city-points/route.ts').POST(f.request('/api/city-points', {}, { signed: true }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).minimumNotMet, true);
+  assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_city_check_in')).body.p_snapshot, null);
+});

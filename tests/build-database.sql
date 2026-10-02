@@ -31,6 +31,33 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260915113000_weekly_module_likes.sql
 \ir ../supabase/migrations/20260923120000_personal_agents_and_yards.sql
 \ir ../supabase/migrations/20261002120000_city_points.sql
+-- Simulate sessions created under the original miner tiers before upgrading.
+with days as (select pg_catalog.timezone('utc',pg_catalog.clock_timestamp())::date as today)
+insert into public.landville_city_farm_days
+  (wallet,day,started_at,ends_at,rate_per_day,token_balance,block_number)
+select '0x' || repeat('e',40),today,(today::timestamp at time zone 'utc'),
+  ((today + 1)::timestamp at time zone 'utc'),2,10000::numeric * 1000000000000000000::numeric,1234 from days
+union all
+select '0x' || repeat('e',40),today - 1,((today - 1)::timestamp at time zone 'utc'),
+  (today::timestamp at time zone 'utc'),4,250000::numeric * 1000000000000000000::numeric,1234 from days;
+\ir ../supabase/migrations/20261002180000_city_miner_250k.sql
+
+do $$
+begin
+  if exists(select 1 from public.landville_city_farm_days
+    where wallet='0x' || repeat('e',40) and token_balance < 250000::numeric * 1000000000000000000::numeric)
+    or (select rate_per_day from public.landville_city_farm_days
+      where wallet='0x' || repeat('e',40)) <> 1 then
+    raise exception 'Old miner sessions were not corrected for the 250K minimum';
+  end if;
+  if public.landville_city_miner_rate(249999::numeric * 1000000000000000000::numeric) <> 0
+    or public.landville_city_miner_rate(250000::numeric * 1000000000000000000::numeric) <> 1
+    or public.landville_city_miner_rate(2500000::numeric * 1000000000000000000::numeric) <> 2
+    or public.landville_city_miner_rate(10000000::numeric * 1000000000000000000::numeric) <> 4
+    or public.landville_city_miner_rate(20000000::numeric * 1000000000000000000::numeric) <> 8 then
+    raise exception 'City miner thresholds are incorrect';
+  end if;
+end $$;
 
 do $$
 declare
@@ -492,8 +519,8 @@ declare
 begin
   snapshot := jsonb_build_object('wallet',owner,'chainId',4663,
     'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
-    'tokenDecimals',18,'tokenBalance','10000000000000000000000',
-    'weight',1,'blockNumber','1234','capturedAt',clock_timestamp(), 'source','chain');
+    'tokenDecimals',18,'tokenBalance','2500000000000000000000000',
+    'weight',11,'blockNumber','1234','capturedAt',clock_timestamp(), 'source','chain');
   state := public.landville_city_check_in(owner,snapshot);
   if (state->'farm'->>'ratePerDay')::integer <> 2 or state->>'checkedInToday' <> 'true' then
     raise exception 'Verified holder did not activate the correct miner tier';
@@ -508,5 +535,31 @@ begin
   if has_table_privilege('anon','public.landville_city_farm_days','SELECT') or
     has_function_privilege('authenticated','public.landville_city_check_in(text,jsonb)','EXECUTE') then
     raise exception 'City Points storage or RPC exposed to browser roles';
+  end if;
+end $$;
+
+do $$
+declare
+  owner text := '0x' || repeat('c',40);
+  snapshot jsonb;
+  state jsonb;
+begin
+  perform public.landville_upsert_personal_agent(owner,'Pip','FEMININE','CHEEKY',
+    'SCRAP_SHACK','Pip Yard','OFF',120);
+  snapshot := jsonb_build_object('wallet',owner,'chainId',4663,
+    'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','249999000000000000000000',
+    'weight',1,'blockNumber','1234','capturedAt',clock_timestamp(),'source','chain');
+  state := public.landville_city_check_in(owner,snapshot);
+  if state->>'checkedInToday' <> 'true' or state->'farm' <> 'null'::jsonb then
+    raise exception 'Below-minimum holder started a City Points miner';
+  end if;
+  snapshot := jsonb_set(jsonb_set(snapshot,'{tokenBalance}',
+    to_jsonb('250000000000000000000000'::text)),'{weight}',to_jsonb(2));
+  state := public.landville_city_check_in(owner,snapshot);
+  if (state->'farm'->>'ratePerDay')::integer <> 1
+    or (select count(*) from public.landville_city_point_events
+      where wallet=owner and kind='CHECK_IN') <> 1 then
+    raise exception 'Eligible holder could not activate later without a duplicate check-in';
   end if;
 end $$;
