@@ -1,0 +1,11 @@
+.city-miner{border:1px solid #a59465;background:linear-gradient(155deg,#292518,#11150d 58%);padding:20px;box-shadow:7px 7px 0 #090b07;color:#e4d0a2}
+.city-miner-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font:900 10px/1.4 monospace;letter-spacing:1px;color:#d1b77f}
+.city-miner-head span{display:flex;align-items:center;gap:8px}.city-miner-head svg{color:#c7ff00}
+.city-miner-head b{color:#978e70;white-space:nowrap}.city-miner-head b.on{color:#c7ff00;text-shadow:0 0 12px #c7ff0066}
+.city-miner-value{display:grid;gap:5px;margin:25px 0 14px}.city-miner-value strong{font:950 clamp(35px,4vw,55px)/.9 Arial,sans-serif;letter-spacing:-2px;color:#c7ff00;font-variant-numeric:tabular-nums}.city-miner-value span{font:800 10px monospace;letter-spacing:2px;color:#afa17d}
+.city-miner-detail{display:flex;align-items:flex-start;gap:8px;min-height:42px;font:12px/1.5 monospace;color:#c2b08b}.city-miner-detail svg{color:#c7ff00;flex:0 0 auto}
+.city-miner-alert{font:11px/1.5 monospace;color:#ffc083;border-left:2px solid #ffc083;padding-left:9px}
+.city-miner-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:19px}.city-miner-actions button,.city-miner-actions a{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:39px;border:1px solid #c7ff00;padding:9px 12px;background:#c7ff00;color:#101407;text-decoration:none;font:900 10px/1.2 monospace;letter-spacing:.4px}.city-miner-actions a{background:transparent;color:#c7ff00}.city-miner-actions button:disabled{border-color:#6a7641;background:#343e24;color:#b1c482;cursor:default}
+.city-miner-foot{display:block;margin-top:17px;color:#9f987d;font:10px/1.5 monospace}
+.city-miner-compact{margin:0 0 18px}.city-miner-compact .city-miner-value{margin:16px 0 10px}.city-miner-compact .city-miner-value strong{font-size:42px}
+.yard-miner-slot{margin-top:18px}

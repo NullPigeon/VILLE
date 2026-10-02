@@ -6,6 +6,7 @@ import {
   BookOpen,
   Heart,
   MessageCircle,
+  Trophy,
   Vote,
   Wrench,
 } from 'lucide-react';
@@ -73,6 +74,11 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+        <Link className="lv-season-banner" href="/useful-citizens">
+          <span className="lv-season-icon"><Trophy size={27} /></span>
+          <span><small>CITY BUILD HACKATHON / SEASON 01</small><strong>MEET THE USEFUL CITIZENS.</strong><em>Daily check-ins, agent mining, new buildings and the likes they earn now count toward the monthly leaderboard.</em></span>
+          <ArrowUpRight size={22} />
+        </Link>
         <HomeCityMap destinations={townDestinations} />
         <section
           className="lv-quests"

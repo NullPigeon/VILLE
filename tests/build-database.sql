@@ -30,6 +30,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260914150000_module_image_choices.sql
 \ir ../supabase/migrations/20260915113000_weekly_module_likes.sql
 \ir ../supabase/migrations/20260923120000_personal_agents_and_yards.sql
+\ir ../supabase/migrations/20261002120000_city_points.sql
 
 do $$
 declare
@@ -481,3 +482,31 @@ end $$;
 update public.landville_proposals set closes_at = now()-interval '1 second' where id='LV-4';
 select public.landville_claim_build('0x' || repeat('a',40),false);
 select public.landville_prepare_build('LV-4','0x' || repeat('a',40), jsonb_build_object('version',1,'runtime','sandbox-html','goal','A garden for the citizens of town.','acceptance',jsonb_build_array('Clicking a plant changes its color.'),'constraints',''));
+
+do $$
+declare
+  owner text := '0x' || repeat('b',40);
+  snapshot jsonb;
+  state jsonb;
+  first_start text;
+begin
+  snapshot := jsonb_build_object('wallet',owner,'chainId',4663,
+    'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','10000000000000000000000',
+    'weight',1,'blockNumber','1234','capturedAt',clock_timestamp(), 'source','chain');
+  state := public.landville_city_check_in(owner,snapshot);
+  if (state->'farm'->>'ratePerDay')::integer <> 2 or state->>'checkedInToday' <> 'true' then
+    raise exception 'Verified holder did not activate the correct miner tier';
+  end if;
+  first_start := state->'farm'->>'startedAt';
+  state := public.landville_city_check_in(owner,snapshot);
+  if state->'farm'->>'startedAt' <> first_start or
+    (select count(*) from public.landville_city_point_events where wallet=owner and kind='CHECK_IN') <> 1 or
+    (select count(*) from public.landville_city_farm_days where wallet=owner) <> 1 then
+    raise exception 'Daily check-in or miner could be duplicated';
+  end if;
+  if has_table_privilege('anon','public.landville_city_farm_days','SELECT') or
+    has_function_privilege('authenticated','public.landville_city_check_in(text,jsonb)','EXECUTE') then
+    raise exception 'City Points storage or RPC exposed to browser roles';
+  end if;
+end $$;
