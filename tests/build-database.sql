@@ -36,25 +36,25 @@ with days as (select pg_catalog.timezone('utc',pg_catalog.clock_timestamp())::da
 insert into public.landville_city_farm_days
   (wallet,day,started_at,ends_at,rate_per_day,token_balance,block_number)
 select '0x' || repeat('e',40),today,(today::timestamp at time zone 'utc'),
-  ((today + 1)::timestamp at time zone 'utc'),2,10000::numeric * 10^18,1234 from days
+  ((today + 1)::timestamp at time zone 'utc'),2,10000::numeric * 1000000000000000000::numeric,1234 from days
 union all
 select '0x' || repeat('e',40),today - 1,((today - 1)::timestamp at time zone 'utc'),
-  (today::timestamp at time zone 'utc'),4,250000::numeric * 10^18,1234 from days;
+  (today::timestamp at time zone 'utc'),4,250000::numeric * 1000000000000000000::numeric,1234 from days;
 \ir ../supabase/migrations/20261002180000_city_miner_250k.sql
 
 do $$
 begin
   if exists(select 1 from public.landville_city_farm_days
-    where wallet='0x' || repeat('e',40) and token_balance < 250000::numeric * 10^18)
+    where wallet='0x' || repeat('e',40) and token_balance < 250000::numeric * 1000000000000000000::numeric)
     or (select rate_per_day from public.landville_city_farm_days
       where wallet='0x' || repeat('e',40)) <> 1 then
     raise exception 'Old miner sessions were not corrected for the 250K minimum';
   end if;
-  if public.landville_city_miner_rate(249999::numeric * 10^18) <> 0
-    or public.landville_city_miner_rate(250000::numeric * 10^18) <> 1
-    or public.landville_city_miner_rate(2500000::numeric * 10^18) <> 2
-    or public.landville_city_miner_rate(10000000::numeric * 10^18) <> 4
-    or public.landville_city_miner_rate(20000000::numeric * 10^18) <> 8 then
+  if public.landville_city_miner_rate(249999::numeric * 1000000000000000000::numeric) <> 0
+    or public.landville_city_miner_rate(250000::numeric * 1000000000000000000::numeric) <> 1
+    or public.landville_city_miner_rate(2500000::numeric * 1000000000000000000::numeric) <> 2
+    or public.landville_city_miner_rate(10000000::numeric * 1000000000000000000::numeric) <> 4
+    or public.landville_city_miner_rate(20000000::numeric * 1000000000000000000::numeric) <> 8 then
     raise exception 'City miner thresholds are incorrect';
   end if;
 end $$;
