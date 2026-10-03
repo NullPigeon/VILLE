@@ -6,6 +6,7 @@ import './junkyard.css';
 import './landing-chaos.css';
 import './world-constructor.css';
 import './city-experience.css';
+import './scrapy-frontier.css';
 import { LandvilleProvider } from '@/components/landville/provider';
 import { WalletProvider } from '@/components/landville/wallet-provider';
 import { MayorPresence } from '@/components/landville/mayor-presence';

@@ -112,9 +112,9 @@ export function CitizenProfile({ identity }: { identity?: string }) {
 
   return (
     <ProductShell title={wallet.address ? 'Your corner of LANDVILLE.' : 'Welcome, future neighbour.'} eyebrow="YOUR PROFILE / YOUR ROBOT / YOUR CITY">
-      <div className={styles.page}>
+      <div className={`${styles.page} scrapy-profile`}>
         <section
-          className={styles.masthead}
+          className={`${styles.masthead} scrapy-profile-hero`}
           aria-label="Citizen passport introduction"
         >
           <div>

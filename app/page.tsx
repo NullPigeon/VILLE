@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <div className="lv-home">
+    <div className="lv-home scrapy-frontier">
       <a className="lv-skip" href="#town-map">
         Skip to the town map
       </a>

@@ -56,7 +56,7 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
     finally { setSaving(false); }
   }
 
-  return <section className={styles.panel} aria-label="Personal Scrapy robot">
+  return <section className={`${styles.panel} scrapy-metal-panel`} aria-label="Personal Scrapy robot">
     <header><span><Bot /> YOUR OWN LITTLE GREMLIN / SCRAPY SUPERVISED</span><h3>{created ? 'Your robot. Your rules.' : 'Build your personal robot.'}</h3>
       <p>One boxy town companion per citizen. Give it a name, a personality and a home in the desert.</p></header>
     {loading ? <p>Checking the workshop…</p> : <div className={styles.layout}>

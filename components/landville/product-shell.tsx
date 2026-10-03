@@ -42,7 +42,7 @@ export function ProductShell({ title, eyebrow, actions, children, immersive = fa
   const profileHref = wallet.address ? `/citizens/${wallet.address}` : '/citizens';
   const mobileNav = nav.filter((item) => ['/world','/chat','/proposals','/citizens'].includes(item.href));
   const current = nav.find((item) => pathname.startsWith(item.href));
-  return <div className={`product-root city-product${immersive ? ' city-immersive' : ''}`}>
+  return <div className={`product-root city-product${pathname.startsWith('/docs') ? '' : ' scrapy-frontier'}${immersive ? ' city-immersive' : ''}`}>
     <a className="city-skip" href="#city-content">Skip to content</a>
     <aside className={open ? 'product-rail rail-open' : 'product-rail'} aria-label="City navigation">
       <div className="rail-brand"><Link href="/"><span>LV</span>LANDVILLE</Link><button onClick={() => setOpen(false)} aria-label="Close navigation"><X /></button></div>
