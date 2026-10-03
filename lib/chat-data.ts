@@ -1,3 +1,4 @@
+export type ChatRoom = 'TOWN' | 'BUILD';
 export type TownMessage = {
   id: string;
   author: string;
@@ -11,6 +12,7 @@ export type TownMessage = {
   askScrapy?: boolean;
   agentOwner?: string | null;
   agentReplyTo?: string | null;
+  room?: ChatRoom;
 };
 
 export const initialTownMessages: TownMessage[] = [];

@@ -42,6 +42,31 @@ select '0x' || repeat('e',40),today - 1,((today - 1)::timestamp at time zone 'ut
   (today::timestamp at time zone 'utc'),4,250000::numeric * 1000000000000000000::numeric,1234 from days;
 \ir ../supabase/migrations/20261002180000_city_miner_250k.sql
 
+-- Upgrade existing public conversations without exposing private archives.
+insert into public.landville_messages(id,author,body,kind,channel,ask_scrapy)
+values ('room-upgrade-request','citizen','Build a radio','CITIZEN','TOWN',true),
+       ('reply-room-upgrade-request','@scrapy','A radio plan','MAYOR','TOWN',false);
+\ir ../supabase/migrations/20261003090000_city_chat_rooms.sql
+do $$
+begin
+  if (select count(*) from public.landville_messages where room='BUILD'
+    and id in ('room-upgrade-request','reply-room-upgrade-request')) <> 2 then
+    raise exception 'Public build conversation was not migrated together';
+  end if;
+  if not exists(select 1 from public.landville_messages where id='legacy-private-test'
+    and channel='WORKSHOP' and room='TOWN' and owner_wallet='0x' || repeat('e',40)) then
+    raise exception 'Private archive changed';
+  end if;
+  if public.landville_post_mayor_banter('Empty towns do not need fake activity.') then
+    raise exception 'Mayor posted without a recent social message';
+  end if;
+  if has_function_privilege('authenticated','public.landville_post_mayor_banter(text)','EXECUTE')
+    or has_function_privilege('anon','public.landville_post_mayor_banter(text)','EXECUTE') then
+    raise exception 'Browser roles can publish mayor messages';
+  end if;
+end $$;
+delete from public.landville_messages where id in ('room-upgrade-request','reply-room-upgrade-request');
+
 do $$
 begin
   if exists(select 1 from public.landville_city_farm_days
@@ -166,7 +191,7 @@ do $$
 declare actor text := '0x' || repeat('a',40); request_id uuid := gen_random_uuid(); result public.landville_messages;
 begin
   result := public.landville_submit_public_message(actor,request_id,'Hello fellow citizens',null,false);
-  if result.ask_scrapy or result.channel <> 'TOWN' or result.owner_wallet is not null then raise exception 'Normal message recipient was lost'; end if;
+  if result.ask_scrapy or result.room <> 'TOWN' or result.channel <> 'TOWN' or result.owner_wallet is not null then raise exception 'Normal message recipient was lost'; end if;
   result := public.landville_submit_public_message(actor,request_id,'Hello fellow citizens',null,false);
   if (select count(*) from public.landville_messages where wallet=actor and kind='CITIZEN') <> 1 then raise exception 'Retry duplicated message or quota'; end if;
   begin
@@ -174,7 +199,13 @@ begin
     raise exception 'Retry changed recipient';
   exception when raise_exception then if sqlerrm <> 'IDEMPOTENCY_CONFLICT' then raise; end if; end;
   result := public.landville_submit_public_message(actor,gen_random_uuid(),'Hello Scrapy',null,true);
-  if not result.ask_scrapy then raise exception 'Explicit AI request was lost'; end if;
+  if not result.ask_scrapy or result.room <> 'BUILD' then raise exception 'Explicit AI request was lost'; end if;
+  if not public.landville_post_mayor_banter('A genuine citizen arrived. Welcome to the sand.') then
+    raise exception 'Mayor did not welcome active social chat';
+  end if;
+  if public.landville_post_mayor_banter('Another scheduler tried the same slot.') then
+    raise exception 'Mayor exceeded the shared eight hour limit';
+  end if;
   if has_function_privilege('anon','public.landville_submit_public_message(text,uuid,text,jsonb,boolean)','EXECUTE') then raise exception 'Anonymous RPC allowed'; end if;
 end $$;
 insert into public.landville_citizens(wallet) select '0x' || repeat(letter, 40) from unnest(array['f','1','2','3']) as letter;

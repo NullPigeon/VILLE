@@ -2,6 +2,7 @@
 import './yard-map.css';
 import './world-explorer.css';
 import './world-art.css';
+import './city-world.css';
 
 import {
   type CSSProperties,
@@ -47,6 +48,14 @@ import {
   type WorldDistrictId,
 } from '@/lib/world-districts';
 import { readJsonResponse } from '@/lib/http-response';
+import { WorldWelcome } from '@/components/landville/world-welcome';
+import { WorldLife } from '@/components/landville/world-life';
+import { WorldMission } from '@/components/landville/world-mission';
+import { WorldFrontierArt } from '@/components/landville/world-frontier-art';
+import { WorldBuildingArt } from '@/components/landville/world-building-art';
+import './frontier-art.css';
+import { ScrapyBot } from '@/components/landville/scrapy-bot';
+import { openCityChat } from '@/components/landville/mayor-presence';
 
 const CITIZEN_SLOTS = [
   { x: 49, y: 59, mobileX: 49, mobileY: 42 },
@@ -99,6 +108,12 @@ export default function WorldPage() {
     places: string[];
   }>({ districts: [], places: [] });
   const [signalOpen, setSignalOpen] = useState(false);
+  const [discovery, setDiscovery] = useState('');
+  useEffect(() => {
+    if (!discovery) return;
+    const timer = window.setTimeout(() => setDiscovery(''), 3500);
+    return () => window.clearTimeout(timer);
+  }, [discovery]);
   const [signalTheme, setSignalTheme] = useState('acid');
   const [signalBusy, setSignalBusy] = useState(false);
   const [signalError, setSignalError] = useState('');
@@ -224,6 +239,10 @@ export default function WorldPage() {
   }, [progressKey]);
 
   function remember(kind: 'districts' | 'places', id: string) {
+    if (!exploration[kind].includes(id)) {
+      const name = kind === 'districts' ? WORLD_DISTRICTS.find((item) => item.id === id)?.name : objects.find((item) => item.id === id)?.title;
+      if (name) setDiscovery(name);
+    }
     const next = {
       ...exploration,
       [kind]: [...new Set([...exploration[kind], id])],
@@ -409,12 +428,13 @@ export default function WorldPage() {
           setDragging(false);
         }}
       >
+        {discovery && <output key={discovery} className="city-discovery-toast"><Compass /><span>NEW DISCOVERY<b>{discovery}</b></span><Check /></output>}
         <header className="world-city-status">
           <span>
             <i /> LANDVILLE / CHAPTER 01
           </span>
-          <b>THE CITY TAKES SHAPE.</b>
-          <small>DRAG TO EXPLORE · CHOOSE A DISTRICT</small>
+          <b>Your city. Still a little wild.</b>
+          <small>Drag to explore · Tap a building to enter</small>
           {townStatus === 'unavailable' && (
             <button onClick={() => void refresh()}>
               CITY DATA UNAVAILABLE · RETRY <RefreshCw />
@@ -494,6 +514,7 @@ export default function WorldPage() {
             />
           </svg>
           <WorldCityScenery height={baseMapHeight} />
+          <WorldFrontierArt height={baseMapHeight} />
           <svg
             className="world-road-map"
             viewBox="0 0 100 100"
@@ -528,16 +549,16 @@ export default function WorldPage() {
           <WorldSquareGround height={baseMapHeight} />
           <StreetProps height={baseMapHeight} />
 
-          <Link
-            href="/chat"
+          <button
+            onClick={() => openCityChat({ room: 'TOWN' })}
             className="world-plaza"
             style={{ top: baseMapHeight / 2 }}
             aria-label="Visit Mayor Scrapy in Town Chat"
           >
-            <Bot />
+            <ScrapyBot portrait />
             <span>SCRAPY SQUARE</span>
             <small>MEET THE MAYOR / BUILD OUTWARD</small>
-          </Link>
+          </button>
 
           {WORLD_DISTRICTS.map((item, index) => (
             <button
@@ -564,14 +585,15 @@ export default function WorldPage() {
             </button>
           ))}
 
-          <div className="world-vacant-lot vacant-west" aria-hidden="true">
+          <button className="world-vacant-lot vacant-west" onClick={() => openCityChat({ room: 'BUILD', district: 'THE DUMP' })} aria-label="Suggest a building in The Dump">
             <b>+</b>
-            <small>VACANT LOT 05</small>
-          </div>
-          <div className="world-vacant-lot vacant-east" aria-hidden="true">
+            <small>BUILD SOMETHING</small>
+          </button>
+          <button className="world-vacant-lot vacant-east" onClick={() => openCityChat({ room: 'BUILD', district: 'MARKET' })} aria-label="Suggest a building in Market">
             <b>+</b>
-            <small>VACANT LOT 06</small>
-          </div>
+            <small>YOUR IDEA HERE</small>
+          </button>
+          <WorldLife height={baseMapHeight} />
 
           {objects.map((object) => (
             <article
@@ -582,7 +604,11 @@ export default function WorldPage() {
                   : 'world-object-card'
               }
               style={mapObjectPlacement(object.id)}
+              data-discovered={exploration.places.includes(object.id)}
+              data-kind={object.kind}
             >
+              <WorldBuildingArt kind={object.kind} />
+              {!exploration.places.includes(object.id) && <span className="world-explore-beacon" aria-hidden="true">EXPLORE <Compass /></span>}
               <div className="world-object-preview" aria-hidden="true">
                 <Building2 />
                 <iframe
@@ -704,7 +730,23 @@ export default function WorldPage() {
             {discoveredPlaces} / {objects.length} PLACES DISCOVERED · ON THIS
             DEVICE
           </small>
-          <div className="world-minimap" aria-label="District shortcuts">
+          <WorldMission
+            explored={exploration.districts.length > 0}
+            discovered={discoveredPlaces > 0}
+            hasPlaces={objects.length > 0}
+            hasYard={Boolean(ownYard)}
+            profileHref={wallet.address ? `/citizens/${wallet.address}#your-agent` : '/citizens'}
+            onExplore={() => exploreDistrict(WORLD_DISTRICTS[groups.findIndex((group) => group.length) >= 0 ? groups.findIndex((group) => group.length) : 0].id)}
+            onDiscover={() => {
+              const target = objects.find((item) => !exploration.places.includes(item.id)) || objects[0];
+              if (!target) return;
+              const place = WORLD_DISTRICTS.find((item) => item.id === objectDistrict(target))!;
+              setActiveDistrict(place.id);
+              moveCamera(mapWidth * place.x / 100, baseMapHeight * place.y / 100, bounds.current.width < 760 ? .8 : 1.05);
+              inspectObject(target.id);
+            }}
+          />
+          <details className="city-minimap-disclosure"><summary>District shortcuts</summary><div className="world-minimap" aria-label="District shortcuts">
             {WORLD_DISTRICTS.map((item) => (
               <button
                 key={item.id}
@@ -717,7 +759,7 @@ export default function WorldPage() {
               </button>
             ))}
             <span className="world-minimap-square" aria-hidden="true" />
-          </div>
+          </div></details>
         </aside>
         <div className="world-camera-tools" aria-label="Map controls">
           <button onClick={() => zoomMap(0.15)} aria-label="Zoom in">
@@ -755,6 +797,7 @@ export default function WorldPage() {
               {groups[WORLD_DISTRICTS.indexOf(district)].length} PUBLISHED
               PLACES
             </span>
+            <button className="city-district-build" onClick={() => openCityChat({ room: 'BUILD', district: district.proposalLabel })}><Bot /> BUILD HERE</button>
             <button onClick={() => exploreDistrict('')}>
               <Map /> BACK TO CITY
             </button>
@@ -944,9 +987,9 @@ export default function WorldPage() {
                   <span className="world-like-error">{likeError}</span>
                 )}
               </section>
-              <Link className="lv-button primary" href="/chat">
-                ASK MAYOR ABOUT IT <Bot />
-              </Link>
+              <button className="lv-button" onClick={() => { setDrawerOpen(false); openCityChat({ room: 'BUILD', district: selected.district, idea: `I have an idea inspired by ${selected.title}. Help me design a new building.` }); }}>
+                BUILD SOMETHING LIKE THIS <Bot />
+              </button>
               {selected.modulePath && (
                 <Link className="lv-button primary" href={selected.modulePath}>
                   OPEN {selected.title}
@@ -955,6 +998,7 @@ export default function WorldPage() {
             </div>
           </aside>
         )}
+        <WorldWelcome />
       </section>
       <section
         id="yards"

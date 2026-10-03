@@ -37,7 +37,9 @@ void test('public Treasury surfaces stay closed during reconstruction', () => {
   const guide = readFileSync(new URL('../lib/field-guide.ts', import.meta.url), 'utf8');
   const hiddenAddress = '0xfF088b1aD9f15cd464593d995b2b37E71F133918';
 
-  assert.match(page, /UNDER RECONSTRUCTION/);
+  assert.match(page, /redirect\('\/world'\)/);
+  const navigation = readFileSync(new URL('../components/landville/product-shell.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(navigation, /href: '\/treasury'/);
   assert.doesNotMatch(page, /fetch\(|hiddenAddress/);
   assert.match(boardRoute, /Treasury is under reconstruction/);
   assert.doesNotMatch(boardRoute, /readTreasuryBoard/);

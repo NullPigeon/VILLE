@@ -7,7 +7,7 @@ import {
   ArrowUpRight,
   BookOpen,
   Building2,
-  CircleDollarSign,
+  Trophy,
   Flag,
   MessageCircle,
   Pause,
@@ -28,7 +28,7 @@ const icons = [
   Building2,
   MessageCircle,
   Vote,
-  CircleDollarSign,
+  Trophy,
   UserRound,
   BookOpen,
 ];

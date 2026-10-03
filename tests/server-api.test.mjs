@@ -25,6 +25,46 @@ const proposalInput = { sourceReplyId: proposalSourceReply.id, category: 'UTILIT
 const proposal = { id: 'LV-1', request_id: proposalRequestId, creator_wallet: wallet, title: 'Town radio', summary: proposalSummary, category: 'UTILITY', district: 'THE DUMP', status: 'LIVE', build_tier: 'PENDING_REVIEW', eligibility_snapshot: snapshot, yes: 0, no: 0, created_at: new Date().toISOString(), closes_at: new Date(Date.now() + 43_200_000).toISOString() };
 const tokenStatus = { address: '0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe', symbol: 'SCRAPY', name: 'LANDVILLE', decimals: 18, chainId: 4663, totalSupply: '1000000000000000000000000000', totalSupplyFormatted: '1,000,000,000', blockNumber: '1234', verifiedAt: new Date().toISOString() };
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+
+void test('public chat rooms filter history and reject mismatched destinations', async () => {
+  const f = fixture(() => undefined);
+  const route = f.load('app/api/chat/route.ts');
+  for (const room of ['TOWN', 'BUILD']) {
+    const response = await route.GET(f.request(`/api/chat?room=${room}`, {}, { method: 'GET' }));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).room, room);
+    assert.ok(f.calls.some((call) => call.url.includes(`owner_wallet=is.null&room=eq.${room}`)));
+  }
+  assert.equal((await route.GET(f.request('/api/chat?room=WORKSHOP', {}, { method: 'GET' }))).status, 400);
+  const before = f.calls.length;
+  assert.equal((await route.POST(f.request('/api/chat', { room: 'BUILD', askScrapy: false, body: 'hello', requestId: randomUUID() }, { signed: true }))).status, 400);
+  assert.equal(f.calls.length, before);
+});
+
+void test('sign-in resumes only known local product actions', () => {
+  const f = fixture(() => undefined);
+  const { citizenReturnPath } = f.load('@/lib/city-navigation');
+  for (const path of ['/chat?room=BUILD&idea=A%20radio', '/world', '/proposals#LV-1', '/modules/LV-1']) {
+    assert.equal(citizenReturnPath(`?returnTo=${encodeURIComponent(path)}`, wallet), path);
+  }
+  for (const path of ['https://example.com', '//example.com', '/chat\\evil', '/chat/../../admin', '/admin', '/world\n']) {
+    assert.equal(citizenReturnPath(`?returnTo=${encodeURIComponent(path)}`, wallet), `/citizens/${wallet}`);
+  }
+});
+
+void test('mayor banter needs worker authentication and works while personal agents are off', async () => {
+  const secret = 'test-mayor-worker-secret-long-enough';
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_post_mayor_banter') ? json(true) : undefined,
+    { LANDVILLE_WORKER_SECRET: secret });
+  const route = f.load('app/api/internal/agent-tick/route.ts');
+  assert.equal((await route.POST(f.request('/api/internal/agent-tick'))).status, 401);
+  assert.equal(f.calls.length, 0);
+  const response = await route.POST(f.request('/api/internal/agent-tick', {}, { headers: { Authorization: `Bearer ${secret}` } }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).mayorPosted, true);
+  assert.equal(f.calls.length, 1);
+  assert.ok(f.calls[0].body.p_body.length <= 320);
+});
 function proposalSourceResponse(call) {
   if (!call.url.includes('landville_messages?')) return undefined;
   if (call.url.includes(`id=eq.${proposalSourceReply.id}`)) return json([proposalSourceReply]);
@@ -59,7 +99,7 @@ function fixture(handler, extraEnv = {}, overrides = {}) {
     const loadedModule = { exports: {} };
     cache.set(file, loadedModule);
     const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
-    const run = vm.runInNewContext(`(function(require, module, exports) { ${code}\n})`, { process: { env }, console: { error() {} }, Buffer, fetch, Headers, Response, URL, AbortSignal, Date, setTimeout, clearTimeout });
+    const run = vm.runInNewContext(`(function(require, module, exports) { ${code}\n})`, { process: { env }, console: { error() {} }, Buffer, fetch, Headers, Response, URL, URLSearchParams, AbortSignal, Date, setTimeout, clearTimeout });
     run(load, loadedModule, loadedModule.exports);
     return loadedModule.exports;
   }
@@ -922,7 +962,7 @@ void test('AI distinguishes missing key, provider failures and incomplete replie
   const result = await f.load('@/lib/server/mayor-ai').requestMayorReply([message], wallet);
   assert.equal(result.ok, true); assert.equal(result.text, 'What should the radio play?');
   assert.equal(f.calls[0].body.store, false); assert.equal(f.calls[0].body.model, 'test-model');
-  assert.match(f.calls[0].body.instructions, /public Town Chat/);
+  assert.match(f.calls[0].body.instructions, /Build with Scrapy, the public building room/);
 });
 
 void test('missing provenance migration refuses chat before a message or quota is consumed', async () => {
@@ -947,6 +987,8 @@ void test('public replies persist provenance, exclude private context and never 
     assert.equal(saved.ai_source, ai ? 'openai' : 'scripted');
     assert.equal(result.messages[1].aiSource, saved.ai_source);
     assert.equal(saved.owner_wallet, null); assert.equal(saved.channel, 'TOWN');
+    assert.equal(saved.room, 'BUILD');
+    assert.ok(f.calls.some((call) => call.url.includes(`room=eq.BUILD&wallet=eq.${wallet}&kind=eq.CITIZEN`)));
     assert.ok(!f.calls.some((call) => /WORKSHOP|create_proposal/.test(call.url)));
     const replay = await f.load('@/lib/server/chat').sendMessage(wallet, 'TOWN', message.body, randomUUID(), true);
     assert.equal(replay.source, 'stored'); assert.equal(replay.messages[1].aiSource, saved.ai_source);
@@ -1363,7 +1405,7 @@ void test('yard chat stores the signed owner and labels a generated robot reply'
 
 void test('robot Town posting requires the worker secret and an explicit operator switch', async () => {
   const secret = 'unit-test-personal-agent-worker-secret-12345';
-  const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret });
+  const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret, LANDVILLE_MAYOR_BANTER_ENABLED: 'false' });
   const route = f.load('app/api/internal/agent-tick/route.ts');
   assert.equal((await route.POST(f.request('/api/internal/agent-tick'))).status, 401);
   const response = await route.POST(f.request('/api/internal/agent-tick', {}, { headers: { Authorization: `Bearer ${secret}` } }));

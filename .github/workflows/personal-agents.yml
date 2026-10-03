@@ -1,4 +1,4 @@
-name: Personal agents
+name: Town Square residents
 on:
   workflow_dispatch:
   schedule:
@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   town:
-    if: vars.LANDVILLE_AGENT_SCHEDULER_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    if: (vars.LANDVILLE_AGENT_SCHEDULER_ENABLED == 'true' || vars.LANDVILLE_MAYOR_BANTER_ENABLED != 'false') && vars.LANDVILLE_SITE_URL != '' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:

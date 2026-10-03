@@ -41,6 +41,9 @@ import {
 } from '@/lib/scrapy-token';
 import { EmailOtpForm } from '@/components/landville/email-otp-form';
 import { AgentConfigurator } from '@/components/landville/agent-configurator';
+import { CitizenNextSteps } from '@/components/landville/city-start';
+import { ScrapyBot } from '@/components/landville/scrapy-bot';
+import { citizenReturnPath } from '@/lib/city-navigation';
 
 export function CitizenProfile({ identity }: { identity?: string }) {
   const { voted } = useLandville();
@@ -48,7 +51,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
   const router = useRouter();
   useEffect(() => {
     if (!identity && wallet.address)
-      router.replace(`/citizens/${wallet.address}`);
+      router.replace(citizenReturnPath(window.location.search, wallet.address));
   }, [identity, wallet.address, router]);
   const [checking, setChecking] = useState(false);
   const [notice, setNotice] = useState('');
@@ -108,10 +111,10 @@ export function CitizenProfile({ identity }: { identity?: string }) {
   }
 
   return (
-    <ProductShell title="CITIZEN FILE" eyebrow="THE PEOPLE WHO MAKE THE CITY">
-      <div className={styles.page}>
+    <ProductShell title={wallet.address ? 'Your corner of LANDVILLE.' : 'Welcome, future neighbour.'} eyebrow="YOUR PROFILE / YOUR ROBOT / YOUR CITY">
+      <div className={`${styles.page} scrapy-profile`}>
         <section
-          className={styles.masthead}
+          className={`${styles.masthead} scrapy-profile-hero`}
           aria-label="Citizen passport introduction"
         >
           <div>
@@ -121,22 +124,22 @@ export function CitizenProfile({ identity }: { identity?: string }) {
             <h2>
               {requestedWallet ? (
                 <>
-                  A PLACE
+                  MAKE YOURSELF
                   <br />
-                  <em>WITH YOUR NAME ON IT.</em>
+                  <em>AT HOME.</em>
                 </>
               ) : (
                 <>
-                  THE CITY NEEDS
+                  ONE SMALL STEP.
                   <br />
-                  <em>YOU IN IT.</em>
+                  <em>YOUR OWN PLACE.</em>
                 </>
               )}
             </h2>
             <p>
               {requestedWallet
-                ? 'Your identity, your home, your ideas, and the record of what you have helped build.'
-                : 'Every place in LANDVILLE begins with a citizen. Claim your file and join the city as it grows.'}
+                ? 'Your robot, your builds, your place in the city.'
+                : 'Join with email or a wallet. No tokens needed.'}
             </p>
             <div className={styles.mastLinks}>
               <Link href="/world">
@@ -148,6 +151,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
             </div>
           </div>
           <div className={styles.mastGraphic} aria-hidden="true">
+            <ScrapyBot />
             <span>LV / RESIDENT FILE</span>
             <div>
               <i />
@@ -224,8 +228,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
                 )}
               </h2>
               <p>
-                You are not a spectator. You are a citizen: bring an idea, argue
-                for it, vote on what belongs here.
+                Create your robot. Bring an idea. Help build the town.
               </p>
               <p className={styles.scrapyNote}>
                 “Bring an email. Bring a wallet if you want power.”{' '}
@@ -329,8 +332,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
               <>
                 <h3>WHO ARE YOU IN LANDVILLE?</h3>
                 <p>
-                  Start with a permanent email login, or continue with an EVM
-                  wallet. You can attach a wallet to an email account later.
+                  Email or wallet. You can link both later.
                 </p>
                 <EmailOtpForm />
                 <Button
@@ -344,8 +346,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
                     : 'CONTINUE WITH WALLET'}
                 </Button>
                 <p className={styles.caption}>
-                  Wallet sign-in uses a message signature. It never creates a
-                  transaction or spends funds.
+                  Wallet sign-in is free. No transaction required.
                 </p>
               </>
             )}
@@ -362,6 +363,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
         )}
 
         {isOwnWallet && !wallet.email && <EmailOtpForm attach />}
+        {isOwnWallet && <CitizenNextSteps />}
 
         {!requestedWallet && (
           <section className={styles.roles} aria-label="What citizens can do">
@@ -370,9 +372,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
               <span className={styles.label}>01 / JOIN THE CONVERSATION</span>
               <h3>A voice in the town.</h3>
               <p>
-                Everyone shares Town Chat history. Your account gets 10 messages
-                a day without SCRAPY, or 50 with a positive balance, in public
-                Town Chat. Resets at 00:00 UTC.
+                Shape ideas with Scrapy. Meet citizens and robots in Town Square.
               </p>
               <Link href="/chat">
                 OPEN TOWN CHAT <ArrowUpRight />
@@ -383,8 +383,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
               <span className={styles.label}>02 / DECIDE WHAT BELONGS</span>
               <h3>One citizen. A starting vote.</h3>
               <p>
-                Every citizen gets one base vote. Link a wallet for one
-                additional vote per full 250,000 SCRAPY.
+                Vote for the next building. Every citizen has a voice.
               </p>
               <Link href="/proposals">
                 EXPLORE PROPOSALS <ArrowUpRight />
@@ -395,9 +394,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
               <span className={styles.label}>03 / LEAVE SOMETHING BEHIND</span>
               <h3>Give an idea a home.</h3>
               <p>
-                Any citizen may submit through a proposal-ready Scrapy plan in
-                Town Chat. Keep up to two active proposals; a third unlocks
-                after one is built or rejected.
+                Review your plan with Scrapy. Get it approved. See it in World.
               </p>
               <Link href="/chat">
                 DISCUSS IN TOWN CHAT <ArrowUpRight />
@@ -474,10 +471,10 @@ export function CitizenProfile({ identity }: { identity?: string }) {
         )}
 
         {isOwnWallet && citizen && (
-          <AgentConfigurator
+          <div id="your-agent"><AgentConfigurator
             key={`agent-${requestedWallet}`}
             owner={requestedWallet}
-          />
+          /></div>
         )}
         {!isOwnWallet && citizen && <PublicYardLink owner={requestedWallet} />}
 

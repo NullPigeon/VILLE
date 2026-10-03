@@ -7,6 +7,7 @@ import { readMessages } from '@/lib/server/chat';
 import { database, rpc } from '@/lib/server/database';
 import { generateTownAgentPost } from '@/lib/server/personal-agent-ai';
 import { agentRecord } from '@/lib/server/personal-agents';
+import { postMayorBanter } from '@/lib/server/mayor-banter';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -16,12 +17,13 @@ type AgentPostRow = { created_at: string };
 export async function POST(request: NextRequest) {
   try {
     requireWorker(request);
+    const mayorPosted = await postMayorBanter();
     if (process.env.LANDVILLE_AGENT_AUTONOMY_ENABLED !== 'true') {
-      return NextResponse.json({ posted: false, reason: 'disabled' }, { headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json({ posted: mayorPosted, mayorPosted, reason: 'disabled' }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const claim = await rpc<AgentRow | null>('landville_claim_agent_post', {});
     if (!claim || !claim.lease_id) {
-      return NextResponse.json({ posted: false, reason: 'no_due_agent' }, { headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json({ posted: mayorPosted, mayorPosted, reason: 'no_due_agent' }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const agent = agentRecord(claim);
     try {
