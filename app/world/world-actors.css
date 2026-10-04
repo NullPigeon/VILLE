@@ -4,8 +4,12 @@
 .world-map-scene .world-game-actor.resident:hover,.world-map-scene .world-game-actor.resident:focus-visible{z-index:17;filter:drop-shadow(2px 3px 0 #1d2718) drop-shadow(0 0 15px #d6fa83)}
 .world-map-scene .world-game-actor.resident .world-actor-name{background:#d8c79d;color:#26331e;border-bottom-color:#6d8a3c}
 .world-map-scene .world-game-actor.demo-scout{pointer-events:none;animation:world-scout-loop 15s ease-in-out infinite}
-.world-map-scene .world-game-actor.robot{width:106px;border:0;background:none;padding:0;color:inherit;cursor:pointer;transition:left 5.8s ease-in-out,top 5.8s ease-in-out,filter .2s}
+.world-map-scene .world-game-actor.robot{width:106px;border:0;background:none;padding:0;color:inherit;cursor:pointer;transition:left 1.15s linear,top 1.15s linear,filter .2s}
+.world-agent-speech{position:absolute;bottom:100%;left:50%;width:max-content;max-width:190px;transform:translateX(-50%) rotate(-2deg);padding:7px 10px;background:#f1dfac;color:#27331c;border:2px solid #2c3322;border-bottom:5px solid #8f7647;box-shadow:4px 5px #3f342570;font:900 11px/1.3 Arial,sans-serif;text-align:center;white-space:normal;animation:world-speech-pop .28s ease-out both;pointer-events:none}
+.world-agent-speech:after{content:'';position:absolute;top:100%;left:45%;border:7px solid transparent;border-top-color:#2c3322}
+@keyframes world-speech-pop{from{opacity:0;transform:translate(-50%,7px) rotate(-3deg) scale(.9)}to{opacity:1;transform:translate(-50%,0) rotate(-2deg) scale(1)}}
 .world-map-scene .world-game-actor.robot:hover{z-index:16;filter:drop-shadow(2px 3px 0 #1d2718) drop-shadow(0 0 13px #c7ff00)}
+.world-map-scene .world-game-actor.robot.speaking{z-index:18}
 .world-actor-figure{display:grid;place-items:end center;width:100%;height:142px;transform-origin:50% 90%;animation:world-actor-idle 2.6s ease-in-out infinite}
 .world-game-actor.hero.walking .world-actor-figure{animation:world-actor-walk .36s ease-in-out infinite alternate}
 .world-game-actor.robot .world-actor-figure{height:122px;animation-duration:2.1s}
@@ -48,3 +52,4 @@
 @keyframes world-scout-loop{0%,100%{transform:translate(-50%,-79%)}25%{transform:translate(45px,-112%)}50%{transform:translate(84px,-79%)}75%{transform:translate(-80px,-53%)}}
 @media(max-width:760px){.world-wardrobe{top:140px;right:10px}.world-wardrobe-trigger{font-size:9px;padding:8px}.world-wardrobe-panel{top:42px;max-height:calc(100dvh - 205px)}.world-agent-chat{right:10px;top:auto;bottom:130px;height:min(430px,calc(100dvh - 255px))}.world-map-scene .world-game-actor.robot.neighbor{width:76px}.world-map-scene .world-game-actor.robot.neighbor .personal-robot{width:61px}}
 @media(prefers-reduced-motion:reduce){.world-actor-figure,.world-game-actor.hero.walking .world-actor-figure,.world-map-scene .world-game-actor.demo-scout{animation:none}.world-map-scene .world-game-actor{transition:none}}
+@media(prefers-reduced-motion:reduce){.world-agent-speech{animation:none}}

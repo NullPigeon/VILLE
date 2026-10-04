@@ -62,6 +62,7 @@ import './world-actors.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/world-presence';
+import { agentWorldMotion } from '@/lib/agent-world-motion';
 
 const CITIZEN_SLOTS = [
   { x: 49, y: 59, mobileX: 49, mobileY: 42 },
@@ -130,7 +131,7 @@ export default function WorldPage() {
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [agentChatOpen, setAgentChatOpen] = useState(false);
   const [heroWalking, setHeroWalking] = useState(false);
-  const [patrolStep, setPatrolStep] = useState(0);
+  const [worldClock, setWorldClock] = useState(0);
   const [residents, setResidents] = useState<WorldResident[]>([]);
   const [positions, setPositions] = useState<WorldPresence[]>([]);
   const [presenceStatus, setPresenceStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -212,7 +213,7 @@ export default function WorldPage() {
   }, [wallet.address, baseMapHeight]);
 
   useEffect(() => {
-    const tick = () => setPatrolStep(Math.floor(Date.now() / 6500));
+    const tick = () => setWorldClock(Date.now());
     const first = window.setTimeout(tick, 0);
     const timer = window.setInterval(tick, 1000);
     return () => { window.clearTimeout(first); window.clearInterval(timer); };
@@ -870,14 +871,18 @@ export default function WorldPage() {
           {yards.map((yard, index) => {
             const home = yardPosition(index);
             const own = yard.ownerWallet.toLowerCase() === wallet.address.toLowerCase();
-            const patrol = [[62, 47], [106, 16], [86, -52], [28, -32]][(patrolStep + index) % 4];
+            const motion = agentWorldMotion({ wallet: yard.ownerWallet, home,
+              mapWidth, mapHeight, cityHeight: baseMapHeight, roamMode: yard.worldRoamMode,
+              personality: yard.personality, speechEnabled: yard.worldSpeechEnabled,
+              phrases: yard.worldPhrases, now: worldClock });
             const sharedRobotSkin = positionsByWallet.get(yard.ownerWallet.toLowerCase())?.robotSkin;
             const actor = <>
+              {motion.speech && <span className="world-agent-speech" aria-live="off">{motion.speech}</span>}
               <span className="world-actor-figure"><PersonalRobot presentation={yard.presentation} skin={own ? robotSkin : sharedRobotSkin || ROBOT_SKINS[index % ROBOT_SKINS.length]} /></span>
               <span className="world-actor-name">{yard.name}{own ? ' · YOUR AGENT' : ''}</span>
             </>;
-            const className = `world-game-actor robot${own ? ' own' : ' neighbor'}`;
-            const style = { left: Math.max(60, Math.min(mapWidth - 60, home.x + patrol[0])), top: Math.max(105, Math.min(mapHeight - 45, home.y + patrol[1])) };
+            const className = `world-game-actor robot${own ? ' own' : ' neighbor'}${motion.speech ? ' speaking' : ''}`;
+            const style = { left: motion.x, top: motion.y };
             return own
               ? <button key={`robot-${yard.ownerWallet}`} className={className} style={style} onClick={() => { setWardrobeOpen(false); setAgentChatOpen(true); }} aria-label={`Talk to your agent ${yard.name}`}>{actor}</button>
               : <Link key={`robot-${yard.ownerWallet}`} href={`/yard/${yard.ownerWallet}`} className={className} style={style} aria-label={`Visit ${yard.name} at ${yard.houseName}`}>{actor}</Link>;

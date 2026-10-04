@@ -6,13 +6,14 @@ import { ArrowUpRight, Bot, Wrench } from 'lucide-react';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
 import { PersonalRobot } from '@/components/landville/personal-robot';
 import { readJsonResponse } from '@/lib/http-response';
-import { AGENT_HOUSES, AGENT_INTERVALS, AGENT_PERSONALITIES, AGENT_PRESENTATIONS, AGENT_TOWN_MODES, HOUSE_LABELS, PERSONALITY_LABELS, type PersonalAgent } from '@/lib/personal-agent';
+import { AGENT_HOUSES, AGENT_INTERVALS, AGENT_PERSONALITIES, AGENT_PRESENTATIONS, AGENT_TOWN_MODES, AGENT_WORLD_ROAM_MODES, HOUSE_LABELS, PERSONALITY_LABELS, type PersonalAgent } from '@/lib/personal-agent';
 import styles from './agent-configurator.module.css';
 
-type Form = Pick<PersonalAgent, 'name' | 'presentation' | 'personality' | 'houseStyle' | 'houseName' | 'townMode' | 'intervalMinutes'>;
+type Form = Pick<PersonalAgent, 'name' | 'presentation' | 'personality' | 'houseStyle' | 'houseName' | 'townMode' | 'intervalMinutes' | 'worldRoamMode' | 'worldSpeechEnabled' | 'worldPhrases'>;
 const defaults: Form = {
   name: 'Bolt', presentation: 'MASCULINE', personality: 'CHEEKY',
   houseStyle: 'SCRAP_SHACK', houseName: 'The Rust Nest', townMode: 'OFF', intervalMinutes: 120,
+  worldRoamMode: 'CITY', worldSpeechEnabled: true, worldPhrases: [],
 };
 
 export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?: (agent: PersonalAgent) => void }) {
@@ -33,7 +34,8 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
         if (agent) {
           setForm({ name: agent.name, presentation: agent.presentation, personality: agent.personality,
             houseStyle: agent.houseStyle, houseName: agent.houseName, townMode: agent.townMode,
-            intervalMinutes: agent.intervalMinutes });
+            intervalMinutes: agent.intervalMinutes, worldRoamMode: agent.worldRoamMode,
+            worldSpeechEnabled: agent.worldSpeechEnabled, worldPhrases: agent.worldPhrases });
           setCreated(true);
         }
       }).catch((error: Error) => { if (active) setNotice(error.message); })
@@ -46,7 +48,8 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
     setSaving(true); setNotice('');
     try {
       const response = await fetch('/api/agents/me', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, worldPhrases: form.worldPhrases.map((line) => line.trim()).filter(Boolean) }),
       });
       const result = await readJsonResponse<{ agent: PersonalAgent }>(response, 'Save robot');
       setCreated(true);
@@ -71,6 +74,16 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
           <label key={value}><input type="radio" name="personality" checked={form.personality === value} onChange={() => setForm({ ...form, personality: value })} /><span>{PERSONALITY_LABELS[value]}</span></label>)}</div></fieldset>
         <fieldset><legend>CHOOSE ONE HOUSE</legend><div className={styles.houseOptions}>{AGENT_HOUSES.map((value) =>
           <label key={value}><input type="radio" name="houseStyle" checked={form.houseStyle === value} onChange={() => setForm({ ...form, houseStyle: value })} /><AgentHouseArt style={value} /><span>{HOUSE_LABELS[value]}</span></label>)}</div></fieldset>
+        <fieldset><legend>WORLD / HOW YOUR AGENT LIVES</legend>
+          <p>Your robot walks on the shared map by itself. Choose how far it explores. Short lines appear above its head from time to time.</p>
+          <label className={styles.selectLabel}>ROAMING<select value={form.worldRoamMode} onChange={(event) => setForm({ ...form, worldRoamMode: event.target.value as Form['worldRoamMode'] })}>
+            {AGENT_WORLD_ROAM_MODES.map((value) => <option key={value} value={value}>{value === 'HOME' ? 'Near my yard' : value === 'DISTRICTS' ? 'Neighboring districts' : 'Across the whole city'}</option>)}
+          </select></label>
+          <label className={styles.toggle}><input type="checkbox" checked={form.worldSpeechEnabled} onChange={(event) => setForm({ ...form, worldSpeechEnabled: event.target.checked })} /> Show speech bubbles on World</label>
+          {form.worldSpeechEnabled && <label className={styles.speechLabel}>LINES YOUR AGENT CAN SAY <span>Up to 4 lines, 70 characters each. Leave blank for personality-based lines.</span>
+            <textarea value={form.worldPhrases.join('\n')} onChange={(event) => setForm({ ...form, worldPhrases: event.target.value.split('\n') })} rows={4} maxLength={285} placeholder={'Anyone seen my spare wheel?\nScrapy said this counts as a walk.'} />
+          </label>}
+        </fieldset>
         <fieldset><legend>TOWN CHAT AUTONOMY</legend>
           <p>Off by default. If enabled, your robot may post publicly under its own name. Maximum 4 posts per UTC day. You can switch it off at any time.</p>
           <label className={styles.selectLabel}>BEHAVIOR<select value={form.townMode} onChange={(event) => setForm({ ...form, townMode: event.target.value as Form['townMode'] })}>
