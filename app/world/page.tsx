@@ -7,6 +7,7 @@ import './city-world.css';
 import {
   type CSSProperties,
   type PointerEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -59,6 +60,7 @@ import { WorldFrontierArt } from '@/components/landville/world-frontier-art';
 import { WorldBuildingArt } from '@/components/landville/world-building-art';
 import './frontier-art.css';
 import './world-actors.css';
+import './world-game-map.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/world-presence';
@@ -139,6 +141,7 @@ export default function WorldPage() {
   const deviceInitialized = useRef('');
   const presenceSave = useRef<number | null>(null);
   const localEdit = useRef(false);
+  const cameraTouched = useRef(false);
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const stage = useRef<HTMLElement>(null);
   const bounds = useRef({ width: 0, height: 0 });
@@ -189,6 +192,23 @@ export default function WorldPage() {
   );
   const ownPublishedCharacter = citizens.find((citizen) => citizen.wallet.toLowerCase() === wallet.address.toLowerCase());
   const positionsByWallet = new globalThis.Map(positions.map((position) => [position.wallet.toLowerCase(), position]));
+
+  const clampCamera = useCallback((x: number, y: number, zoom: number) => {
+    const { width, height } = bounds.current;
+    const scaledWidth = mapWidth * zoom;
+    const scaledHeight = mapHeight * zoom;
+    return {
+      x: scaledWidth <= width ? (width - scaledWidth) / 2 : Math.max(width - scaledWidth - 36, Math.min(36, x)),
+      y: scaledHeight <= height ? (height - scaledHeight) / 2 : Math.max(height - scaledHeight - 36, Math.min(36, y)),
+      zoom,
+    };
+  }, [mapHeight]);
+
+  const moveCamera = (x: number, y: number, zoom: number) => {
+    const { width, height } = bounds.current;
+    cameraTouched.current = true;
+    setCamera(clampCamera(width / 2 - x * zoom, height / 2 - y * zoom, zoom));
+  };
 
   useEffect(() => {
     if (!wallet.address) return;
@@ -316,7 +336,15 @@ export default function WorldPage() {
       const step = delta[event.code];
       if (!step) return;
       event.preventDefault();
-      walkTo(heroPosition.x + step[0], heroPosition.y + step[1]);
+      const nextX = Math.max(70, Math.min(mapWidth - 70, heroPosition.x + step[0]));
+      const nextY = Math.max(90, Math.min(mapHeight - 80, heroPosition.y + step[1]));
+      walkTo(nextX, nextY);
+      const screenX = nextX * camera.zoom + camera.x;
+      const screenY = nextY * camera.zoom + camera.y;
+      if (screenX < bounds.current.width * .17 || screenX > bounds.current.width * .83 ||
+        screenY < bounds.current.height * .2 || screenY > bounds.current.height * .76) {
+        moveCamera(nextX, nextY, camera.zoom);
+      }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -354,20 +382,43 @@ export default function WorldPage() {
     if (!stage.current) return;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
+      const previousBounds = bounds.current;
       bounds.current = { width, height };
-      const zoom =
-        width < 760
-          ? 0.65
-          : Math.min(width / mapWidth, height / mapHeight) * 0.96;
-      setCamera({
-        x: (width - mapWidth * zoom) / 2,
-        y: height / 2 - baseMapHeight * 0.5 * zoom,
-        zoom,
+      setCamera((previous) => {
+        if (cameraTouched.current && previousBounds.width) {
+          const focusX = (previousBounds.width / 2 - previous.x) / previous.zoom;
+          const focusY = (previousBounds.height / 2 - previous.y) / previous.zoom;
+          return clampCamera(width / 2 - focusX * previous.zoom, height / 2 - focusY * previous.zoom, previous.zoom);
+        }
+        const zoom = width < 760 ? 0.72 : Math.max(0.62, Math.min(0.86, width / mapWidth * 0.85));
+        return clampCamera(width / 2 - mapWidth / 2 * zoom, height / 2 - baseMapHeight / 2 * zoom, zoom);
       });
     });
     observer.observe(stage.current);
     return () => observer.disconnect();
-  }, [baseMapHeight, mapHeight]);
+  }, [baseMapHeight, clampCamera]);
+
+  useEffect(() => {
+    const surface = stage.current;
+    if (!surface) return;
+    const onWheel = (event: WheelEvent) => {
+      if (event.target instanceof Element && event.target.closest('.world-drawer,.world-agent-chat,.world-wardrobe-panel,.world-signal-panel,.world-exploration-hud')) return;
+      event.preventDefault();
+      cameraTouched.current = true;
+      const rect = surface.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+      setCamera((previous) => {
+        const delta = event.deltaY * (event.deltaMode === 1 ? 16 : 1);
+        const zoom = Math.max(0.08, Math.min(1.85, previous.zoom * Math.exp(-delta * 0.0012)));
+        const worldX = (pointerX - previous.x) / previous.zoom;
+        const worldY = (pointerY - previous.y) / previous.zoom;
+        return clampCamera(pointerX - worldX * zoom, pointerY - worldY * zoom, zoom);
+      });
+    };
+    surface.addEventListener('wheel', onWheel, { passive: false });
+    return () => surface.removeEventListener('wheel', onWheel);
+  }, [clampCamera]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -413,11 +464,6 @@ export default function WorldPage() {
     }
   }
 
-  function moveCamera(x: number, y: number, zoom: number) {
-    const { width, height } = bounds.current;
-    setCamera({ x: width / 2 - x * zoom, y: height / 2 - y * zoom, zoom });
-  }
-
   function exploreDistrict(id: WorldDistrictId | '') {
     setActiveDistrict(id);
     const item = WORLD_DISTRICTS.find((entry) => entry.id === id);
@@ -430,17 +476,13 @@ export default function WorldPage() {
       );
     } else {
       if (item) remember('districts', id);
-      const zoom =
-        Math.min(
-          bounds.current.width / mapWidth,
-          bounds.current.height / mapHeight,
-        ) * 0.96;
+      const zoom = Math.max(0.08, Math.min(bounds.current.width / mapWidth, bounds.current.height / mapHeight) * 0.96);
       moveCamera(mapWidth / 2, mapHeight / 2, zoom);
     }
   }
 
   function zoomMap(delta: number) {
-    const zoom = Math.max(0.2, Math.min(1.8, camera.zoom + delta));
+    const zoom = Math.max(0.08, Math.min(1.85, camera.zoom + delta));
     moveCamera(
       (bounds.current.width / 2 - camera.x) / camera.zoom,
       (bounds.current.height / 2 - camera.y) / camera.zoom,
@@ -471,23 +513,12 @@ export default function WorldPage() {
     if (!drag.current || drag.current.id !== event.pointerId) return;
     const gesture = drag.current;
     if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 7) gesture.moved = true;
-    setCamera((previous) => ({
-      ...previous,
-      x: Math.max(
-        120 - mapWidth * previous.zoom,
-        Math.min(
-          bounds.current.width - 120,
-          gesture.cameraX + event.clientX - gesture.x,
-        ),
-      ),
-      y: Math.max(
-        120 - mapHeight * previous.zoom,
-        Math.min(
-          bounds.current.height - 120,
-          gesture.cameraY + event.clientY - gesture.y,
-        ),
-      ),
-    }));
+    cameraTouched.current = true;
+    setCamera((previous) => clampCamera(
+      gesture.cameraX + event.clientX - gesture.x,
+      gesture.cameraY + event.clientY - gesture.y,
+      previous.zoom,
+    ));
   }
 
   function finishDrag(event: PointerEvent<HTMLElement>) {
@@ -534,8 +565,8 @@ export default function WorldPage() {
   function yardPosition(index: number) {
     if (index < 6)
       return {
-        x: ([8, 92, 8, 92, 36, 65][index] / 100) * mapWidth,
-        y: ([30, 30, 77, 77, 7, 93][index] / 100) * baseMapHeight,
+        x: ([43, 57, 20, 80, 37, 63][index] / 100) * mapWidth,
+        y: ([43, 43, 64, 64, 16, 84][index] / 100) * baseMapHeight,
       };
     return {
       x: 200 + ((index - 6) % 8) * 170,
@@ -605,7 +636,7 @@ export default function WorldPage() {
             <i /> LANDVILLE / CHAPTER 01
           </span>
           <b>Your city. Still a little wild.</b>
-          <small>{wallet.address ? 'Drag map · Tap sand to walk · WASD / arrows' : 'Drag to explore · Tap a building to enter'}</small>
+          <small>{wallet.address ? 'Drag to pan · Wheel to zoom · Click to walk · WASD / arrows' : 'Drag to pan · Wheel to zoom · Open a building'}</small>
           {townStatus === 'unavailable' && (
             <button onClick={() => void refresh()}>
               CITY DATA UNAVAILABLE · RETRY <RefreshCw />
@@ -622,6 +653,12 @@ export default function WorldPage() {
           >
             <Map /> CITY MAP
           </button>
+          {ownYard && <button className="world-nav-home" onClick={() => {
+            const point = yardPosition(yards.indexOf(ownYard));
+            moveCamera(point.x, point.y, .95);
+            setActiveDistrict('');
+          }} aria-label="Go to my yard"><Home /> MY YARD</button>}
+          {wallet.address && <button onClick={() => moveCamera(heroPosition.x, heroPosition.y, .95)} aria-label="Find my character"><User /> MY HERO</button>}
           {WORLD_DISTRICTS.map((item) => (
             <button
               key={item.id}
@@ -667,21 +704,21 @@ export default function WorldPage() {
           >
             <path
               className={activeDistrict === 'dump' ? 'active dump' : 'dump'}
-              d="M 7 10 L 44 8 L 45 40 L 10 44 Z"
+              d="M 3 4 L 47 4 L 47 47 L 3 47 Z"
             />
             <path
               className={activeDistrict === 'token' ? 'active token' : 'token'}
-              d="M 58 9 L 94 11 L 90 43 L 57 40 Z"
+              d="M 53 4 L 97 4 L 97 47 L 53 47 Z"
             />
             <path
               className={activeDistrict === 'meme' ? 'active meme' : 'meme'}
-              d="M 9 57 L 43 59 L 43 91 L 8 88 Z"
+              d="M 3 53 L 47 53 L 47 96 L 3 96 Z"
             />
             <path
               className={
                 activeDistrict === 'market' ? 'active market' : 'market'
               }
-              d="M 57 60 L 93 56 L 94 88 L 59 93 Z"
+              d="M 53 53 L 97 53 L 97 96 L 53 96 Z"
             />
           </svg>
           <WorldCityScenery height={baseMapHeight} />
@@ -778,6 +815,7 @@ export default function WorldPage() {
               data-discovered={exploration.places.includes(object.id)}
               data-kind={object.kind}
             >
+              <span className="world-object-foundation" aria-hidden="true" />
               <WorldBuildingArt kind={object.kind} />
               {!exploration.places.includes(object.id) && <span className="world-explore-beacon" aria-hidden="true">EXPLORE <Compass /></span>}
               <div className="world-object-preview" aria-hidden="true">
@@ -856,6 +894,7 @@ export default function WorldPage() {
               href={`/yard/${yard.ownerWallet}`}
               aria-label={`Visit ${yard.houseName}, ${yard.ownerLabel}'s yard`}
             >
+              <span className="world-yard-foundation" aria-hidden="true" />
               <AgentHouseArt style={yard.houseStyle} />
               {holder && yard.ownerWallet === ownYard?.ownerWallet && (
                 <Crown className="world-house-signal" />
