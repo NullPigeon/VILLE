@@ -1,5 +1,8 @@
 .world-map-scene .world-game-actor{position:absolute;z-index:13;display:grid;justify-items:center;gap:0;width:128px;transform:translate(-50%,-79%);text-decoration:none;transition:left 2.4s linear,top 2.4s linear;filter:drop-shadow(5px 7px 0 #292a1d72)}
 .world-map-scene .world-game-actor.hero{pointer-events:none;z-index:14}
+.world-map-scene .world-game-actor.resident{z-index:14;cursor:pointer}
+.world-map-scene .world-game-actor.resident:hover,.world-map-scene .world-game-actor.resident:focus-visible{z-index:17;filter:drop-shadow(2px 3px 0 #1d2718) drop-shadow(0 0 15px #d6fa83)}
+.world-map-scene .world-game-actor.resident .world-actor-name{background:#d8c79d;color:#26331e;border-bottom-color:#6d8a3c}
 .world-map-scene .world-game-actor.demo-scout{pointer-events:none;animation:world-scout-loop 15s ease-in-out infinite}
 .world-map-scene .world-game-actor.robot{width:106px;border:0;background:none;padding:0;color:inherit;cursor:pointer;transition:left 5.8s ease-in-out,top 5.8s ease-in-out,filter .2s}
 .world-map-scene .world-game-actor.robot:hover{z-index:16;filter:drop-shadow(2px 3px 0 #1d2718) drop-shadow(0 0 13px #c7ff00)}

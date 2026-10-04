@@ -61,6 +61,7 @@ import './frontier-art.css';
 import './world-actors.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
+import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/world-presence';
 
 const CITIZEN_SLOTS = [
   { x: 49, y: 59, mobileX: 49, mobileY: 42 },
@@ -130,6 +131,13 @@ export default function WorldPage() {
   const [agentChatOpen, setAgentChatOpen] = useState(false);
   const [heroWalking, setHeroWalking] = useState(false);
   const [patrolStep, setPatrolStep] = useState(0);
+  const [residents, setResidents] = useState<WorldResident[]>([]);
+  const [positions, setPositions] = useState<WorldPresence[]>([]);
+  const [presenceStatus, setPresenceStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const presenceInitialized = useRef('');
+  const deviceInitialized = useRef('');
+  const presenceSave = useRef<number | null>(null);
+  const localEdit = useRef(false);
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const stage = useRef<HTMLElement>(null);
   const bounds = useRef({ width: 0, height: 0 });
@@ -155,6 +163,7 @@ export default function WorldPage() {
   const mapWidth = 1600;
   const townwideCount = groups[4].length;
   const baseMapHeight = Math.max(
+    2300,
     districtRows * 190 * 2 + 360,
     townwideCount * 190 + 500,
   );
@@ -178,9 +187,14 @@ export default function WorldPage() {
     (yard) => yard.ownerWallet.toLowerCase() === wallet.address.toLowerCase(),
   );
   const ownPublishedCharacter = citizens.find((citizen) => citizen.wallet.toLowerCase() === wallet.address.toLowerCase());
+  const positionsByWallet = new globalThis.Map(positions.map((position) => [position.wallet.toLowerCase(), position]));
 
   useEffect(() => {
     if (!wallet.address) return;
+    const owner = wallet.address.toLowerCase();
+    if (deviceInitialized.current === owner) return;
+    deviceInitialized.current = owner;
+    localEdit.current = false;
     const timer = window.setTimeout(() => {
       try {
         const saved = JSON.parse(window.localStorage.getItem(`landville-hero:${wallet.address.toLowerCase()}`) || '{}') as {
@@ -198,10 +212,61 @@ export default function WorldPage() {
   }, [wallet.address, baseMapHeight]);
 
   useEffect(() => {
-    if (!yards.length) return;
-    const timer = window.setInterval(() => setPatrolStep((step) => step + 1), 6500);
-    return () => window.clearInterval(timer);
-  }, [yards.length]);
+    const tick = () => setPatrolStep(Math.floor(Date.now() / 6500));
+    const first = window.setTimeout(tick, 0);
+    const timer = window.setInterval(tick, 1000);
+    return () => { window.clearTimeout(first); window.clearInterval(timer); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadPresence() {
+      try {
+        const response = await fetch('/api/world/presence', { cache: 'no-store' });
+        const result = await readJsonResponse<{ residents: WorldResident[]; positions: WorldPresence[] }>(response, 'Load city residents');
+        if (!active) return;
+        setResidents(result.residents);
+        setPositions(result.positions);
+        setPresenceStatus('ready');
+        const current = wallet.address.toLowerCase();
+        if (current && presenceInitialized.current !== current && !localEdit.current) {
+          const own = result.positions.find((position) => position.wallet.toLowerCase() === current);
+          if (own) {
+            setHeroPosition({ x: own.x / 10000 * mapWidth, y: own.y / 10000 * mapHeight });
+            setHeroSkin(own.heroSkin);
+            setRobotSkin(own.robotSkin);
+          } else {
+            const resident = result.residents.find((entry) => entry.wallet.toLowerCase() === current);
+            if (resident) {
+              const spawn = residentSpawn(resident.citizenNumber);
+              let saved: { x?: number; y?: number; skin?: string; robotSkin?: string } = {};
+              try { saved = JSON.parse(window.localStorage.getItem(`landville-hero:${current}`) || '{}'); } catch { /* Use city spawn. */ }
+              const x = typeof saved.x === 'number' && Number.isFinite(saved.x) ? Math.max(70, Math.min(mapWidth - 70, saved.x)) : spawn.x / 10000 * mapWidth;
+              const y = typeof saved.y === 'number' && Number.isFinite(saved.y) ? Math.max(90, Math.min(mapHeight - 80, saved.y)) : spawn.y / 10000 * mapHeight;
+              const skin = saved.skin === 'MODULE' || HERO_SKINS.some((value) => value === saved.skin) ? saved.skin as HeroSkin | 'MODULE' : 'SCAVENGER';
+              const robot = ROBOT_SKINS.some((value) => value === saved.robotSkin) ? saved.robotSkin as RobotSkin : 'RUST';
+              setHeroPosition({ x, y });
+              setHeroSkin(skin);
+              setRobotSkin(robot);
+              fetch('/api/world/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x: Math.round(x / mapWidth * 10000), y: Math.round(y / mapHeight * 10000), heroSkin: skin, robotSkin: robot }) })
+                .then((response) => readJsonResponse<{ position: WorldPresence }>(response, 'Join the city'))
+                .then((joined) => { if (active) setPositions((previous) => [...previous.filter((entry) => entry.wallet.toLowerCase() !== current), joined.position]); })
+                .catch(() => { if (active) setPresenceStatus('error'); });
+            }
+          }
+          presenceInitialized.current = current;
+        }
+      } catch {
+        if (active) setPresenceStatus('error');
+      }
+    }
+    const first = window.setTimeout(loadPresence, 0);
+    const timer = window.setInterval(loadPresence, 5000);
+    return () => { active = false; window.clearTimeout(first); window.clearInterval(timer); };
+  }, [wallet.address, mapHeight]);
+
+  useEffect(() => () => { if (presenceSave.current) window.clearTimeout(presenceSave.current); }, []);
 
   useEffect(() => {
     if (!heroWalking) return;
@@ -211,9 +276,24 @@ export default function WorldPage() {
 
   function saveAppearance(skin: HeroSkin | 'MODULE', robot: RobotSkin, position = heroPosition) {
     if (!wallet.address) return;
+    localEdit.current = true;
     try {
       window.localStorage.setItem(`landville-hero:${wallet.address.toLowerCase()}`, JSON.stringify({ skin, robotSkin: robot, x: position.x, y: position.y }));
     } catch { /* Keep playing without local storage. */ }
+    if (presenceSave.current) window.clearTimeout(presenceSave.current);
+    const owner = wallet.address.toLowerCase();
+    presenceSave.current = window.setTimeout(async () => {
+      try {
+        const response = await fetch('/api/world/presence', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ x: Math.round(position.x / mapWidth * 10000), y: Math.round(position.y / mapHeight * 10000), heroSkin: skin, robotSkin: robot }),
+        });
+        const result = await readJsonResponse<{ position: WorldPresence }>(response, 'Save city position');
+        if (wallet.address.toLowerCase() !== owner) return;
+        setPositions((previous) => [...previous.filter((entry) => entry.wallet.toLowerCase() !== owner), result.position]);
+        setPresenceStatus('ready');
+      } catch { setPresenceStatus('error'); }
+    }, 450);
   }
 
   function walkTo(x: number, y: number) {
@@ -738,7 +818,11 @@ export default function WorldPage() {
             </article>
           ))}
 
-          {citizens.filter((citizen) => heroSkin !== 'MODULE' || citizen.wallet.toLowerCase() !== wallet.address.toLowerCase()).map((citizen, index) => (
+          {citizens.filter((citizen) => {
+            const owner = citizen.wallet.toLowerCase();
+            if (owner === wallet.address.toLowerCase()) return heroSkin !== 'MODULE';
+            return positionsByWallet.get(owner)?.heroSkin !== 'MODULE';
+          }).map((citizen, index) => (
             <Link
               key={citizen.wallet}
               className="world-citizen-card"
@@ -787,8 +871,9 @@ export default function WorldPage() {
             const home = yardPosition(index);
             const own = yard.ownerWallet.toLowerCase() === wallet.address.toLowerCase();
             const patrol = [[62, 47], [106, 16], [86, -52], [28, -32]][(patrolStep + index) % 4];
+            const sharedRobotSkin = positionsByWallet.get(yard.ownerWallet.toLowerCase())?.robotSkin;
             const actor = <>
-              <span className="world-actor-figure"><PersonalRobot presentation={yard.presentation} skin={own ? robotSkin : ROBOT_SKINS[index % ROBOT_SKINS.length]} /></span>
+              <span className="world-actor-figure"><PersonalRobot presentation={yard.presentation} skin={own ? robotSkin : sharedRobotSkin || ROBOT_SKINS[index % ROBOT_SKINS.length]} /></span>
               <span className="world-actor-name">{yard.name}{own ? ' · YOUR AGENT' : ''}</span>
             </>;
             const className = `world-game-actor robot${own ? ' own' : ' neighbor'}`;
@@ -796,6 +881,21 @@ export default function WorldPage() {
             return own
               ? <button key={`robot-${yard.ownerWallet}`} className={className} style={style} onClick={() => { setWardrobeOpen(false); setAgentChatOpen(true); }} aria-label={`Talk to your agent ${yard.name}`}>{actor}</button>
               : <Link key={`robot-${yard.ownerWallet}`} href={`/yard/${yard.ownerWallet}`} className={className} style={style} aria-label={`Visit ${yard.name} at ${yard.houseName}`}>{actor}</Link>;
+          })}
+          {residents.filter((resident) => resident.wallet.toLowerCase() !== wallet.address.toLowerCase()).map((resident) => {
+            const position = positionsByWallet.get(resident.wallet.toLowerCase());
+            const spawn = residentSpawn(resident.citizenNumber);
+            const published = position?.heroSkin === 'MODULE' ? citizens.find((citizen) => citizen.wallet.toLowerCase() === resident.wallet.toLowerCase()) : undefined;
+            const skin = position?.heroSkin && position.heroSkin !== 'MODULE' ? position.heroSkin : 'SCAVENGER';
+            return <Link key={`resident-${resident.wallet}`} className="world-game-actor resident"
+              href={`/citizens/${resident.wallet}`}
+              style={{ left: (position?.x ?? spawn.x) / 10000 * mapWidth, top: (position?.y ?? spawn.y) / 10000 * mapHeight }}
+              aria-label={`Visit ${resident.username ? `@${resident.username}` : `Citizen #${resident.citizenNumber}`}`}>
+              <span className="world-actor-figure">{published
+                ? <Image className="world-hero-module-art" src={published.imagePath} alt="" width={76} height={100} unoptimized />
+                : <GameHero skin={skin} />}</span>
+              <span className="world-actor-name">{resident.username ? `@${resident.username}` : `CITIZEN #${resident.citizenNumber}`}</span>
+            </Link>;
           })}
           {wallet.address && <div className={`world-game-actor hero${heroWalking ? ' walking' : ''}`}
             style={{ left: heroPosition.x, top: heroPosition.y }} aria-label="Your hero in the city">
@@ -818,7 +918,7 @@ export default function WorldPage() {
               {ownPublishedCharacter && <button className={heroSkin === 'MODULE' ? 'active' : ''} onClick={() => { setHeroSkin('MODULE'); saveAppearance('MODULE', robotSkin); }}><Image src={ownPublishedCharacter.imagePath} alt="" width={50} height={68} unoptimized /><span>City creation</span></button>}
             </div>
             {ownYard && <><h3>YOUR AGENT</h3><div className="world-skin-options robot-skins">{ROBOT_SKINS.map((skin) => <button key={skin} className={robotSkin === skin ? 'active' : ''} onClick={() => { setRobotSkin(skin); saveAppearance(heroSkin, skin); }}><PersonalRobot skin={skin} presentation={ownYard.presentation} /><span>{ROBOT_SKIN_LABELS[skin]}</span></button>)}</div><Link href={`/yard/${ownYard.ownerWallet}`}>Talk to {ownYard.name} in your yard ↗</Link></>}
-            <small>Appearance is saved on this device.</small>
+            <small>{presenceStatus === 'ready' ? 'Your look and position are shared across the city.' : presenceStatus === 'error' ? 'City sync is unavailable. Your look is saved on this device.' : 'Connecting to the city...'}</small>
           </aside>}
         </div>}
         {agentChatOpen && ownYard && <WorldAgentChat key={ownYard.ownerWallet} name={ownYard.name} owner={ownYard.ownerWallet} onClose={() => setAgentChatOpen(false)} />}

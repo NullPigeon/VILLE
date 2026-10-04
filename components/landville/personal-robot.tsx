@@ -1,7 +1,8 @@
 import type { AgentPresentation } from '@/lib/personal-agent';
+import type { RobotSkin } from '@/lib/world-presence';
 
-export const ROBOT_SKINS = ['RUST', 'MINT', 'EMBER'] as const;
-export type RobotSkin = (typeof ROBOT_SKINS)[number];
+export { ROBOT_SKINS } from '@/lib/world-presence';
+export type { RobotSkin } from '@/lib/world-presence';
 
 export const ROBOT_SKIN_LABELS: Record<RobotSkin, string> = {
   RUST: 'Rust Bucket', MINT: 'Mint Menace', EMBER: 'Hot Wiring',

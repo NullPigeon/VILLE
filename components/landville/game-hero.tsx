@@ -1,5 +1,6 @@
-export const HERO_SKINS = ['SCAVENGER', 'ROADRUNNER', 'SIGNAL'] as const;
-export type HeroSkin = (typeof HERO_SKINS)[number];
+import type { HeroSkin } from '@/lib/world-presence';
+export { HERO_SKINS } from '@/lib/world-presence';
+export type { HeroSkin } from '@/lib/world-presence';
 
 export const HERO_SKIN_LABELS: Record<HeroSkin, string> = {
   SCAVENGER: 'Scrap Scout',
