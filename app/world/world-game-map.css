@@ -1,0 +1,60 @@
+/* A single desert ground connects districts, lots, roads and citizen homes. */
+.city-product .world-map-scene{
+  background-color:#a7834d;
+  background-image:radial-gradient(ellipse at 50% 50%,#d9bb7a75 0 13%,transparent 50%),radial-gradient(ellipse at 13% 20%,#e5c28070,transparent 31%),radial-gradient(ellipse at 84% 73%,#765b3760,transparent 36%),repeating-linear-gradient(115deg,transparent 0 78px,#3f362a12 79px 80px,transparent 81px 144px);
+  box-shadow:inset 0 0 0 5px #4d3b27,inset 0 0 150px #51381d55;
+}
+.city-product .world-city-scenery{z-index:0}
+.city-product .world-district-land{z-index:1;mix-blend-mode:multiply;opacity:.9}
+.city-product .world-district-land path{stroke:#3d3828;stroke-width:4;stroke-dasharray:none;filter:drop-shadow(6px 9px 0 #4b3d283b)}
+.city-product .world-district-land .dump{fill:#b86e3b65;stroke:#85522c}
+.city-product .world-district-land .token{fill:#6f9b7968;stroke:#4c715f}
+.city-product .world-district-land .market{fill:#9aa45b68;stroke:#75824d}
+.city-product .world-district-land .meme{fill:#a4778665;stroke:#794e62}
+.city-product .world-district-land path.active{stroke:#d8ed8b;stroke-width:6;fill-opacity:.8;filter:drop-shadow(0 0 14px #d5f48c8c)}
+.city-product .world-map-scene .world-district-tag{padding:12px 17px;border-width:3px;border-bottom-width:7px;font-size:15px;box-shadow:6px 7px #40342380}
+.city-product .world-map-scene .world-object-card{width:188px;background:#514e36;border:2px solid #353624;border-bottom:7px solid #343c27;box-shadow:5px 8px #56452d80,11px 15px #40352648}
+.city-product .world-map-scene .world-object-card>.world-building-art{width:228px;height:240px;left:-20px;top:-46px}
+.city-product .world-map-scene .world-object-card .world-object-foundation{position:absolute;z-index:-1;display:block;left:50%;bottom:-28px;width:228px;height:118px;transform:translateX(-50%) rotate(-2deg);clip-path:polygon(7% 10%,92% 1%,100% 80%,85% 100%,5% 90%,0 37%);background:repeating-linear-gradient(100deg,#e1c18422 0 18px,transparent 19px 49px),#8a754e;border:5px solid #564b35;box-shadow:inset 0 0 0 7px #a88b5a,8px 10px #40332355;pointer-events:none}
+.city-product .world-map-scene .world-object-label{background:#263426;border-color:#333b26;color:#f2e1b9;box-shadow:0 4px #252b1d}
+.city-product .world-map-scene .world-object-label strong{font-size:12px}
+.city-product .world-map-scene .world-yard-house{width:132px;filter:drop-shadow(4px 7px 0 #42352988)}
+.city-product .world-map-scene .world-yard-house>svg:first-of-type{position:relative;z-index:2;width:116px;height:91px;filter:drop-shadow(3px 5px 0 #3b342966)}
+.city-product .world-map-scene .world-yard-house>.world-yard-foundation{position:absolute;z-index:-1;display:block;top:13px;left:50%;width:170px;height:104px;max-width:none;transform:translateX(-50%) rotate(-3deg);clip-path:polygon(9% 0,95% 8%,100% 81%,82% 100%,0 89%);background:repeating-linear-gradient(115deg,#d6bd8055 0 2px,transparent 3px 29px),#796640;border:4px solid #443d2d;box-shadow:6px 8px #4d39255c;pointer-events:none}
+.city-product .world-map-scene .world-yard-house>span:last-child{position:relative;z-index:3;max-width:162px;padding:6px 10px;border:2px solid #3b4930;border-bottom:4px solid #4c6138;background:#263321;color:#e0edb5;font:900 10px/1.15 Arial,sans-serif;letter-spacing:.2px;box-shadow:3px 4px #44372688}
+.city-product .world-map-scene .world-yard-house.own-yard>span:last-child{background:#d7ed87;color:#26351c;border-color:#2c4025;border-bottom-color:#617b3b;font-size:11px}
+.city-product .world-map-scene .world-yard-house.own-yard>svg:first-of-type{filter:drop-shadow(0 0 15px #d7f084) drop-shadow(3px 5px 0 #3b342966)}
+.city-product .world-camera-tools button[aria-label="Find my yard"]{background:#c9e679;color:#25381b;border-color:#263922}
+.city-product .world-city-status{max-width:330px;border:2px solid #39482c;border-left:5px solid #d1ec77;border-radius:6px;background:#1c291ded;box-shadow:5px 6px #342c2180}
+.city-product .world-city-status>b{font-size:16px}
+.city-product .world-district-travel{gap:4px;border:2px solid #66794b;border-bottom:5px solid #3b4b2e;border-radius:7px;background:#1c291ded;box-shadow:5px 6px #302b2166}
+.city-product .world-district-travel button{border:1px solid #5d7046;border-radius:3px;background:#273923;color:#e1e9c9}
+.city-product .world-district-travel button.active,.city-product .world-district-travel button:hover{background:#d4ec80;color:#293b1d;border-color:#3b4b2d}
+.city-product .world-district-travel .world-nav-home{background:#7a633a;color:#fff0bd;border-color:#cfab6d}
+.city-product .world-camera-tools{border:2px solid #74895a;border-bottom:5px solid #455834;border-radius:7px;box-shadow:4px 6px #302b2166}
+.city-product .world-camera-tools button:hover,.city-product .world-camera-tools button:focus-visible{background:#d6ed87;color:#2b3c1e}
+.city-product .world-exploration-hud{background:#203021ed;border:2px solid #687f50;border-bottom:5px solid #465c36;border-radius:7px;box-shadow:5px 6px #302b2166}
+@media(max-width:760px){
+  .city-product .world-map-scene .world-yard-house{width:132px}
+  .city-product .world-map-scene .world-yard-house>svg:first-of-type{width:116px;height:91px}
+  .city-product .world-map-scene .world-yard-house>span:last-child{font-size:10px;max-width:162px}
+  .city-product .world-city-status{top:10px;left:10px;max-width:calc(100% - 98px);padding:7px 10px;border-left-width:3px}
+  .city-product .world-city-status>b{margin:3px 0;font-size:12px;line-height:1.1}
+  .city-product .world-city-status>small{display:block;font-size:8px;line-height:1.25}
+  .city-product .world-city-status>button{font-size:7px;line-height:1.2}
+  .city-product .world-like-meter{top:10px;right:8px;padding:6px}
+  .city-product .world-signal-trigger{top:87px;right:10px}
+  .city-product .world-exploration-hud{bottom:74px;left:10px;width:160px;padding:8px}
+  .city-product .world-exploration-hud .world-exploration-track,.city-product .world-exploration-hud>small{display:none}
+  .city-product .world-exploration-hud .city-world-mission{margin-top:5px;padding-top:5px}
+  .city-product .world-exploration-hud .city-world-mission header{display:none}
+  .city-product .world-camera-tools{right:9px;bottom:93px;display:flex;align-items:center;gap:3px;padding:3px}
+  .city-product .world-camera-tools button{width:27px;height:29px}
+  .city-product .world-camera-tools output{font-size:8px;min-width:25px}
+  .city-product .world-district-travel{left:8px;right:8px;bottom:8px;padding:4px}
+  .city-product .world-district-travel button{padding:8px;font-size:9px}
+  .city-product .world-district-visit{top:132px;bottom:auto;left:10px;width:182px;padding:9px;border-radius:5px;background:#1e2a1ded;box-shadow:4px 5px #302b2166}
+  .city-product .world-district-visit h2{font-size:18px;margin:3px 0 7px}
+  .city-product .world-district-visit p,.city-product .world-district-visit>span,.city-product .world-district-visit>button:not(.city-district-build){display:none}
+  .city-product .world-district-visit .city-district-build{margin-top:0;padding:6px 8px}
+}
