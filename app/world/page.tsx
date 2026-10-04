@@ -32,6 +32,7 @@ import {
   RefreshCw,
   Search,
   Trophy,
+  Shirt,
 } from 'lucide-react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { useLandville } from '@/components/landville/provider';
@@ -50,10 +51,14 @@ import {
 import { readJsonResponse } from '@/lib/http-response';
 import { WorldWelcome } from '@/components/landville/world-welcome';
 import { WorldLife } from '@/components/landville/world-life';
+import { GameHero, HERO_SKINS, HERO_SKIN_LABELS, type HeroSkin } from '@/components/landville/game-hero';
+import { PersonalRobot, ROBOT_SKINS, ROBOT_SKIN_LABELS, type RobotSkin } from '@/components/landville/personal-robot';
+import { WorldAgentChat } from '@/components/landville/world-agent-chat';
 import { WorldMission } from '@/components/landville/world-mission';
 import { WorldFrontierArt } from '@/components/landville/world-frontier-art';
 import { WorldBuildingArt } from '@/components/landville/world-building-art';
 import './frontier-art.css';
+import './world-actors.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 
@@ -118,6 +123,13 @@ export default function WorldPage() {
   const [signalBusy, setSignalBusy] = useState(false);
   const [signalError, setSignalError] = useState('');
   const [dragging, setDragging] = useState(false);
+  const [heroPosition, setHeroPosition] = useState({ x: 870, y: 620 });
+  const [heroSkin, setHeroSkin] = useState<HeroSkin | 'MODULE'>('SCAVENGER');
+  const [robotSkin, setRobotSkin] = useState<RobotSkin>('RUST');
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const [agentChatOpen, setAgentChatOpen] = useState(false);
+  const [heroWalking, setHeroWalking] = useState(false);
+  const [patrolStep, setPatrolStep] = useState(0);
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const stage = useRef<HTMLElement>(null);
   const bounds = useRef({ width: 0, height: 0 });
@@ -127,6 +139,8 @@ export default function WorldPage() {
     y: number;
     cameraX: number;
     cameraY: number;
+    moved: boolean;
+    worldTarget: boolean;
   } | null>(null);
   const progressKey = `landville-world-exploration:${wallet.address || 'visitor'}`;
   const groups = WORLD_DISTRICTS.map((district) =>
@@ -163,6 +177,69 @@ export default function WorldPage() {
   const ownYard = yards.find(
     (yard) => yard.ownerWallet.toLowerCase() === wallet.address.toLowerCase(),
   );
+  const ownPublishedCharacter = citizens.find((citizen) => citizen.wallet.toLowerCase() === wallet.address.toLowerCase());
+
+  useEffect(() => {
+    if (!wallet.address) return;
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem(`landville-hero:${wallet.address.toLowerCase()}`) || '{}') as {
+          skin?: string; robotSkin?: string; x?: number; y?: number;
+        };
+        setHeroSkin(saved.skin === 'MODULE' || HERO_SKINS.some((skin) => skin === saved.skin) ? saved.skin as HeroSkin | 'MODULE' : 'SCAVENGER');
+        setRobotSkin(ROBOT_SKINS.some((skin) => skin === saved.robotSkin) ? saved.robotSkin as RobotSkin : 'RUST');
+        setHeroPosition({
+          x: typeof saved.x === 'number' && Number.isFinite(saved.x) ? Math.max(70, Math.min(1530, saved.x)) : 870,
+          y: typeof saved.y === 'number' && Number.isFinite(saved.y) ? Math.max(90, Math.min(baseMapHeight - 80, saved.y)) : baseMapHeight / 2 + 140,
+        });
+      } catch { /* Device-local appearance never blocks World. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [wallet.address, baseMapHeight]);
+
+  useEffect(() => {
+    if (!yards.length) return;
+    const timer = window.setInterval(() => setPatrolStep((step) => step + 1), 6500);
+    return () => window.clearInterval(timer);
+  }, [yards.length]);
+
+  useEffect(() => {
+    if (!heroWalking) return;
+    const timer = window.setTimeout(() => setHeroWalking(false), 2400);
+    return () => window.clearTimeout(timer);
+  }, [heroWalking, heroPosition]);
+
+  function saveAppearance(skin: HeroSkin | 'MODULE', robot: RobotSkin, position = heroPosition) {
+    if (!wallet.address) return;
+    try {
+      window.localStorage.setItem(`landville-hero:${wallet.address.toLowerCase()}`, JSON.stringify({ skin, robotSkin: robot, x: position.x, y: position.y }));
+    } catch { /* Keep playing without local storage. */ }
+  }
+
+  function walkTo(x: number, y: number) {
+    if (!wallet.address) return;
+    const position = { x: Math.max(70, Math.min(mapWidth - 70, x)), y: Math.max(90, Math.min(mapHeight - 80, y)) };
+    setHeroPosition(position);
+    setHeroWalking(true);
+    saveAppearance(heroSkin, robotSkin, position);
+  }
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!wallet.address || wardrobeOpen || drawerOpen || event.altKey || event.ctrlKey || event.metaKey ||
+        (event.target instanceof Element && event.target.closest('input,textarea,select,button,a,[contenteditable="true"]'))) return;
+      const delta: Record<string, [number, number]> = {
+        ArrowUp: [0, -75], KeyW: [0, -75], ArrowDown: [0, 75], KeyS: [0, 75],
+        ArrowLeft: [-75, 0], KeyA: [-75, 0], ArrowRight: [75, 0], KeyD: [75, 0],
+      };
+      const step = delta[event.code];
+      if (!step) return;
+      event.preventDefault();
+      walkTo(heroPosition.x + step[0], heroPosition.y + step[1]);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
   const visibleYards = yards.filter((yard) =>
     `${yard.houseName} ${yard.ownerLabel} ${yard.name}`
       .toLowerCase()
@@ -302,6 +379,8 @@ export default function WorldPage() {
       y: event.clientY,
       cameraX: camera.x,
       cameraY: camera.y,
+      moved: false,
+      worldTarget: Boolean((event.target as Element).closest('.world-map-scene')),
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragging(true);
@@ -310,6 +389,7 @@ export default function WorldPage() {
   function moveDrag(event: PointerEvent<HTMLElement>) {
     if (!drag.current || drag.current.id !== event.pointerId) return;
     const gesture = drag.current;
+    if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 7) gesture.moved = true;
     setCamera((previous) => ({
       ...previous,
       x: Math.max(
@@ -327,6 +407,19 @@ export default function WorldPage() {
         ),
       ),
     }));
+  }
+
+  function finishDrag(event: PointerEvent<HTMLElement>) {
+    const gesture = drag.current;
+    if (gesture && !gesture.moved && gesture.worldTarget && wallet.address) {
+      const rect = stage.current?.getBoundingClientRect();
+      if (rect) walkTo(
+        (event.clientX - rect.left - camera.x) / camera.zoom,
+        (event.clientY - rect.top - camera.y) / camera.zoom,
+      );
+    }
+    drag.current = null;
+    setDragging(false);
   }
 
   function mapObjectPlacement(id: string): CSSProperties {
@@ -419,10 +512,7 @@ export default function WorldPage() {
         aria-label="Interactive LANDVILLE city map"
         onPointerDown={beginDrag}
         onPointerMove={moveDrag}
-        onPointerUp={() => {
-          drag.current = null;
-          setDragging(false);
-        }}
+        onPointerUp={finishDrag}
         onPointerCancel={() => {
           drag.current = null;
           setDragging(false);
@@ -434,7 +524,7 @@ export default function WorldPage() {
             <i /> LANDVILLE / CHAPTER 01
           </span>
           <b>Your city. Still a little wild.</b>
-          <small>Drag to explore · Tap a building to enter</small>
+          <small>{wallet.address ? 'Drag map · Tap sand to walk · WASD / arrows' : 'Drag to explore · Tap a building to enter'}</small>
           {townStatus === 'unavailable' && (
             <button onClick={() => void refresh()}>
               CITY DATA UNAVAILABLE · RETRY <RefreshCw />
@@ -648,7 +738,7 @@ export default function WorldPage() {
             </article>
           ))}
 
-          {citizens.map((citizen, index) => (
+          {citizens.filter((citizen) => heroSkin !== 'MODULE' || citizen.wallet.toLowerCase() !== wallet.address.toLowerCase()).map((citizen, index) => (
             <Link
               key={citizen.wallet}
               className="world-citizen-card"
@@ -693,7 +783,45 @@ export default function WorldPage() {
               </span>
             </Link>
           ))}
+          {yards.map((yard, index) => {
+            const home = yardPosition(index);
+            const own = yard.ownerWallet.toLowerCase() === wallet.address.toLowerCase();
+            const patrol = [[62, 47], [106, 16], [86, -52], [28, -32]][(patrolStep + index) % 4];
+            const actor = <>
+              <span className="world-actor-figure"><PersonalRobot presentation={yard.presentation} skin={own ? robotSkin : ROBOT_SKINS[index % ROBOT_SKINS.length]} /></span>
+              <span className="world-actor-name">{yard.name}{own ? ' · YOUR AGENT' : ''}</span>
+            </>;
+            const className = `world-game-actor robot${own ? ' own' : ' neighbor'}`;
+            const style = { left: Math.max(60, Math.min(mapWidth - 60, home.x + patrol[0])), top: Math.max(105, Math.min(mapHeight - 45, home.y + patrol[1])) };
+            return own
+              ? <button key={`robot-${yard.ownerWallet}`} className={className} style={style} onClick={() => { setWardrobeOpen(false); setAgentChatOpen(true); }} aria-label={`Talk to your agent ${yard.name}`}>{actor}</button>
+              : <Link key={`robot-${yard.ownerWallet}`} href={`/yard/${yard.ownerWallet}`} className={className} style={style} aria-label={`Visit ${yard.name} at ${yard.houseName}`}>{actor}</Link>;
+          })}
+          {wallet.address && <div className={`world-game-actor hero${heroWalking ? ' walking' : ''}`}
+            style={{ left: heroPosition.x, top: heroPosition.y }} aria-label="Your hero in the city">
+            <span className="world-actor-figure">{heroSkin === 'MODULE' && ownPublishedCharacter
+              ? <Image className="world-hero-module-art" src={ownPublishedCharacter.imagePath} alt="" width={76} height={100} unoptimized />
+              : <GameHero skin={heroSkin === 'MODULE' ? 'SCAVENGER' : heroSkin} />}</span>
+            <span className="world-actor-name">YOU · {heroSkin === 'MODULE' && ownPublishedCharacter ? ownPublishedCharacter.creator : HERO_SKIN_LABELS[heroSkin === 'MODULE' ? 'SCAVENGER' : heroSkin]}</span>
+          </div>}
+          {!wallet.address && <div className="world-game-actor demo-scout" style={{ left: mapWidth / 2 + 130, top: baseMapHeight / 2 + 160 }} aria-hidden="true">
+            <span className="world-actor-figure"><GameHero skin="ROADRUNNER" /></span><span className="world-actor-name">CITY SCOUT</span>
+          </div>}
         </div>
+
+        {wallet.address && <div className="world-wardrobe">
+          <button className="world-wardrobe-trigger" aria-expanded={wardrobeOpen} onClick={() => { setAgentChatOpen(false); setWardrobeOpen((open) => !open); }}><Shirt /> HERO & AGENT</button>
+          {wardrobeOpen && <aside className="world-wardrobe-panel" aria-label="City wardrobe">
+            <header><div><small>CITY WARDROBE / YOUR LOOK</small><h2>Dress for the dust.</h2></div><button aria-label="Close wardrobe" onClick={() => setWardrobeOpen(false)}><X /></button></header>
+            <p>Your hero moves when you tap the map. Your robot roams near home and talks with you in its yard.</p>
+            <h3>YOUR HERO</h3><div className="world-skin-options">{HERO_SKINS.map((skin) => <button key={skin} className={heroSkin === skin ? 'active' : ''} onClick={() => { setHeroSkin(skin); saveAppearance(skin, robotSkin); }}><GameHero skin={skin} /><span>{HERO_SKIN_LABELS[skin]}</span></button>)}
+              {ownPublishedCharacter && <button className={heroSkin === 'MODULE' ? 'active' : ''} onClick={() => { setHeroSkin('MODULE'); saveAppearance('MODULE', robotSkin); }}><Image src={ownPublishedCharacter.imagePath} alt="" width={50} height={68} unoptimized /><span>City creation</span></button>}
+            </div>
+            {ownYard && <><h3>YOUR AGENT</h3><div className="world-skin-options robot-skins">{ROBOT_SKINS.map((skin) => <button key={skin} className={robotSkin === skin ? 'active' : ''} onClick={() => { setRobotSkin(skin); saveAppearance(heroSkin, skin); }}><PersonalRobot skin={skin} presentation={ownYard.presentation} /><span>{ROBOT_SKIN_LABELS[skin]}</span></button>)}</div><Link href={`/yard/${ownYard.ownerWallet}`}>Talk to {ownYard.name} in your yard ↗</Link></>}
+            <small>Appearance is saved on this device.</small>
+          </aside>}
+        </div>}
+        {agentChatOpen && ownYard && <WorldAgentChat key={ownYard.ownerWallet} name={ownYard.name} owner={ownYard.ownerWallet} onClose={() => setAgentChatOpen(false)} />}
 
         <aside
           className="world-exploration-hud"
