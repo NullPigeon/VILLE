@@ -10,6 +10,7 @@ export type AgentRow = {
   owner_wallet: string; name: string; presentation: PersonalAgent['presentation'];
   personality: PersonalAgent['personality']; house_style: PersonalAgent['houseStyle'];
   house_name: string; town_mode: PersonalAgent['townMode']; interval_minutes: number;
+  world_roam_mode: PersonalAgent['worldRoamMode']; world_speech_enabled: boolean; world_phrases: string[];
   next_town_at: string; created_at: string; lease_id?: string | null;
 };
 type YardMessageRow = {
@@ -22,6 +23,7 @@ export function agentRecord(row: AgentRow): PersonalAgent {
     ownerWallet: row.owner_wallet, name: row.name, presentation: row.presentation,
     personality: row.personality, houseStyle: row.house_style, houseName: row.house_name,
     townMode: row.town_mode, intervalMinutes: row.interval_minutes,
+    worldRoamMode: row.world_roam_mode, worldSpeechEnabled: row.world_speech_enabled, worldPhrases: row.world_phrases,
     nextTownAt: row.next_town_at, createdAt: row.created_at,
   };
 }
@@ -37,12 +39,14 @@ export async function readPersonalAgent(owner: string) {
 
 export async function readPublicYards(): Promise<PublicYard[]> {
   const rows = await database<AgentRow[]>(
-    'landville_personal_agents?select=owner_wallet,name,presentation,house_style,house_name&order=created_at.asc,owner_wallet.asc&limit=500',
+    'landville_personal_agents?select=owner_wallet,name,presentation,personality,house_style,house_name,world_roam_mode,world_speech_enabled,world_phrases&order=created_at.asc,owner_wallet.asc&limit=500',
   );
   const identities = await citizenIdentities(rows.map((row) => row.owner_wallet));
   return rows.map((row) => ({
     ownerWallet: row.owner_wallet, name: row.name, presentation: row.presentation,
     houseStyle: row.house_style, houseName: row.house_name,
+    personality: row.personality, worldRoamMode: row.world_roam_mode,
+    worldSpeechEnabled: row.world_speech_enabled, worldPhrases: row.world_phrases,
     ownerLabel: citizenLabel(identities.get(row.owner_wallet)),
   }));
 }
@@ -69,6 +73,8 @@ export async function readPublicYard(owner: string): Promise<PublicYard | null> 
   return {
     ownerWallet: agent.ownerWallet, name: agent.name, presentation: agent.presentation,
     houseStyle: agent.houseStyle, houseName: agent.houseName,
+    personality: agent.personality, worldRoamMode: agent.worldRoamMode,
+    worldSpeechEnabled: agent.worldSpeechEnabled, worldPhrases: agent.worldPhrases,
     ownerLabel,
   };
 }

@@ -3,6 +3,8 @@ export const AGENT_PRESENTATIONS = ['MASCULINE', 'FEMININE'] as const;
 export const AGENT_HOUSES = ['SCRAP_SHACK', 'RELAY_GARAGE', 'LOOKOUT_TOWER'] as const;
 export const AGENT_TOWN_MODES = ['OFF', 'REPLY', 'BANTER', 'BOTH'] as const;
 export const AGENT_INTERVALS = [60, 120, 240] as const;
+export const AGENT_WORLD_ROAM_MODES = ['HOME', 'DISTRICTS', 'CITY'] as const;
+export type AgentWorldRoamMode = (typeof AGENT_WORLD_ROAM_MODES)[number];
 
 export type AgentPersonality = (typeof AGENT_PERSONALITIES)[number];
 export type AgentPresentation = (typeof AGENT_PRESENTATIONS)[number];
@@ -17,10 +19,13 @@ export type PersonalAgent = {
   houseName: string;
   townMode: AgentTownMode;
   intervalMinutes: number;
+  worldRoamMode: AgentWorldRoamMode;
+  worldSpeechEnabled: boolean;
+  worldPhrases: string[];
   nextTownAt: string;
   createdAt: string;
 };
-export type PublicYard = Pick<PersonalAgent, 'ownerWallet' | 'name' | 'presentation' | 'houseStyle' | 'houseName'> & {
+export type PublicYard = Pick<PersonalAgent, 'ownerWallet' | 'name' | 'presentation' | 'personality' | 'houseStyle' | 'houseName' | 'worldRoamMode' | 'worldSpeechEnabled' | 'worldPhrases'> & {
   ownerLabel: string;
 };
 export type YardMessage = {

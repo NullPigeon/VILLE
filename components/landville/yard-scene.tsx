@@ -6,7 +6,7 @@ import { ArrowLeft, Bot, Send, ShieldCheck } from 'lucide-react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
 import { YardCityMiner } from '@/components/landville/city-miner';
-import { PersonalRobot } from '@/components/landville/personal-robot';
+import { PersonalRobot, ROBOT_SKINS, type RobotSkin } from '@/components/landville/personal-robot';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { readJsonResponse } from '@/lib/http-response';
 import type { PublicYard, YardMessage } from '@/lib/personal-agent';
@@ -50,7 +50,19 @@ export function YardScene({ owner }: { owner: string }) {
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
+  const [robotSkin, setRobotSkin] = useState<RobotSkin>('RUST');
   const feed = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!own) return;
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem(`landville-hero:${owner.toLowerCase()}`) || '{}') as { robotSkin?: string };
+        if (ROBOT_SKINS.some((skin) => skin === saved.robotSkin)) setRobotSkin(saved.robotSkin as RobotSkin);
+      } catch { /* Default paint remains available. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [own, owner]);
 
   useEffect(() => {
     let active = true;
@@ -97,7 +109,7 @@ export function YardScene({ owner }: { owner: string }) {
           <div className="yard-sun" aria-hidden="true" /><div className="yard-dunes" aria-hidden="true" />
           <div className="yard-fence back" aria-hidden="true" />
           <div className="yard-home"><AgentHouseArt style={yard.houseStyle} /><div className="yard-nameplate">{yard.houseName}</div></div>
-          <div className="yard-robot"><PersonalRobot presentation={yard.presentation} /><div className="yard-nameplate">{yard.name}</div></div>
+          <div className="yard-robot"><PersonalRobot presentation={yard.presentation} skin={robotSkin} /><div className="yard-nameplate">{yard.name}</div></div>
           <div className="yard-fence front" aria-hidden="true" />
           <div className="yard-ground" aria-hidden="true" />
           <div className="yard-sign"><small>LANDVILLE LOT</small><b>{yard.houseName}</b><span>KEPT BY {yard.ownerLabel}</span></div>
