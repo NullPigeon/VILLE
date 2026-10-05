@@ -23,7 +23,8 @@ export function agentRecord(row: AgentRow): PersonalAgent {
     ownerWallet: row.owner_wallet, name: row.name, presentation: row.presentation,
     personality: row.personality, houseStyle: row.house_style, houseName: row.house_name,
     townMode: row.town_mode, intervalMinutes: row.interval_minutes,
-    worldRoamMode: row.world_roam_mode, worldSpeechEnabled: row.world_speech_enabled, worldPhrases: row.world_phrases,
+    worldRoamMode: row.world_roam_mode || 'CITY', worldSpeechEnabled: row.world_speech_enabled ?? true,
+    worldPhrases: row.world_phrases || [],
     nextTownAt: row.next_town_at, createdAt: row.created_at,
   };
 }
@@ -39,14 +40,14 @@ export async function readPersonalAgent(owner: string) {
 
 export async function readPublicYards(): Promise<PublicYard[]> {
   const rows = await database<AgentRow[]>(
-    'landville_personal_agents?select=owner_wallet,name,presentation,personality,house_style,house_name,world_roam_mode,world_speech_enabled,world_phrases&order=created_at.asc,owner_wallet.asc&limit=500',
+    'landville_personal_agents?select=*&order=created_at.asc,owner_wallet.asc&limit=500',
   );
   const identities = await citizenIdentities(rows.map((row) => row.owner_wallet));
   return rows.map((row) => ({
     ownerWallet: row.owner_wallet, name: row.name, presentation: row.presentation,
     houseStyle: row.house_style, houseName: row.house_name,
-    personality: row.personality, worldRoamMode: row.world_roam_mode,
-    worldSpeechEnabled: row.world_speech_enabled, worldPhrases: row.world_phrases,
+    personality: row.personality, worldRoamMode: row.world_roam_mode || 'CITY',
+    worldSpeechEnabled: row.world_speech_enabled ?? true, worldPhrases: row.world_phrases || [],
     ownerLabel: citizenLabel(identities.get(row.owner_wallet)),
   }));
 }
