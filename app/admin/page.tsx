@@ -71,7 +71,7 @@ export default function AdminPage() {
       <ReadinessPanel />
       <ProjectBannerAdmin />
       <p className="admin-warning">Votes close after 2 hours. YES must exceed NO. Review a sandbox-compatible specification, then the enabled worker builds one module at a time. Review its PR, wait for City checks, test the acceptance checklist and merge manually. Only a verified production release adds the object to the World.</p>
-      <p className="admin-warning">V1 modules cannot access wallets, shared storage or external APIs. Keep the approved goal unchanged. Do not send unsupported work to the automatic builder.</p>
+      <p className="admin-warning">V1 modules can use only reviewed LANDVILLE permissions. Transaction modules may request fixed Uniswap actions, but cannot access a wallet directly, choose arbitrary calldata or sign for a citizen. Keep the approved goal unchanged.</p>
       {jobError && <p role="alert" className="admin-warning">{jobError} <button onClick={() => void loadJobs()}>RETRY LOAD</button></p>}
       <section className="lv-panel"><header className="lv-panel-head"><h2>BUILD QUEUE</h2><span>{queue.length} PROPOSALS</span></header><div style={{ overflowX: 'auto' }}><table className="build-table"><thead><tr><th>PROPOSAL</th><th>VOTES / DEADLINE</th><th>BUILDER</th><th>ACTION</th></tr></thead><tbody>{queue.map((proposal) => {
         const job = jobs.find((item) => item.proposal_id === proposal.id);
@@ -79,7 +79,7 @@ export default function AdminPage() {
           {proposal.status === 'LIVE' && <button disabled={busy || proposal.closesIn !== 'ENDED'} onClick={() => choose(proposal, 'FINALIZE')}>FINALIZE VOTE</button>}
           {proposal.status === 'PASSED' && <button disabled={busy || Boolean(jobError)} onClick={() => choose(proposal, 'PREPARE')}>{job ? 'EDIT SPECIFICATION' : 'REVIEW SPECIFICATION'}</button>}
           {(job?.state === 'FAILED' || job?.state === 'REVIEW') && (proposal.status === 'BUILDING' || proposal.status === 'BUILT') && <button disabled={busy || job.attempt >= 4} onClick={() => choose(proposal, 'RETRY')}>{job.state === 'REVIEW' ? 'REBUILD UNRELEASED REVISION' : 'RETRY BUILD'}</button>}
-          {job?.state === 'REVIEW' && <a href={`/api/admin/build-jobs/${proposal.id}/preview`} target="_blank" rel="noreferrer">PREVIEW REVISION</a>}
+          {job?.state === 'REVIEW' && <a href={`/admin/build-preview/${proposal.id}`} target="_blank" rel="noreferrer">PREVIEW REVISION</a>}
           {job?.state === 'REVIEW' && <button disabled={busy} onClick={() => choose(proposal, 'RELEASE')}>VERIFY PRODUCTION RELEASE</button>}
           {proposal.status === 'BUILT' && job?.state === 'RELEASED' && <button disabled={busy || job.attempt >= 4} onClick={() => choose(proposal, 'REBUILD')}>REBUILD RELEASE</button>}
           {proposal.status !== 'BUILT' && <button className="reject" disabled={busy} onClick={() => choose(proposal, 'REJECT')}>REJECT</button>}

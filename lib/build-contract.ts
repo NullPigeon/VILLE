@@ -6,7 +6,25 @@ export type BuildJob = {
   branch: string | null; commit_sha: string | null; content_hash: string | null;
   pr_number: number | null; error: string | null; updated_at: string;
 };
-export type CityModule = { version: 1; proposalId: string; title: string; html: string; acceptance: string[] };
+export type ModuleStorageMode = 'private' | 'shared' | 'counter';
+export type ModuleStorageDeclaration = { name: string; mode: ModuleStorageMode; description: string };
+export type ModuleImageGenerationDeclaration = { purpose: string; visualDirection: string; maxImages: 1 | 3 };
+export type WorldCitizenDeclaration = { purpose: string };
+// Every write action maps to one reviewed host adapter. Adding an action requires
+// server-side calldata construction and tests; generated modules never get a
+// generic contract-call escape hatch.
+export const MODULE_TRANSACTION_ACTIONS = ['uniswap.quoteExactInputSingle', 'uniswap.approveExact', 'uniswap.swapExactInputSingle'] as const;
+export type ModuleTransactionAction = typeof MODULE_TRANSACTION_ACTIONS[number];
+export const MODULE_TRANSACTION_ACTION_CATALOG: Record<ModuleTransactionAction, { adapter: string; kind: 'read' | 'approval' | 'transaction'; description: string }> = {
+  'uniswap.quoteExactInputSingle': { adapter: 'landville-fee-swap-v1', kind: 'read', description: 'Quote a direct single-pool ERC-20 swap after the immutable 1% LANDVILLE treasury fee.' },
+  'uniswap.approveExact': { adapter: 'landville-fee-swap-v1', kind: 'approval', description: 'Approve only the exact gross input amount for the reviewed LANDVILLE fee router.' },
+  'uniswap.swapExactInputSingle': { adapter: 'landville-fee-swap-v1', kind: 'transaction', description: 'Swap 99% of the input through Uniswap V3 and send the 1% input-token fee to the immutable treasury.' },
+};
+export type ModuleTransactionDeclaration = { purpose: string; actions: ModuleTransactionAction[] };
+export type CityModule = {
+  version: 1; proposalId: string; title: string; html: string; acceptance: string[];
+  capabilities?: { storage: ModuleStorageDeclaration[]; imageGeneration?: ModuleImageGenerationDeclaration; worldCitizen?: WorldCitizenDeclaration; transactions?: ModuleTransactionDeclaration };
+};
 
 export const MAX_MODULE_HTML_LENGTH = 7_500_000;
 export const MAX_MODULE_ARTIFACT_LENGTH = MAX_MODULE_HTML_LENGTH + 10_000;
@@ -23,6 +41,87 @@ export function validateSpec(value: unknown): BuildSpec {
     spec.acceptance.some((item) => typeof item !== 'string' || item.trim().length < 5 || item.length > 300)) throw new Error('Supply a goal and 1–10 concrete acceptance checks.');
   return { version: 1, runtime: 'sandbox-html', goal: spec.goal.trim(), acceptance: spec.acceptance.map((item) => item.trim()), constraints: spec.constraints.trim() };
 }
+export function validateStorageDeclarations(value: unknown): ModuleStorageDeclaration[] {
+  if (!Array.isArray(value) || value.length > 8) throw new Error('Invalid city module capabilities.');
+  const names = new Set<string>();
+  return value.map((valueItem) => {
+    const declaration = valueItem as ModuleStorageDeclaration;
+    if (!declaration || typeof declaration !== 'object' || Object.keys(declaration).some((key) => !['name', 'mode', 'description'].includes(key)) ||
+      typeof declaration.name !== 'string' || !/^[a-z][a-z0-9_-]{0,31}$/.test(declaration.name) || names.has(declaration.name) ||
+      !['private', 'shared', 'counter'].includes(declaration.mode) || typeof declaration.description !== 'string' ||
+      declaration.description.trim().length < 5 || declaration.description.length > 160) throw new Error('Invalid city module storage declaration.');
+    names.add(declaration.name);
+    return { name: declaration.name, mode: declaration.mode, description: declaration.description.trim() };
+  });
+}
+export function validateImageGenerationDeclaration(value: unknown): ModuleImageGenerationDeclaration {
+  const declaration = value as ModuleImageGenerationDeclaration;
+  const maxImages = declaration?.maxImages === undefined ? 1 : declaration.maxImages;
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration) ||
+    Object.keys(declaration).some((key) => !['purpose', 'visualDirection', 'maxImages'].includes(key)) ||
+    typeof declaration.purpose !== 'string' || declaration.purpose.trim().length < 10 || declaration.purpose.length > 300 ||
+    typeof declaration.visualDirection !== 'string' || declaration.visualDirection.trim().length < 20 || declaration.visualDirection.length > 1200 ||
+    ![1, 3].includes(maxImages)) {
+    throw new Error('Invalid city module image generation declaration.');
+  }
+  return { purpose: declaration.purpose.trim(), visualDirection: declaration.visualDirection.trim(), maxImages };
+}
+export function validateWorldCitizenDeclaration(value: unknown): WorldCitizenDeclaration {
+  const declaration = value as WorldCitizenDeclaration;
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration) || Object.keys(declaration).some((key) => key !== 'purpose') ||
+    typeof declaration.purpose !== 'string' || declaration.purpose.trim().length < 10 || declaration.purpose.length > 300) {
+    throw new Error('Invalid World citizen declaration.');
+  }
+  return { purpose: declaration.purpose.trim() };
+}
+export function validateTransactionDeclaration(value: unknown): ModuleTransactionDeclaration {
+  const declaration = value as ModuleTransactionDeclaration;
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration) ||
+    Object.keys(declaration).some((key) => !['purpose', 'actions'].includes(key)) ||
+    typeof declaration.purpose !== 'string' || declaration.purpose.trim().length < 10 || declaration.purpose.length > 300 ||
+    !Array.isArray(declaration.actions) || declaration.actions.length < 1 || declaration.actions.length > MODULE_TRANSACTION_ACTIONS.length ||
+    declaration.actions.some((action) => !MODULE_TRANSACTION_ACTIONS.includes(action)) || new Set(declaration.actions).size !== declaration.actions.length) {
+    throw new Error('Invalid city module transaction declaration.');
+  }
+  return { purpose: declaration.purpose.trim(), actions: declaration.actions };
+}
+function validateDeclaredStorageUsage(html: string, storage: ModuleStorageDeclaration[]) {
+  if (!/capability\s*:\s*(['"])module\.storage\1/.test(html)) return;
+  if (!storage.length) throw new Error('Module storage is used but not declared.');
+  const usages = new Map<string, ModuleStorageMode>();
+  const patterns = [
+    /(?:['"]?operation['"]?)\s*:\s*(['"])(private|shared|counter)\.[a-z]+\1[^{}]{0,180}?(?:['"]?collection['"]?)\s*:\s*(['"])([a-z][a-z0-9_-]{0,31})\3/g,
+    /(?:['"]?collection['"]?)\s*:\s*(['"])([a-z][a-z0-9_-]{0,31})\1[^{}]{0,180}?(?:['"]?operation['"]?)\s*:\s*(['"])(private|shared|counter)\.[a-z]+\3/g,
+  ];
+  for (const match of html.matchAll(patterns[0])) usages.set(match[4], match[2] as ModuleStorageMode);
+  for (const match of html.matchAll(patterns[1])) usages.set(match[2], match[4] as ModuleStorageMode);
+  if (!usages.size) throw new Error('Module storage calls must use literal operations and collections.');
+  for (const [name, mode] of usages) {
+    if (!storage.some((item) => item.name === name && item.mode === mode)) throw new Error(`Module storage collection ${name} is not declared with mode ${mode}.`);
+  }
+}
+function validateDeclaredImageGenerationUsage(html: string, declaration?: ModuleImageGenerationDeclaration) {
+  const used = /(?:['"]?capability['"]?)\s*:\s*(['"])module\.image\.generate\1/.test(html);
+  if (used && !declaration) throw new Error('Module image generation is used but not declared.');
+  if (declaration && !used) throw new Error('Module image generation is declared but not used.');
+}
+function validateDeclaredWorldCitizenUsage(html: string, declaration?: WorldCitizenDeclaration, imageGeneration?: ModuleImageGenerationDeclaration) {
+  const used = /(?:['"]?capability['"]?)\s*:\s*(['"])world\.citizen\.publish\1/.test(html);
+  if (used && !declaration) throw new Error('World citizen publishing is used but not declared.');
+  if (declaration && !used) throw new Error('World citizen publishing is declared but not used.');
+  if (declaration && !imageGeneration) throw new Error('World citizen publishing requires reviewed image generation.');
+}
+function validateDeclaredTransactionUsage(html: string, declaration?: ModuleTransactionDeclaration) {
+  const used = /(?:['"]?capability['"]?)\s*:\s*(['"])wallet\.robinhood\1/.test(html);
+  if (used && !declaration) throw new Error('Wallet transactions are used but not declared.');
+  if (declaration && !used) throw new Error('Wallet transactions are declared but not used.');
+  if (!declaration) return;
+  const actionPattern = /(?:['"]?operation['"]?)\s*:\s*(['"])(uniswap\.(?:quoteExactInputSingle|approveExact|swapExactInputSingle))\1/g;
+  const usedActions = new Set(Array.from(html.matchAll(actionPattern), (match) => match[2] as ModuleTransactionAction));
+  if (!usedActions.size) throw new Error('Wallet transaction calls must use literal operations.');
+  for (const action of usedActions) if (!declaration.actions.includes(action)) throw new Error(`Wallet transaction action ${action} is not declared.`);
+  for (const action of declaration.actions) if (!usedActions.has(action)) throw new Error(`Wallet transaction action ${action} is declared but not used.`);
+}
 export function validateModule(value: unknown, id: string): CityModule {
   const artifactModule = value as CityModule;
   if (!validProposalId(id) || !artifactModule || artifactModule.version !== 1 || artifactModule.proposalId !== id || typeof artifactModule.title !== 'string' || artifactModule.title.length < 4 || artifactModule.title.length > 80 ||
@@ -30,6 +129,19 @@ export function validateModule(value: unknown, id: string): CityModule {
     !Array.isArray(artifactModule.acceptance) || artifactModule.acceptance.length < 1 || artifactModule.acceptance.length > 10 || artifactModule.acceptance.some((item) => typeof item !== 'string' || item.length > 300)) throw new Error('Invalid city module artifact.');
   // This check is hygiene, not the security boundary. The HTTP CSP + opaque iframe are.
   if (/<(?:iframe|object|embed|base|form)\b/i.test(artifactModule.html) || /http-equiv\s*=\s*["']?refresh/i.test(artifactModule.html)) throw new Error('Unsupported module capability.');
-  return { version: 1, proposalId: id, title: artifactModule.title, html: artifactModule.html, acceptance: artifactModule.acceptance };
+  let capabilities: CityModule['capabilities'];
+  if (artifactModule.capabilities !== undefined) {
+    const storage = artifactModule.capabilities?.storage;
+    if (!artifactModule.capabilities || Object.keys(artifactModule.capabilities).some((key) => !['storage', 'imageGeneration', 'worldCitizen', 'transactions'].includes(key))) throw new Error('Invalid city module capabilities.');
+    capabilities = { storage: validateStorageDeclarations(storage),
+      ...(artifactModule.capabilities.imageGeneration === undefined ? {} : { imageGeneration: validateImageGenerationDeclaration(artifactModule.capabilities.imageGeneration) }),
+      ...(artifactModule.capabilities.worldCitizen === undefined ? {} : { worldCitizen: validateWorldCitizenDeclaration(artifactModule.capabilities.worldCitizen) }),
+      ...(artifactModule.capabilities.transactions === undefined ? {} : { transactions: validateTransactionDeclaration(artifactModule.capabilities.transactions) }) };
+  }
+  validateDeclaredStorageUsage(artifactModule.html, capabilities?.storage || []);
+  validateDeclaredImageGenerationUsage(artifactModule.html, capabilities?.imageGeneration);
+  validateDeclaredWorldCitizenUsage(artifactModule.html, capabilities?.worldCitizen, capabilities?.imageGeneration);
+  validateDeclaredTransactionUsage(artifactModule.html, capabilities?.transactions);
+  return { version: 1, proposalId: id, title: artifactModule.title, html: artifactModule.html, acceptance: artifactModule.acceptance, ...(capabilities ? { capabilities } : {}) };
 }
 export const MODULE_CSP = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";

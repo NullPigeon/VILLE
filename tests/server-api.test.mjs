@@ -8,11 +8,14 @@ import { createHmac, randomUUID } from 'node:crypto';
 import ts from 'typescript';
 import { NextRequest } from 'next/server.js';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { decodeFunctionData, encodeAbiParameters, encodeFunctionData } from 'viem';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, '..');
 const wallet = `0x${'a'.repeat(40)}`;
 const other = `0x${'b'.repeat(40)}`;
+const feeRouter = `0x${'d'.repeat(40)}`;
+const treasury = `0x${'e'.repeat(40)}`;
 const snapshot = { wallet, chainId: 4663, tokenAddress: `0x${'c'.repeat(40)}`, tokenDecimals: 18, tokenBalance: '250000000000000000000000', tokenBalanceFormatted: '250,000', weight: 2, blockNumber: '1234', capturedAt: new Date().toISOString(), source: 'chain' };
 const proposalRequestId = randomUUID();
 const proposalSourceCitizen = { id: `citizen-${proposalRequestId}`, body: 'Build a public radio for LANDVILLE.', request_id: proposalRequestId };
@@ -22,6 +25,46 @@ const proposalInput = { sourceReplyId: proposalSourceReply.id, category: 'UTILIT
 const proposal = { id: 'LV-1', request_id: proposalRequestId, creator_wallet: wallet, title: 'Town radio', summary: proposalSummary, category: 'UTILITY', district: 'THE DUMP', status: 'LIVE', build_tier: 'PENDING_REVIEW', eligibility_snapshot: snapshot, yes: 0, no: 0, created_at: new Date().toISOString(), closes_at: new Date(Date.now() + 43_200_000).toISOString() };
 const tokenStatus = { address: '0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe', symbol: 'SCRAPY', name: 'LANDVILLE', decimals: 18, chainId: 4663, totalSupply: '1000000000000000000000000000', totalSupplyFormatted: '1,000,000,000', blockNumber: '1234', verifiedAt: new Date().toISOString() };
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+
+void test('public chat rooms filter history and reject mismatched destinations', async () => {
+  const f = fixture(() => undefined);
+  const route = f.load('app/api/chat/route.ts');
+  for (const room of ['TOWN', 'BUILD']) {
+    const response = await route.GET(f.request(`/api/chat?room=${room}`, {}, { method: 'GET' }));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).room, room);
+    assert.ok(f.calls.some((call) => call.url.includes(`owner_wallet=is.null&room=eq.${room}`)));
+  }
+  assert.equal((await route.GET(f.request('/api/chat?room=WORKSHOP', {}, { method: 'GET' }))).status, 400);
+  const before = f.calls.length;
+  assert.equal((await route.POST(f.request('/api/chat', { room: 'BUILD', askScrapy: false, body: 'hello', requestId: randomUUID() }, { signed: true }))).status, 400);
+  assert.equal(f.calls.length, before);
+});
+
+void test('sign-in resumes only known local product actions', () => {
+  const f = fixture(() => undefined);
+  const { citizenReturnPath } = f.load('@/lib/city-navigation');
+  for (const path of ['/chat?room=BUILD&idea=A%20radio', '/world', '/proposals#LV-1', '/modules/LV-1']) {
+    assert.equal(citizenReturnPath(`?returnTo=${encodeURIComponent(path)}`, wallet), path);
+  }
+  for (const path of ['https://example.com', '//example.com', '/chat\\evil', '/chat/../../admin', '/admin', '/world\n']) {
+    assert.equal(citizenReturnPath(`?returnTo=${encodeURIComponent(path)}`, wallet), `/citizens/${wallet}`);
+  }
+});
+
+void test('mayor banter needs worker authentication and works while personal agents are off', async () => {
+  const secret = 'test-mayor-worker-secret-long-enough';
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_post_mayor_banter') ? json(true) : undefined,
+    { LANDVILLE_WORKER_SECRET: secret });
+  const route = f.load('app/api/internal/agent-tick/route.ts');
+  assert.equal((await route.POST(f.request('/api/internal/agent-tick'))).status, 401);
+  assert.equal(f.calls.length, 0);
+  const response = await route.POST(f.request('/api/internal/agent-tick', {}, { headers: { Authorization: `Bearer ${secret}` } }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).mayorPosted, true);
+  assert.equal(f.calls.length, 1);
+  assert.ok(f.calls[0].body.p_body.length <= 320);
+});
 function proposalSourceResponse(call) {
   if (!call.url.includes('landville_messages?')) return undefined;
   if (call.url.includes(`id=eq.${proposalSourceReply.id}`)) return json([proposalSourceReply]);
@@ -56,7 +99,7 @@ function fixture(handler, extraEnv = {}, overrides = {}) {
     const loadedModule = { exports: {} };
     cache.set(file, loadedModule);
     const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
-    const run = vm.runInNewContext(`(function(require, module, exports) { ${code}\n})`, { process: { env }, console: { error() {} }, Buffer, fetch, Headers, Response, URL, AbortSignal, Date, setTimeout, clearTimeout });
+    const run = vm.runInNewContext(`(function(require, module, exports) { ${code}\n})`, { process: { env }, console: { error() {} }, Buffer, fetch, Headers, Response, URL, URLSearchParams, AbortSignal, Date, setTimeout, clearTimeout });
     run(load, loadedModule, loadedModule.exports);
     return loadedModule.exports;
   }
@@ -127,12 +170,17 @@ for (const [route, url, method] of [
   ['app/api/mayor/route.ts', '/api/mayor', 'POST'],
   ['app/api/proposals/route.ts', '/api/proposals', 'POST'],
   ['app/api/proposals/[id]/vote/route.ts', '/api/proposals/LV-1/vote', 'POST'],
+  ['app/api/treasury/proposals/route.ts', '/api/treasury/proposals', 'POST'],
+  ['app/api/treasury/proposals/[id]/vote/route.ts', '/api/treasury/proposals/TP-1/vote', 'POST'],
   ['app/api/modules/[id]/data/route.ts', '/api/modules/LV-1/data', 'POST'],
+  ['app/api/modules/[id]/transaction/route.ts', '/api/modules/LV-1/transaction', 'POST'],
+  ['app/api/modules/[id]/like/route.ts', '/api/modules/LV-1/like', 'POST'],
   ['app/api/admin/builds/[id]/route.ts', '/api/admin/builds/LV-1', 'PATCH'],
   ['app/api/admin/build-jobs/[id]/route.ts', '/api/admin/build-jobs/LV-1', 'POST'],
   ['app/api/admin/build-jobs/[id]/release/route.ts', '/api/admin/build-jobs/LV-1/release', 'POST'],
   ['app/api/admin/build-jobs/[id]/preview/route.ts', '/api/admin/build-jobs/LV-1/preview', 'GET'],
   ['app/api/admin/project-banners/route.ts', '/api/admin/project-banners', 'POST'],
+  ['app/api/admin/build-jobs/[id]/image/route.ts', '/api/admin/build-jobs/LV-1/image', 'POST'],
 ]) void test(`${url} rejects anonymous writes before any database/chain request`, async () => {
   const f = fixture(() => undefined);
   const response = await f.load(route)[method](f.request(url, {}, { method }), { params: Promise.resolve({ id: 'LV-1' }) });
@@ -192,10 +240,15 @@ void test('anonymous visitors cannot execute modules', async () => {
   assert.equal(response.status, 401); assert.equal(f.calls.length, 0);
 });
 void test('worker authorization is independent of wallet sessions and fails closed', async () => {
-  for (const secret of ['', 'short', 'w'.repeat(40)]) {
-    const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret });
-    const response = await f.load('app/api/internal/builds/route.ts').POST(f.request('/api/internal/builds', { action: 'CLAIM' }, { signed: true }));
-    assert.equal(response.status, secret.length >= 32 ? 401 : 503); assert.equal(f.calls.length, 0);
+  for (const [routePath, url, body] of [
+    ['app/api/internal/builds/route.ts', '/api/internal/builds', { action: 'CLAIM' }],
+    ['app/api/internal/treasury-rewards/route.ts', '/api/internal/treasury-rewards', {}],
+  ]) {
+    for (const secret of ['', 'short', 'w'.repeat(40)]) {
+      const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret });
+      const response = await f.load(routePath).POST(f.request(url, body, { signed: true }));
+      assert.equal(response.status, secret.length >= 32 ? 401 : 503); assert.equal(f.calls.length, 0);
+    }
   }
 });
 void test('disabled builder refuses claims but authorized scheduler can finalize votes', async () => {
@@ -206,6 +259,18 @@ void test('disabled builder refuses claims but authorized scheduler can finalize
   assert.equal(f.calls.length, 0);
   assert.equal((await route.POST(f.request('/api/internal/builds', { action: 'TICK' }, options))).status, 200);
   assert.equal(f.calls.at(-1).body.p_claim, false);
+});
+void test('worker failure reports persist only categorized diagnostics', async () => {
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_finish_build') ? json({ state: 'FAILED' }) : undefined, {
+    LANDVILLE_WORKER_SECRET: 'w'.repeat(40), LANDVILLE_BUILD_ACTOR: wallet,
+  });
+  const response = await f.load('app/api/internal/builds/route.ts').POST(f.request('/api/internal/builds', {
+    action: 'FAIL', id: 'LV-1', lease: '11111111-1111-4111-8111-111111111111',
+    phase: 'ARCHITECTURE', failure: 'RATE_LIMIT', detail: 'private provider response',
+  }, { headers: { Authorization: `Bearer ${'w'.repeat(40)}` } }));
+  assert.equal(response.status, 200);
+  assert.equal(f.calls.at(-1).body.p_error, 'Builder was rate-limited during architecture planning. Operator review required.');
+  assert.ok(!JSON.stringify(f.calls.at(-1).body).includes('private provider response'));
 });
 void test('manual status changes cannot bypass verified publication', async () => {
   for (const action of ['START_BUILD', 'PUBLISH']) {
@@ -258,6 +323,222 @@ void test('only an admin can preview the exact deployed review artifact', async 
   assert.equal(response.status, 200);
   assert.equal(await response.text(), '<html>revision two</html>');
   assert.match(response.headers.get('content-security-policy'), /^sandbox allow-scripts;/);
+});
+
+void test('admin preview can test only the reviewed runtime image permission', async () => {
+  const hash = '7'.repeat(64);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
+  const f = fixture((call) => call.url.includes('landville_build_jobs?') ? json([{ state: 'REVIEW', revision: 2, content_hash: hash }]) : undefined, { LANDVILLE_ADMIN_WALLETS: wallet }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+    '@/lib/server/module-image': { generateModuleImage: async (_declaration, brief) => ({ base64Images: ['A'.repeat(100)], base64: 'A'.repeat(100), mimeType: 'image/webp', generatedAt: '2026-09-13T00:00:00.000Z', brief }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/image', { capability: 'module.image.generate', input: { operation: 'generate', brief: 'A patched civic oracle' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.imageUrl, `data:image/webp;base64,${'A'.repeat(100)}`); assert.equal(body.preview, true);
+});
+
+void test('character generation requests separate vertical WebP cutouts with transparent backgrounds', async () => {
+  const hash = '8'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Any requested character receives a LANDVILLE treatment without losing its identity.',
+    maxImages: 3,
+  };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: Superman.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(generations.length, 3);
+  assert.deepEqual(generations.map((generation) => generation.body.n), [1, 1, 1]);
+  assert.ok(generations.every((generation) => generation.body.size === '1024x1536'));
+  assert.ok(generations.every((generation) => generation.body.background === 'transparent'));
+  assert.ok(generations.every((generation) => generation.body.output_format === 'webp'));
+  assert.ok(generations.every((generation) => generation.body.moderation === 'low'));
+  assert.ok(generations.every((generation) => generation.body.output_compression === undefined));
+  assert.ok(generations.every((generation) => /SUBJECT FIDELITY — HIGHEST PRIORITY/.test(generation.body.prompt)));
+  assert.ok(generations.every((generation) => /generic worker/.test(generation.body.prompt)));
+  assert.ok(generations.every((generation) => /exactly one character exactly once/.test(generation.body.prompt)));
+  assert.deepEqual(generations.map((generation) => generation.body.prompt.match(/choice (\d) of 3/)?.[1]), ['1', '2', '3']);
+});
+
+void test('a rejected character choice retries safely without restarting successful choices', async () => {
+  const hash = '9'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Keep the requested identity in LANDVILLE style.',
+    maxImages: 3,
+  };
+  let rejected = false;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      if (!rejected && /choice 2 of 3/.test(call.body.prompt)) {
+        rejected = true;
+        return json({ error: { type: 'invalid_request_error', code: 'request_rejected' } }, 400);
+      }
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: Batman.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(generations.length, 4);
+  assert.equal(generations.filter((generation) => /choice 1 of 3/.test(generation.body.prompt)).length, 1);
+  assert.equal(generations.filter((generation) => /choice 2 of 3/.test(generation.body.prompt)).length, 2);
+  assert.equal(generations.filter((generation) => /choice 3 of 3/.test(generation.body.prompt)).length, 1);
+  assert.match(generations.find((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt)).body.prompt, /friendly, all-ages, original LANDVILLE interpretation/);
+  const retry = generations.find((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt));
+  assert.equal(retry.body.moderation, 'low');
+  assert.equal(retry.body.output_compression, undefined);
+  assert.doesNotMatch(retry.body.prompt, /weapons|violence|threatening action/i);
+});
+
+void test('a moderated named character is rewritten once without losing identity or selected style', async () => {
+  const hash = '6'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Keep the requested identity and selected rendering style in LANDVILLE.',
+    maxImages: 3,
+  };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/responses') {
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'An original masked night guardian with a dark cape and vigilant posture. Style: pixel-art character.' }] }] });
+    }
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      if (/Batman/i.test(call.body.prompt)) return json({ error: { code: 'moderation_blocked', type: 'image_generation_user_error' } }, 400);
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    OPENAI_MODEL: 'gpt-5.4-mini',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: Batman. Style: pixel-art character. Vibe: dark and mysterious.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const rewrites = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/responses');
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(rewrites.length, 1);
+  assert.equal(generations.length, 4);
+  assert.match(rewrites[0].body.instructions, /Remove every character name/);
+  assert.equal(generations.filter((generation) => /Batman/i.test(generation.body.prompt)).length, 1);
+  const safeGenerations = generations.filter((generation) => !/Batman/i.test(generation.body.prompt));
+  assert.equal(safeGenerations.length, 3);
+  assert.ok(safeGenerations.every((generation) => /tall pointed-eared black cowl/.test(generation.body.prompt)));
+  assert.ok(safeGenerations.every((generation) => /SELECTED STYLE — HARD REQUIREMENT: True 2D pixel art/.test(generation.body.prompt)));
+  assert.ok(safeGenerations.every((generation) => /hard-edged square pixels/.test(generation.body.prompt)));
+  assert.ok(safeGenerations.every((generation) => /PROVIDER-SAFE RETRY/.test(generation.body.prompt)));
+});
+
+void test('a twice-moderated character receives a distinct original fallback before the batch continues', async () => {
+  const hash = '5'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Keep the requested role and selected rendering style in LANDVILLE.',
+    maxImages: 3,
+  };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/responses') {
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'A black-haired flying hero in a fitted cobalt suit with a crimson cape. Style: pixel-art character.' }] }] });
+    }
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      if (/Superman|fitted cobalt suit/i.test(call.body.prompt)) return json({ error: { code: 'moderation_blocked', type: 'image_generation_user_error' } }, 400);
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    OPENAI_MODEL: 'gpt-5.4-mini',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: superman. Style: pixel-art character. Vibe: dark and mysterious. Scrapy twist: a civic badge.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const rewrites = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/responses');
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(rewrites.length, 1);
+  assert.equal(generations.length, 5);
+  const originalFallbacks = generations.filter((generation) => /original optimistic flying municipal rescuer/.test(generation.body.prompt));
+  assert.equal(originalFallbacks.length, 3);
+  assert.ok(originalFallbacks.every((generation) => !/Superman|fitted cobalt suit/i.test(generation.body.prompt)));
+  assert.ok(originalFallbacks.every((generation) => /SELECTED STYLE — HARD REQUIREMENT: True 2D pixel art/.test(generation.body.prompt)));
+  assert.ok(originalFallbacks.every((generation) => /Scrapy twist: a civic badge\./i.test(generation.body.prompt)));
+});
+
+void test('an incomplete character choice retries without discarding completed choices', async () => {
+  const hash = '8'.repeat(64);
+  const imageGeneration = {
+    purpose: 'Generate three full-body avatar choices for World publication.',
+    visualDirection: 'Keep the requested identity in LANDVILLE style.',
+    maxImages: 3,
+  };
+  let incomplete = false;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_build_jobs?')) return json([{ state: 'REVIEW', revision: 1, content_hash: hash }]);
+    if (call.url === 'https://api.openai.com/v1/images/generations') {
+      if (!incomplete && /choice 3 of 3/.test(call.body.prompt)) {
+        incomplete = true;
+        return json({ data: [] });
+      }
+      return json({ data: [{ b64_json: 'A'.repeat(100) }] });
+    }
+    return undefined;
+  }, {
+    LANDVILLE_ADMIN_WALLETS: wallet,
+    LANDVILLE_MODULE_IMAGE_ENABLED: 'true',
+    OPENAI_API_KEY: 'test-image-key',
+    LANDVILLE_MODULE_IMAGE_MODEL: 'gpt-image-2.5-flare',
+  }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+  });
+  const response = await f.load('app/api/admin/build-jobs/[id]/image/route.ts').POST(f.request('/api/admin/build-jobs/LV-6/image', {
+    capability: 'module.image.generate', input: { operation: 'generate', brief: 'PRIMARY CHARACTER: original flying hero.' },
+  }, { signed: true }), { params: Promise.resolve({ id: 'LV-6' }) });
+  assert.equal(response.status, 200);
+  const generations = f.calls.filter((call) => call.url === 'https://api.openai.com/v1/images/generations');
+  assert.equal(generations.length, 4);
+  assert.equal(generations.filter((generation) => /choice 1 of 3/.test(generation.body.prompt)).length, 1);
+  assert.equal(generations.filter((generation) => /choice 2 of 3/.test(generation.body.prompt)).length, 1);
+  assert.equal(generations.filter((generation) => /choice 3 of 3/.test(generation.body.prompt)).length, 2);
 });
 
 const releaseEnv = { LANDVILLE_ADMIN_WALLETS: wallet, VERCEL_ENV: 'production', VERCEL_DEPLOYMENT_ID: 'dpl_test', VERCEL_GIT_COMMIT_SHA: 'c'.repeat(40), LANDVILLE_VERCEL_PROJECT_ID: 'prj_test', NEXT_PUBLIC_SITE_URL: 'https://town.example', LANDVILLE_GITHUB_READ_TOKEN: 'read-only-test', LANDVILLE_VERCEL_READ_TOKEN: 'read-only-vercel-test' };
@@ -397,6 +678,207 @@ void test('module chain bridge cannot sign, send transactions or choose an RPC',
   assert.ok(!f.calls.some((call) => call.url.includes('127.0.0.1') || call.url.includes('rpc.mainnet.chain.robinhood.com')));
 });
 
+void test('transaction route requires a reviewed action and the citizen linked wallet', async () => {
+  const hash = '7'.repeat(64);
+  let prepared;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.includes('landville_citizens?select=linked_wallet')) return json([{ linked_wallet: other }]);
+    return undefined;
+  }, { LANDVILLE_WALLET_TRANSACTIONS_ENABLED: 'true' }, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], transactions: { purpose: 'Allow an exact reviewed token approval.', actions: ['uniswap.approveExact'] } } }, hash }) },
+    '@/lib/server/module-transaction': {
+      prepareModuleTransaction: async (input, from) => (prepared = { input, from, transaction: { from, to: input.token, data: '0x1234', value: '0x0' }, confirmation: 'Approve exact token amount?', action: input.operation }),
+      quoteExactInputSingle: async () => { throw new Error('not expected'); },
+    },
+  });
+  const route = f.load('app/api/modules/[id]/transaction/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/transaction', { input: { operation: 'uniswap.approveExact', token: `0x${'1'.repeat(40)}`, amount: '50' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200); assert.equal(prepared.from, other);
+  const blocked = await route.POST(f.request('/api/modules/LV-1/transaction', { input: { operation: 'uniswap.swapExactInputSingle', tokenIn: wallet, tokenOut: other, fee: 3000, amountIn: '1', slippageBps: 50 } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(blocked.status, 403);
+});
+
+void test('host builds fixed-recipient Uniswap transactions and derives minimum output from its own quote', async () => {
+  const amountOut = 10_000n;
+  const encodedQuote = encodeAbiParameters(
+    [{ type: 'uint256' }, { type: 'uint160' }, { type: 'uint32' }, { type: 'uint256' }],
+    [amountOut, 1n, 2, 90_000n],
+  );
+  const inspectionAbi = [
+    { type: 'function', name: 'feeBps', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint16' }] },
+    { type: 'function', name: 'treasury', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
+    { type: 'function', name: 'swapRouter', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
+  ];
+  const f = fixture((call) => {
+    if (call.url !== 'https://rpc.mainnet.chain.robinhood.com') return undefined;
+    if (call.body.method === 'eth_getCode') return json({ jsonrpc: '2.0', id: 1, result: '0x60006000' });
+    const target = call.body.params?.[0]?.to?.toLowerCase();
+    const data = call.body.params?.[0]?.data;
+    if (target === feeRouter) {
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'feeBps' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'uint16' }], [100]) });
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'treasury' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'address' }], [treasury]) });
+      if (data === encodeFunctionData({ abi: inspectionAbi, functionName: 'swapRouter' })) return json({ jsonrpc: '2.0', id: 1, result: encodeAbiParameters([{ type: 'address' }], ['0xcaf681a66d020601342297493863e78c959e5cb2']) });
+    }
+    return json({ jsonrpc: '2.0', id: 1, result: encodedQuote });
+  }, {
+    LANDVILLE_TRANSACTION_ROUTER_ADDRESS: feeRouter,
+    SCRAPY_TREASURY_ADDRESS: treasury,
+  });
+  const bridge = f.load('@/lib/server/module-transaction');
+  const tokenIn = `0x${'1'.repeat(40)}`;
+  const tokenOut = `0x${'2'.repeat(40)}`;
+  const plan = await bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1000', slippageBps: 100 }, wallet);
+  assert.equal(plan.transaction.to, feeRouter);
+  assert.equal(plan.transaction.value, '0x0'); assert.equal(plan.amountOutMinimum, '9900');
+  assert.equal(plan.platformFee.amount, '10'); assert.equal('treasury' in plan.platformFee, false);
+  assert.equal(plan.quote.grossAmountIn, '1000'); assert.equal(plan.quote.swapAmountIn, '990');
+  const adapterAbi = [{ type: 'function', name: 'swapExactInputSingle', stateMutability: 'nonpayable', inputs: [
+    { name: 'tokenIn', type: 'address' }, { name: 'tokenOut', type: 'address' }, { name: 'poolFee', type: 'uint24' },
+    { name: 'grossAmountIn', type: 'uint256' }, { name: 'amountOutMinimum', type: 'uint256' },
+  ], outputs: [{ name: 'amountOut', type: 'uint256' }] }];
+  const decoded = decodeFunctionData({ abi: adapterAbi, data: plan.transaction.data });
+  assert.equal(decoded.args[0].toLowerCase(), tokenIn); assert.equal(decoded.args[1].toLowerCase(), tokenOut);
+  assert.equal(decoded.args[3], 1000n); assert.equal(decoded.args[4], 9900n);
+  assert.ok(f.calls.some((call) => call.body.method === 'eth_getCode'));
+  assert.ok(f.calls.some((call) => call.body.method === 'eth_call' && call.body.params[0].to.toLowerCase() === bridge.ROBINHOOD_UNISWAP.quoterV2));
+  const approval = await bridge.prepareModuleTransaction({ operation: 'uniswap.approveExact', token: tokenIn, amount: '1000' }, wallet);
+  assert.equal(approval.spender, feeRouter); assert.equal(approval.transaction.to, tokenIn);
+  await assert.rejects(() => bridge.prepareModuleTransaction({ operation: 'uniswap.approveExact', token: tokenIn, amount: '1', spender: other }, wallet), /Unsupported wallet transaction input/);
+  await assert.rejects(() => bridge.prepareModuleTransaction({ operation: 'uniswap.swapExactInputSingle', tokenIn, tokenOut, fee: 3000, amountIn: '1', slippageBps: 50, recipient: other }, wallet), /Unsupported wallet transaction input/);
+});
+
+void test('transaction adapter fails closed without fixed router and treasury configuration', async () => {
+  const f = fixture(() => undefined);
+  const bridge = f.load('@/lib/server/module-transaction');
+  assert.throws(() => bridge.transactionAdapterConfiguration(), /not configured/);
+});
+
+void test('fee router has immutable policy and no owner or arbitrary-call surface', () => {
+  const source = fs.readFileSync(path.join(root, 'contracts/LandvilleTransactionRouter.sol'), 'utf8');
+  assert.match(source, /uint16 public constant feeBps = 100/);
+  assert.match(source, /address public immutable treasury/);
+  assert.match(source, /address public immutable swapRouter/);
+  assert.match(source, /recipient: msg\.sender/);
+  assert.doesNotMatch(source, /delegatecall|function\s+(?:owner|execute|upgrade|setTreasury|withdraw)\b/i);
+});
+
+void test('a published module can persist private state only in its declared collection', async () => {
+  const hash = 'd'.repeat(64);
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.includes('landville_module_private_state?on_conflict=')) return json([{ data: call.body.data, updated_at: call.body.updated_at }]);
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [{ name: 'progress', mode: 'private', description: 'Citizen progress state.' }] } }, hash }) } });
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'private.set', collection: 'progress', data: { level: 3 } } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).value, { level: 3 });
+  const write = f.calls.find((call) => call.url.includes('landville_module_private_state?on_conflict='));
+  assert.equal(write.body.citizen_wallet, wallet); assert.equal(write.body.module_id, 'LV-1');
+});
+
+void test('module storage refuses undeclared collections before a storage table is touched', async () => {
+  const hash = 'e'.repeat(64);
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [] } }, hash }) },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'shared.list', collection: 'secrets' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 403);
+  assert.ok(!f.calls.some((call) => call.url.includes('landville_module_shared_records')));
+});
+
+void test('runtime image generation is available only to an explicitly permitted published module', async () => {
+  const hash = '9'.repeat(64);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration } }, hash }) },
+    '@/lib/server/module-image': { moduleImageResponse: async (id, actor, declaration, brief) => ({ imageUrl: 'data:image/webp;base64,dGVzdA==', id, actor, declaration, brief, cached: false }) },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.image.generate', input: { operation: 'generate', brief: 'A boiler-suited town oracle' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.id, 'LV-1'); assert.equal(result.actor, wallet); assert.equal(result.brief, 'A boiler-suited town oracle');
+});
+
+void test('a module without reviewed image permission cannot spend OpenAI budget', async () => {
+  const hash = '8'.repeat(64);
+  let generated = false;
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [] } }, hash }) },
+    '@/lib/server/module-image': { moduleImageResponse: async () => { generated = true; return {}; } },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.image.generate', input: { operation: 'generate', brief: 'Unauthorized art' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 403); assert.equal(generated, false);
+});
+
+void test('a reviewed module can publish only the signed-in citizen and server-owned image', async () => {
+  const hash = '7'.repeat(64);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
+  const worldCitizen = { purpose: 'Publish the generated character as the caller\'s public World resident.' };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.endsWith('/rpc/landville_publish_world_citizen_v2')) return json({ published: true, publishedAt: new Date().toISOString(), sourceModuleId: 'LV-1', selectedImageIndex: 0 });
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [], imageGeneration, worldCitizen } }, hash }) } });
+  const route = f.load('app/api/modules/[id]/data/route.ts');
+  const response = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish', imageIndex: 0 } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const publish = f.calls.find((call) => call.url.endsWith('/rpc/landville_publish_world_citizen_v2'));
+  assert.deepEqual(publish.body, { p_module_id: 'LV-1', p_citizen_wallet: wallet, p_image_index: 0 });
+  const rejected = await route.POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish', imageIndex: 0, wallet: other, image: 'arbitrary' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(rejected.status, 400);
+  assert.equal(f.calls.filter((call) => call.url.endsWith('/rpc/landville_publish_world_citizen_v2')).length, 1);
+});
+
+void test('World publishing is denied without an explicit reviewed artifact permission', async () => {
+  const hash = '6'.repeat(64);
+  const f = fixture((call) => call.url.includes('landville_objects?') ? json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]) : undefined, {}, {
+    '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [] } }, hash }) },
+  });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'world.citizen.publish', input: { operation: 'publish' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 403);
+  assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_publish_world_citizen')));
+});
+
+void test('public World citizen image endpoint streams bytes', async () => {
+  const imageBase64 = Buffer.alloc(100, 3).toString('base64');
+  const f = fixture((call) => call.url.includes('landville_world_citizens?') ? json([{ image_base64: imageBase64, mime_type: 'image/webp', updated_at: new Date().toISOString() }]) : undefined);
+  const response = await f.load('app/api/world/citizens/[address]/image/route.ts').GET(f.request(`/api/world/citizens/${wallet}/image`, {}, { method: 'GET' }), { params: Promise.resolve({ address: wallet }) });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'image/webp');
+  assert.equal((await response.arrayBuffer()).byteLength, 100);
+});
+
+void test('shared module records expose public author labels but never wallet addresses', async () => {
+  const hash = 'f'.repeat(64);
+  const record = { id: '11111111-1111-4111-8111-111111111111', owner_wallet: other, data: { topic: 'Build a crane' }, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.includes('landville_module_shared_records?')) return json([record]);
+    if (call.url.includes('landville_citizens?wallet=in.')) return json([{ wallet: other, joined_at: record.created_at, citizen_number: 7, username: 'builder' }]);
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [{ name: 'topics', mode: 'shared', description: 'Public discussion topics.' }] } }, hash }) } });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'shared.list', collection: 'topics', limit: 10 } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.records[0].author.label, '@builder'); assert.equal(body.records[0].ownedByViewer, false);
+  assert.ok(!JSON.stringify(body).includes(other));
+});
+
+void test('global module counters increment only through their declared atomic RPC', async () => {
+  const hash = '1'.repeat(64);
+  const f = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1', artifact_path: 'city-modules/LV-1.json', artifact_hash: hash }]);
+    if (call.url.endsWith('/rpc/landville_increment_module_counter')) return json(9);
+    return undefined;
+  }, {}, { '@/lib/server/city-module': { readCityModule: async () => ({ module: { capabilities: { storage: [{ name: 'visits', mode: 'counter', description: 'Town-wide visit count.' }] } }, hash }) } });
+  const response = await f.load('app/api/modules/[id]/data/route.ts').POST(f.request('/api/modules/LV-1/data', { capability: 'module.storage', input: { operation: 'counter.increment', collection: 'visits' } }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 200); assert.equal((await response.json()).value, 9);
+  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_increment_module_counter'));
+  assert.deepEqual(call.body, { p_module_id: 'LV-1', p_collection: 'visits' });
+});
+
 void test('cross-site mutation is denied before database access', async () => {
   const f = fixture(() => undefined);
   const response = await f.load('app/api/proposals/route.ts').POST(f.request('/api/proposals', {}, { signed: true, headers: { Origin: 'https://untrusted.example' } }));
@@ -527,7 +1009,7 @@ void test('AI distinguishes missing key, provider failures and incomplete replie
   const result = await f.load('@/lib/server/mayor-ai').requestMayorReply([message], wallet);
   assert.equal(result.ok, true); assert.equal(result.text, 'What should the radio play?');
   assert.equal(f.calls[0].body.store, false); assert.equal(f.calls[0].body.model, 'test-model');
-  assert.match(f.calls[0].body.instructions, /public Town Chat/);
+  assert.match(f.calls[0].body.instructions, /Build with Scrapy, the public building room/);
 });
 
 void test('missing provenance migration refuses chat before a message or quota is consumed', async () => {
@@ -552,6 +1034,8 @@ void test('public replies persist provenance, exclude private context and never 
     assert.equal(saved.ai_source, ai ? 'openai' : 'scripted');
     assert.equal(result.messages[1].aiSource, saved.ai_source);
     assert.equal(saved.owner_wallet, null); assert.equal(saved.channel, 'TOWN');
+    assert.equal(saved.room, 'BUILD');
+    assert.ok(f.calls.some((call) => call.url.includes(`room=eq.BUILD&wallet=eq.${wallet}&kind=eq.CITIZEN`)));
     assert.ok(!f.calls.some((call) => /WORKSHOP|create_proposal/.test(call.url)));
     const replay = await f.load('@/lib/server/chat').sendMessage(wallet, 'TOWN', message.body, randomUUID(), true);
     assert.equal(replay.source, 'stored'); assert.equal(replay.messages[1].aiSource, saved.ai_source);
@@ -880,4 +1364,193 @@ for (const code of ['BUILD_ALREADY_RUNNING', 'BUILD_QUEUE_ORDER']) void test(`${
   const response = await f.load('app/api/admin/builds/[id]/route.ts').PATCH(f.request('/api/admin/builds/LV-1', { action: 'START_BUILD', expectedStatus: 'PASSED', note: 'Start reviewed build' }, { signed: true, method: 'PATCH' }), { params: Promise.resolve({ id: 'LV-1' }) });
   assert.equal(response.status, 409);
   assert.equal((await response.json()).proposal, undefined);
+});
+
+void test('module likes use the signed citizen and a server-read SCRAPY snapshot', async () => {
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_like_module')) return json({ used: 1, verifiedAllowance: 6 });
+    return undefined;
+  });
+  const response = await f.load('app/api/modules/[id]/like/route.ts').POST(
+    f.request('/api/modules/LV-1/like', { wallet: other, tokenBalance: '999999999999' }, { signed: true }),
+    { params: Promise.resolve({ id: 'LV-1' }) },
+  );
+  assert.equal(response.status, 200);
+  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_like_module'));
+  assert.equal(call.body.p_wallet, wallet);
+  assert.equal(call.body.p_module_id, 'LV-1');
+  assert.deepEqual(call.body.p_snapshot, snapshot);
+  assert.equal(f.balanceReads, 1);
+});
+
+for (const [code, status] of [['OWN_MODULE_LIKE', 403], ['WEEKLY_MODULE_LIKE_LIMIT', 429]]) {
+  void test(`${code} returns an honest module-like error`, async () => {
+    const f = fixture((call) => call.url.endsWith('/rpc/landville_like_module') ? json({ message: code }, 400) : undefined);
+    const response = await f.load('app/api/modules/[id]/like/route.ts').POST(
+      f.request('/api/modules/LV-1/like', {}, { signed: true }),
+      { params: Promise.resolve({ id: 'LV-1' }) },
+    );
+    assert.equal(response.status, status);
+  });
+}
+
+const robotRow = {
+  owner_wallet: wallet, name: 'Bolt', presentation: 'MASCULINE', personality: 'CHEEKY',
+  house_style: 'SCRAP_SHACK', house_name: 'Rust Nest', town_mode: 'OFF',
+  world_roam_mode: 'CITY', world_speech_enabled: true, world_phrases: ['Found a shortcut.'],
+  interval_minutes: 120, next_town_at: new Date().toISOString(), created_at: new Date().toISOString(),
+};
+
+void test('personal robot settings use the signed citizen and reject impersonation or owner overrides', async () => {
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_upsert_personal_agent_world') ? json(robotRow) : undefined);
+  const route = f.load('app/api/agents/me/route.ts');
+  const payload = { name: 'Bolt', presentation: 'MASCULINE', personality: 'CHEEKY', houseStyle: 'SCRAP_SHACK', houseName: 'Rust Nest', townMode: 'OFF', intervalMinutes: 120, worldRoamMode: 'CITY', worldSpeechEnabled: true, worldPhrases: ['Found a shortcut.'] };
+  assert.equal((await route.PUT(f.request('/api/agents/me', payload))).status, 401);
+  assert.equal((await route.PUT(f.request('/api/agents/me', { ...payload, ownerWallet: other }, { signed: true, method: 'PUT' }))).status, 400);
+  assert.equal((await route.PUT(f.request('/api/agents/me', { ...payload, name: 'Scrapy Mayor' }, { signed: true, method: 'PUT' }))).status, 400);
+  const response = await route.PUT(f.request('/api/agents/me', payload, { signed: true, method: 'PUT' }));
+  assert.equal(response.status, 200);
+  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_upsert_personal_agent_world'));
+  assert.equal(call.body.p_owner, wallet);
+  assert.equal(call.body.p_town_mode, 'OFF');
+  assert.equal(call.body.p_world_roam_mode, 'CITY');
+  assert.deepEqual(call.body.p_world_phrases, ['Found a shortcut.']);
+});
+
+void test('yard chat is owner-only, and unavailable AI never fabricates or saves a reply', async () => {
+  const f = fixture((call) => call.url.includes('landville_personal_agents?') ? json([robotRow]) : undefined);
+  const route = f.load('app/api/agents/chat/route.ts');
+  assert.equal((await route.GET(f.request('/api/agents/chat', {}, { method: 'GET' }))).status, 401);
+  const response = await route.POST(f.request('/api/agents/chat', {
+    body: 'Hello Bolt', requestId: randomUUID(), summonMayor: false,
+  }, { signed: true }));
+  assert.equal(response.status, 503);
+  assert.ok(!f.calls.some((entry) => entry.url.endsWith('/rpc/landville_save_yard_exchange')));
+  assert.ok(!f.calls.some((entry) => entry.url.includes('landville_messages?') && entry.method === 'POST'));
+});
+
+void test('yard chat stores the signed owner and labels a generated robot reply', async () => {
+  const exchange = randomUUID();
+  const now = new Date().toISOString();
+  const rows = [
+    { id: randomUUID(), owner_wallet: wallet, request_id: exchange, role: 'CITIZEN', body: 'Any bolts?', created_at: now },
+    { id: randomUUID(), owner_wallet: wallet, request_id: exchange, role: 'AGENT', body: 'A whole garage of them.', created_at: now },
+  ];
+  const f = fixture((call) => {
+    if (call.url.includes('landville_personal_agents?')) return json([robotRow]);
+    if (call.url.includes('api.openai.com/v1/responses')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'A whole garage of them.' }] }] });
+    if (call.url.endsWith('/rpc/landville_save_yard_exchange')) return json(rows);
+    return undefined;
+  }, { OPENAI_API_KEY: 'unit-test-key' });
+  const response = await f.load('app/api/agents/chat/route.ts').POST(f.request('/api/agents/chat', {
+    body: 'Any bolts?', requestId: exchange, summonMayor: false,
+  }, { signed: true }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).messages[1].role, 'AGENT');
+  const save = f.calls.find((call) => call.url.endsWith('/rpc/landville_save_yard_exchange'));
+  assert.equal(save.body.p_owner, wallet);
+  assert.equal(save.body.p_role, 'AGENT');
+  assert.ok(!f.calls.some((call) => call.url.includes('landville_messages?') && call.method === 'POST'));
+});
+
+void test('robot Town posting requires the worker secret and an explicit operator switch', async () => {
+  const secret = 'unit-test-personal-agent-worker-secret-12345';
+  const f = fixture(() => undefined, { LANDVILLE_WORKER_SECRET: secret, LANDVILLE_MAYOR_BANTER_ENABLED: 'false' });
+  const route = f.load('app/api/internal/agent-tick/route.ts');
+  assert.equal((await route.POST(f.request('/api/internal/agent-tick'))).status, 401);
+  const response = await route.POST(f.request('/api/internal/agent-tick', {}, { headers: { Authorization: `Bearer ${secret}` } }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).reason, 'disabled');
+  assert.equal(f.calls.length, 0);
+});
+
+void test('enabled robot Town posting is AI-labeled, attributed and replies only to another citizen', async () => {
+  const secret = 'unit-test-personal-agent-worker-secret-12345';
+  const lease = randomUUID();
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_claim_agent_post')) return json({ ...robotRow, town_mode: 'REPLY', next_town_at: new Date(0).toISOString(), lease_id: lease });
+    if (call.url.includes('landville_messages?') && call.url.includes('kind=eq.AGENT')) return json([]);
+    if (call.url.includes('landville_messages?')) return json([{ id: 'citizen-request', author: 'Another citizen', wallet: other, body: 'Is the yard open?', kind: 'CITIZEN', channel: 'TOWN', owner_wallet: null, created_at: new Date().toISOString() }]);
+    if (call.url.includes('api.openai.com/v1/responses')) return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: 'Open for bolts and bad jokes.' }] }] });
+    if (call.url.endsWith('/rpc/landville_finish_agent_post')) return json({ id: `agent-${lease}` });
+    return undefined;
+  }, { LANDVILLE_WORKER_SECRET: secret, LANDVILLE_AGENT_AUTONOMY_ENABLED: 'true', OPENAI_API_KEY: 'unit-test-key' });
+  const response = await f.load('app/api/internal/agent-tick/route.ts').POST(f.request('/api/internal/agent-tick', {}, { headers: { Authorization: `Bearer ${secret}` } }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).posted, true);
+  const finish = f.calls.find((call) => call.url.endsWith('/rpc/landville_finish_agent_post'));
+  assert.equal(finish.body.p_owner, wallet);
+  assert.equal(finish.body.p_reply_to, 'citizen-request');
+  assert.equal(finish.body.p_body, 'Open for bolts and bad jokes.');
+});
+
+void test('a transient storage failure does not make an existing yard disappear', async () => {
+  let reads = 0;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_personal_agents?')) {
+      reads++;
+      if (reads === 1) throw new Error('Temporary storage connection failure');
+      return json([robotRow]);
+    }
+    return undefined;
+  });
+  const response = await f.load('app/api/yards/[owner]/route.ts').GET(
+    f.request(`/api/yards/${wallet}`, {}, { method: 'GET' }),
+    { params: Promise.resolve({ owner: wallet }) },
+  );
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).yard.houseName, 'Rust Nest');
+  assert.equal(reads, 2);
+});
+
+void test('a temporary citizen-label failure still renders the public yard', async () => {
+  const f = fixture((call) => {
+    if (call.url.includes('landville_personal_agents?')) return json([robotRow]);
+    if (call.url.includes('landville_citizens?wallet=in.')) throw new Error('Temporary label lookup failure');
+    return undefined;
+  });
+  const response = await f.load('app/api/yards/[owner]/route.ts').GET(
+    f.request(`/api/yards/${wallet}`, {}, { method: 'GET' }),
+    { params: Promise.resolve({ owner: wallet }) },
+  );
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).yard.ownerLabel, 'Citizen');
+});
+
+void test('City Points check-in is authenticated and uses one verified chain snapshot', async () => {
+  const before = { board: [], me: null, farm: null, hasAgent: true, checkedInToday: false, asOf: new Date().toISOString() };
+  const after = { ...before, checkedInToday: true, farm: { activeToday: true, ratePerDay: 4 } };
+  let current = before;
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_city_points_state')) return json(current);
+    if (call.url.endsWith('/rpc/landville_city_check_in')) { current = after; return json(after); }
+    return undefined;
+  });
+  const route = f.load('app/api/city-points/route.ts');
+  const guest = await route.GET(f.request('/api/city-points', {}, { method: 'GET' }));
+  assert.equal(guest.status, 200);
+  assert.equal(f.calls.at(-1).body.p_wallet, '');
+  assert.equal((await route.POST(f.request('/api/city-points', {}))).status, 401);
+  assert.equal((await route.POST(f.request('/api/city-points', {}, { signed: true, headers: { Origin: 'https://other.example' } }))).status, 403);
+  assert.equal((await route.POST(f.request('/api/city-points', {}, { signed: true }))).status, 200);
+  assert.equal(f.balanceReads, 1);
+  assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_city_check_in')).body.p_snapshot.source, 'chain');
+  assert.equal((await route.POST(f.request('/api/city-points', {}, { signed: true }))).status, 200);
+  assert.equal(f.balanceReads, 1);
+  assert.equal(f.calls.filter((call) => call.url.endsWith('/rpc/landville_city_check_in')).length, 1);
+});
+
+void test('below 250K SCRAPY still earns the daily check-in but cannot start the miner', async () => {
+  const before = { board: [], me: null, farm: null, hasAgent: true, checkedInToday: false, asOf: new Date().toISOString() };
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_city_points_state')) return json(before);
+    if (call.url.endsWith('/rpc/landville_city_check_in')) return json({ ...before, checkedInToday: true });
+    return undefined;
+  }, {}, { '@/lib/server/voting': { readVotingSnapshot: async () => ({
+    ...snapshot, tokenBalance: '249999000000000000000000', weight: 1,
+  }) } });
+  const response = await f.load('app/api/city-points/route.ts').POST(f.request('/api/city-points', {}, { signed: true }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).minimumNotMet, true);
+  assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_city_check_in')).body.p_snapshot, null);
 });

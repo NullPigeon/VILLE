@@ -21,7 +21,68 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260906075437_rebind_lv1_crop_review.sql
 \ir ../supabase/migrations/20260906123502_allow_two_active_proposals.sql
 \ir ../supabase/migrations/20260906130910_email_otp_citizen_accounts.sql
+\ir ../supabase/migrations/20260906151500_merge_privy_wallet_citizens.sql
 \ir ../supabase/migrations/20260906183000_two_hour_votes.sql
+\ir ../supabase/migrations/20260911120000_treasury_governance.sql
+\ir ../supabase/migrations/20260912150000_require_five_module_voters.sql
+\ir ../supabase/migrations/20260912151000_reduce_creator_reward_cap.sql
+\ir ../supabase/migrations/20260913090000_module_image_generation.sql
+\ir ../supabase/migrations/20260914150000_module_image_choices.sql
+\ir ../supabase/migrations/20260915113000_weekly_module_likes.sql
+\ir ../supabase/migrations/20260923120000_personal_agents_and_yards.sql
+\ir ../supabase/migrations/20261002120000_city_points.sql
+-- Simulate sessions created under the original miner tiers before upgrading.
+with days as (select pg_catalog.timezone('utc',pg_catalog.clock_timestamp())::date as today)
+insert into public.landville_city_farm_days
+  (wallet,day,started_at,ends_at,rate_per_day,token_balance,block_number)
+select '0x' || repeat('e',40),today,(today::timestamp at time zone 'utc'),
+  ((today + 1)::timestamp at time zone 'utc'),2,10000::numeric * 1000000000000000000::numeric,1234 from days
+union all
+select '0x' || repeat('e',40),today - 1,((today - 1)::timestamp at time zone 'utc'),
+  (today::timestamp at time zone 'utc'),4,250000::numeric * 1000000000000000000::numeric,1234 from days;
+\ir ../supabase/migrations/20261002180000_city_miner_250k.sql
+
+-- Upgrade existing public conversations without exposing private archives.
+insert into public.landville_messages(id,author,body,kind,channel,ask_scrapy)
+values ('room-upgrade-request','citizen','Build a radio','CITIZEN','TOWN',true),
+       ('reply-room-upgrade-request','@scrapy','A radio plan','MAYOR','TOWN',false);
+\ir ../supabase/migrations/20261003090000_city_chat_rooms.sql
+do $$
+begin
+  if (select count(*) from public.landville_messages where room='BUILD'
+    and id in ('room-upgrade-request','reply-room-upgrade-request')) <> 2 then
+    raise exception 'Public build conversation was not migrated together';
+  end if;
+  if not exists(select 1 from public.landville_messages where id='legacy-private-test'
+    and channel='WORKSHOP' and room='TOWN' and owner_wallet='0x' || repeat('e',40)) then
+    raise exception 'Private archive changed';
+  end if;
+  if public.landville_post_mayor_banter('Empty towns do not need fake activity.') then
+    raise exception 'Mayor posted without a recent social message';
+  end if;
+  if has_function_privilege('authenticated','public.landville_post_mayor_banter(text)','EXECUTE')
+    or has_function_privilege('anon','public.landville_post_mayor_banter(text)','EXECUTE') then
+    raise exception 'Browser roles can publish mayor messages';
+  end if;
+end $$;
+delete from public.landville_messages where id in ('room-upgrade-request','reply-room-upgrade-request');
+
+do $$
+begin
+  if exists(select 1 from public.landville_city_farm_days
+    where wallet='0x' || repeat('e',40) and token_balance < 250000::numeric * 1000000000000000000::numeric)
+    or (select rate_per_day from public.landville_city_farm_days
+      where wallet='0x' || repeat('e',40)) <> 1 then
+    raise exception 'Old miner sessions were not corrected for the 250K minimum';
+  end if;
+  if public.landville_city_miner_rate(249999::numeric * 1000000000000000000::numeric) <> 0
+    or public.landville_city_miner_rate(250000::numeric * 1000000000000000000::numeric) <> 1
+    or public.landville_city_miner_rate(2500000::numeric * 1000000000000000000::numeric) <> 2
+    or public.landville_city_miner_rate(10000000::numeric * 1000000000000000000::numeric) <> 4
+    or public.landville_city_miner_rate(20000000::numeric * 1000000000000000000::numeric) <> 8 then
+    raise exception 'City miner thresholds are incorrect';
+  end if;
+end $$;
 
 do $$
 declare
@@ -94,7 +155,12 @@ do $$ begin
   end if;
 end $$;
 set role service_role;
-insert into public.landville_citizens(wallet) select '0x' || repeat(letter, 40) from unnest(array['a','b','c','d']) as letter;
+insert into public.landville_citizens(wallet, linked_wallet)
+select address, address
+from (
+  select '0x' || repeat(letter, 40) as address
+  from unnest(array['a','b','c','d']) as letter
+) citizens;
 do $$
 declare actor text := '0x' || repeat('a',40); number_before integer;
 begin
@@ -125,7 +191,7 @@ do $$
 declare actor text := '0x' || repeat('a',40); request_id uuid := gen_random_uuid(); result public.landville_messages;
 begin
   result := public.landville_submit_public_message(actor,request_id,'Hello fellow citizens',null,false);
-  if result.ask_scrapy or result.channel <> 'TOWN' or result.owner_wallet is not null then raise exception 'Normal message recipient was lost'; end if;
+  if result.ask_scrapy or result.room <> 'TOWN' or result.channel <> 'TOWN' or result.owner_wallet is not null then raise exception 'Normal message recipient was lost'; end if;
   result := public.landville_submit_public_message(actor,request_id,'Hello fellow citizens',null,false);
   if (select count(*) from public.landville_messages where wallet=actor and kind='CITIZEN') <> 1 then raise exception 'Retry duplicated message or quota'; end if;
   begin
@@ -133,7 +199,13 @@ begin
     raise exception 'Retry changed recipient';
   exception when raise_exception then if sqlerrm <> 'IDEMPOTENCY_CONFLICT' then raise; end if; end;
   result := public.landville_submit_public_message(actor,gen_random_uuid(),'Hello Scrapy',null,true);
-  if not result.ask_scrapy then raise exception 'Explicit AI request was lost'; end if;
+  if not result.ask_scrapy or result.room <> 'BUILD' then raise exception 'Explicit AI request was lost'; end if;
+  if not public.landville_post_mayor_banter('A genuine citizen arrived. Welcome to the sand.') then
+    raise exception 'Mayor did not welcome active social chat';
+  end if;
+  if public.landville_post_mayor_banter('Another scheduler tried the same slot.') then
+    raise exception 'Mayor exceeded the shared eight hour limit';
+  end if;
   if has_function_privilege('anon','public.landville_submit_public_message(text,uuid,text,jsonb,boolean)','EXECUTE') then raise exception 'Anonymous RPC allowed'; end if;
 end $$;
 insert into public.landville_citizens(wallet) select '0x' || repeat(letter, 40) from unnest(array['f','1','2','3']) as letter;
@@ -174,10 +246,20 @@ begin
 end $$;
 insert into public.landville_proposals(id, request_id, creator_wallet, title, summary, category, district, eligibility_snapshot, yes, no, created_at, closes_at)
 values
-  ('LV-1', gen_random_uuid(), '0x' || repeat('a',40), 'Town counter', 'A counter for the citizens of town.', 'UTILITY','THE DUMP','{}',2,1,now()-interval '14 hours',now()-interval '2 hours'),
+  ('LV-1', gen_random_uuid(), '0x' || repeat('a',40), 'Town counter', 'A counter for the citizens of town.', 'UTILITY','THE DUMP','{}',4,1,now()-interval '14 hours',now()-interval '2 hours'),
   ('LV-2', gen_random_uuid(), '0x' || repeat('b',40), 'Town puzzle', 'A puzzle for the citizens of town.', 'GAME','THE DUMP','{}',100,1,now()-interval '13 hours',now()-interval '1 hour'),
   ('LV-3', gen_random_uuid(), '0x' || repeat('c',40), 'Town artwork', 'A mural for the citizens of town.', 'ART','THE DUMP','{}',1,1,now()-interval '13 hours',now()-interval '30 minutes'),
-  ('LV-4', gen_random_uuid(), '0x' || repeat('d',40), 'Town garden', 'A garden for the citizens of town.', 'ART','THE DUMP','{}',3,0,now()-interval '11 hours',now()+interval '1 hour');
+  ('LV-4', gen_random_uuid(), '0x' || repeat('d',40), 'Town garden', 'A garden for the citizens of town.', 'ART','THE DUMP','{}',5,0,now()-interval '11 hours',now()+interval '1 hour'),
+  ('LV-5', gen_random_uuid(), '0x' || repeat('a',40), 'Quiet monument', 'A winning vote with too few participating citizens.', 'ART','THE DUMP','{}',100,0,now()-interval '10 hours',now()-interval '15 minutes');
+
+insert into public.landville_votes(proposal_id, wallet, choice, snapshot)
+select proposal_id, wallet, choice, '{}'
+from (values
+  ('LV-1','0x' || repeat('a',40),'YES'),('LV-1','0x' || repeat('b',40),'YES'),('LV-1','0x' || repeat('c',40),'YES'),('LV-1','0x' || repeat('d',40),'YES'),('LV-1','0x' || repeat('e',40),'NO'),
+  ('LV-2','0x' || repeat('a',40),'YES'),('LV-2','0x' || repeat('b',40),'YES'),('LV-2','0x' || repeat('c',40),'YES'),('LV-2','0x' || repeat('d',40),'YES'),('LV-2','0x' || repeat('e',40),'NO'),
+  ('LV-4','0x' || repeat('a',40),'YES'),('LV-4','0x' || repeat('b',40),'YES'),('LV-4','0x' || repeat('c',40),'YES'),('LV-4','0x' || repeat('d',40),'YES'),('LV-4','0x' || repeat('e',40),'YES'),
+  ('LV-5','0x' || repeat('a',40),'YES'),('LV-5','0x' || repeat('b',40),'YES'),('LV-5','0x' || repeat('c',40),'YES'),('LV-5','0x' || repeat('d',40),'YES')
+) votes(proposal_id, wallet, choice);
 
 do $$
 declare actor text := '0x' || repeat('a',40); spec jsonb; work jsonb; job public.landville_build_jobs; first_lease uuid;
@@ -185,6 +267,7 @@ begin
   perform public.landville_claim_build(actor, false);
   if (select status from public.landville_proposals where id = 'LV-1') <> 'PASSED' or
     (select status from public.landville_proposals where id = 'LV-3') <> 'REJECTED' or
+    (select status from public.landville_proposals where id = 'LV-5') <> 'REJECTED' or
     (select status from public.landville_proposals where id = 'LV-4') <> 'LIVE' then raise exception 'Deadline finalization is incorrect'; end if;
   spec := jsonb_build_object('version',1,'runtime','sandbox-html','goal','A puzzle for the citizens of town.','acceptance',jsonb_build_array('The puzzle can be reset.'),'constraints','');
   perform public.landville_prepare_build('LV-2',actor,spec);
@@ -257,7 +340,257 @@ begin
     then raise exception 'Verified corrective release did not switch atomically'; end if;
 end $$;
 
+do $$
+declare
+  actor text := '0x' || repeat('a',40);
+  claim jsonb;
+  lease uuid;
+begin
+  claim := public.landville_claim_module_image('LV-1',actor,repeat('a',64));
+  if claim->>'state' <> 'CLAIMED' then raise exception 'Runtime image was not claimed'; end if;
+  lease := (claim->>'leaseId')::uuid;
+  if public.landville_claim_module_image('LV-1',actor,repeat('a',64))->>'state' <> 'BUSY' then
+    raise exception 'Concurrent runtime image generation was not blocked';
+  end if;
+  perform public.landville_finish_module_image_set(
+    'LV-1', actor, lease,
+    jsonb_build_array(repeat('A',100), repeat('B',100), repeat('C',100)),
+    'image/webp', now()
+  );
+  claim := public.landville_claim_module_image('LV-1',actor,repeat('b',64));
+  if claim->>'state' <> 'READY'
+    or jsonb_array_length(claim->'imagesBase64') <> 3
+    or claim->'imagesBase64'->>2 <> repeat('C',100) then
+    raise exception 'Weekly runtime image choices were not cached';
+  end if;
+  if public.landville_publish_world_citizen_v2('LV-1',actor,2)->>'published' <> 'true' then
+    raise exception 'Generated citizen was not published to World';
+  end if;
+  if (select image_base64 from public.landville_world_citizens where citizen_wallet=actor) <> repeat('C',100) then
+    raise exception 'World citizen did not use the selected reviewed generated image';
+  end if;
+  if has_table_privilege('anon','public.landville_module_images','SELECT')
+    or has_table_privilege('anon','public.landville_world_citizens','SELECT')
+    or has_function_privilege('authenticated','public.landville_claim_module_image(text,text,text)','EXECUTE')
+    or has_function_privilege('authenticated','public.landville_publish_world_citizen_v2(text,text,integer)','EXECUTE') then
+    raise exception 'Runtime image or World citizen records are exposed to browser roles';
+  end if;
+end $$;
+
+do $$
+declare
+  snapshot jsonb;
+  proposal public.landville_treasury_proposals;
+  reward public.landville_creator_rewards;
+  ballot public.landville_treasury_ballots;
+begin
+  snapshot := jsonb_build_object(
+    'wallet','0x' || repeat('a',40),'chainId',4663,
+    'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','1000000000000000000000000','tokenBalanceFormatted','1000000',
+    'weight',5,'blockNumber','5000','capturedAt',clock_timestamp(),'source','chain'
+  );
+  if (select count(*) from public.landville_creator_rewards where proposal_id='LV-1') <> 1 then
+    raise exception 'First World publication did not create exactly one reward';
+  end if;
+  reward := public.landville_resolve_creator_reward('LV-1','0x' || repeat('a',40),snapshot,10000000000000000000);
+  if reward.status <> 'READY' or reward.reward_wei <> 5000000000000000 then raise exception 'Creator reward cap is incorrect'; end if;
+  reward := public.landville_claim_creator_reward('test-worker');
+  perform public.landville_finish_creator_reward('LV-1',reward.payment_lease,'0x' || repeat('1',64));
+  if (select status from public.landville_creator_rewards where proposal_id='LV-1') <> 'PAID' then raise exception 'Creator reward was not paid'; end if;
+
+  proposal := public.landville_submit_treasury_proposal('0x' || repeat('a',40),'Buy civic bolts',
+    'Use a bounded part of the Treasury to buy useful civic bolts.','BUY',100000000000000000,null,snapshot,10000000000000000000);
+  ballot := public.landville_cast_treasury_vote(proposal.id,'0x' || repeat('a',40),'YES',snapshot);
+  update public.landville_treasury_proposals set closes_at=now()-interval '1 second' where id=proposal.id;
+  perform public.landville_treasury_tick();
+  if (select status from public.landville_treasury_proposals where id=proposal.id) <> 'PASSED' then raise exception 'No-quorum Treasury vote did not pass'; end if;
+
+  proposal := public.landville_submit_treasury_proposal('0x' || repeat('a',40),'Raise creator hold',
+    'Require two million SCRAPY for future creator rewards.','REWARD_POLICY',null,2000000,snapshot,10000000000000000000);
+  perform public.landville_cast_treasury_vote(proposal.id,'0x' || repeat('a',40),'YES',snapshot);
+  update public.landville_treasury_proposals set closes_at=now()-interval '1 second' where id=proposal.id;
+  perform public.landville_treasury_tick();
+  if (select minimum_reward_tokens from public.landville_treasury_policy where singleton) <> 2000000 then raise exception 'Reward policy vote was not executed'; end if;
+
+  begin
+    snapshot := jsonb_set(snapshot,'{tokenBalance}','"0"'::jsonb);
+    perform public.landville_submit_treasury_proposal('0x' || repeat('a',40),'Drain attempt blocked',
+      'A zero-balance citizen must not file this Treasury action.','OTHER',null,null,snapshot,10000000000000000000);
+    raise exception 'Non-holder submitted a Treasury proposal';
+  exception when raise_exception then if sqlerrm <> 'TREASURY_HOLDER_REQUIRED' then raise; end if; end;
+end $$;
+
+insert into public.landville_proposals(id, request_id, creator_wallet, title, summary, category, district, status, eligibility_snapshot, yes, no, created_at, closes_at)
+select 'LV-' || module_number, gen_random_uuid(), '0x' || repeat('a',40),
+  'Like test ' || module_number, 'A published fixture used to verify weekly module likes.',
+  'UTILITY', 'THE DUMP', 'BUILT', '{}', 5, 0, now()-interval '3 hours', now()-interval '1 hour'
+from generate_series(90,95) module_number;
+insert into public.landville_objects(proposal_id, creator_wallet, module_path, release_ref, artifact_path, artifact_hash, x, y)
+select 'LV-' || module_number, '0x' || repeat('a',40), '/modules/LV-' || module_number,
+  'deployment:test-' || module_number, 'city-modules/LV-' || module_number || '.json', repeat('a',64), 50, 50
+from generate_series(90,95) module_number;
+
+do $$
+declare
+  base_wallet text := '0x' || repeat('b',40);
+  holder_wallet text := '0x' || repeat('c',40);
+  base_snapshot jsonb;
+  holder_snapshot jsonb;
+  state jsonb;
+  module_id text;
+begin
+  base_snapshot := jsonb_build_object(
+    'wallet',base_wallet,'chainId',4663,'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','0','tokenBalanceFormatted','0','weight',1,
+    'blockNumber','0','capturedAt',clock_timestamp(),'source','unlinked'
+  );
+  holder_snapshot := jsonb_build_object(
+    'wallet',holder_wallet,'chainId',4663,'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','250000000000000000000000','tokenBalanceFormatted','250000','weight',2,
+    'blockNumber','7000','capturedAt',clock_timestamp(),'source','chain'
+  );
+
+  foreach module_id in array array['LV-1','LV-90','LV-91','LV-92','LV-93'] loop
+    state := public.landville_like_module(module_id,base_wallet,base_snapshot);
+  end loop;
+  if (state->>'used')::integer <> 5 or (state->>'verifiedAllowance')::integer <> 5 then
+    raise exception 'Base weekly like allowance is incorrect';
+  end if;
+  state := public.landville_like_module('LV-1',base_wallet,base_snapshot);
+  if (state->>'used')::integer <> 5 or (select count(*) from public.landville_module_likes where wallet=base_wallet) <> 5 then
+    raise exception 'Duplicate module like was not idempotent';
+  end if;
+  begin
+    perform public.landville_like_module('LV-94',base_wallet,base_snapshot);
+    raise exception 'Base citizen exceeded five weekly likes';
+  exception when raise_exception then if sqlerrm <> 'WEEKLY_MODULE_LIKE_LIMIT' then raise; end if; end;
+  begin
+    perform public.landville_like_module('LV-1','0x' || repeat('a',40),jsonb_set(base_snapshot,'{wallet}',to_jsonb('0x' || repeat('a',40))));
+    raise exception 'Creator liked their own module';
+  exception when raise_exception then if sqlerrm <> 'OWN_MODULE_LIKE' then raise; end if; end;
+
+  foreach module_id in array array['LV-1','LV-90','LV-91','LV-92','LV-93','LV-94'] loop
+    state := public.landville_like_module(module_id,holder_wallet,holder_snapshot);
+  end loop;
+  if (state->>'used')::integer <> 6 or (state->>'verifiedAllowance')::integer <> 6 then
+    raise exception '250K SCRAPY did not add one weekly like';
+  end if;
+  begin
+    perform public.landville_like_module('LV-95',holder_wallet,holder_snapshot);
+    raise exception 'Holder exceeded token-adjusted weekly likes';
+  exception when raise_exception then if sqlerrm <> 'WEEKLY_MODULE_LIKE_LIMIT' then raise; end if; end;
+
+  if has_table_privilege('anon','public.landville_module_likes','SELECT')
+    or has_function_privilege('authenticated','public.landville_like_module(text,text,jsonb)','EXECUTE') then
+    raise exception 'Module like records or RPC are exposed to browser roles';
+  end if;
+end $$;
+
+-- Leave one eligible job for concurrent-claim checks in the Node runner.
+do $$
+declare
+  owner text := '0x' || repeat('b',40);
+  source_wallet text := '0x' || repeat('ab',20);
+  target_wallet text := '0x' || repeat('cd',20);
+  exchange uuid := gen_random_uuid();
+  agent public.landville_personal_agents;
+  saved public.landville_messages;
+begin
+  agent := public.landville_upsert_personal_agent(owner,'Bolt','MASCULINE','CHEEKY',
+    'SCRAP_SHACK','Rust Nest','REPLY',60);
+  if agent.owner_wallet <> owner or agent.house_name <> 'Rust Nest' then
+    raise exception 'Personal robot was not saved';
+  end if;
+  perform public.landville_save_yard_exchange(owner,exchange,'Hello Bolt','Greetings, citizen.','AGENT');
+  if (select count(*) from public.landville_yard_messages where owner_wallet=owner and request_id=exchange) <> 2 then
+    raise exception 'Private yard exchange did not save atomically';
+  end if;
+  perform public.landville_save_yard_exchange(owner,exchange,'Hello Bolt','Greetings, citizen.','AGENT');
+  if (select count(*) from public.landville_yard_messages where owner_wallet=owner and request_id=exchange) <> 2 then
+    raise exception 'Yard idempotency created a duplicate';
+  end if;
+  insert into public.landville_messages(id,author,wallet,body,kind,channel,owner_wallet)
+    values ('agent-target-test','Citizen','0x' || repeat('c',40),'Any scrap left?','CITIZEN','TOWN',null);
+  update public.landville_personal_agents set next_town_at=now()-interval '1 minute' where owner_wallet=owner;
+  agent := public.landville_claim_agent_post();
+  if agent.owner_wallet <> owner or agent.lease_id is null then raise exception 'Due robot was not claimed'; end if;
+  saved := public.landville_finish_agent_post(owner,agent.lease_id,'Plenty of bolts, limited patience.','agent-target-test');
+  if saved.kind <> 'AGENT' or saved.agent_owner_wallet <> owner or saved.agent_reply_to <> 'agent-target-test'
+    or saved.wallet is not null then raise exception 'Public robot post lost attribution'; end if;
+  if has_table_privilege('anon','public.landville_yard_messages','SELECT')
+    or has_table_privilege('authenticated','public.landville_personal_agents','SELECT')
+    or has_function_privilege('authenticated','public.landville_finish_agent_post(text,uuid,text,text)','EXECUTE')
+  then raise exception 'Robot storage or RPC exposed to browser roles'; end if;
+
+  insert into public.landville_citizens(wallet,privy_user_id,email)
+    values(source_wallet,'did:privy:yardmerge','yardmerge@example.com');
+  insert into public.landville_citizens(wallet,linked_wallet) values(target_wallet,target_wallet);
+  perform public.landville_upsert_personal_agent(source_wallet,'Mox','FEMININE','CHAOTIC',
+    'RELAY_GARAGE','The Relay','OFF',120);
+  perform public.landville_save_yard_exchange(source_wallet,gen_random_uuid(),'Hi','Hello','AGENT');
+  perform public.landville_merge_privy_wallet_citizens('did:privy:yardmerge',target_wallet);
+  if not exists (select 1 from public.landville_personal_agents where owner_wallet=target_wallet)
+    or not exists (select 1 from public.landville_yard_messages where owner_wallet=target_wallet)
+    or exists (select 1 from public.landville_citizens where wallet=source_wallet)
+  then raise exception 'Account merge lost its robot or yard history'; end if;
+end $$;
+
 -- Leave one eligible job for concurrent-claim checks in the Node runner.
 update public.landville_proposals set closes_at = now()-interval '1 second' where id='LV-4';
 select public.landville_claim_build('0x' || repeat('a',40),false);
 select public.landville_prepare_build('LV-4','0x' || repeat('a',40), jsonb_build_object('version',1,'runtime','sandbox-html','goal','A garden for the citizens of town.','acceptance',jsonb_build_array('Clicking a plant changes its color.'),'constraints',''));
+
+do $$
+declare
+  owner text := '0x' || repeat('b',40);
+  snapshot jsonb;
+  state jsonb;
+  first_start text;
+begin
+  snapshot := jsonb_build_object('wallet',owner,'chainId',4663,
+    'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','2500000000000000000000000',
+    'weight',11,'blockNumber','1234','capturedAt',clock_timestamp(), 'source','chain');
+  state := public.landville_city_check_in(owner,snapshot);
+  if (state->'farm'->>'ratePerDay')::integer <> 2 or state->>'checkedInToday' <> 'true' then
+    raise exception 'Verified holder did not activate the correct miner tier';
+  end if;
+  first_start := state->'farm'->>'startedAt';
+  state := public.landville_city_check_in(owner,snapshot);
+  if state->'farm'->>'startedAt' <> first_start or
+    (select count(*) from public.landville_city_point_events where wallet=owner and kind='CHECK_IN') <> 1 or
+    (select count(*) from public.landville_city_farm_days where wallet=owner) <> 1 then
+    raise exception 'Daily check-in or miner could be duplicated';
+  end if;
+  if has_table_privilege('anon','public.landville_city_farm_days','SELECT') or
+    has_function_privilege('authenticated','public.landville_city_check_in(text,jsonb)','EXECUTE') then
+    raise exception 'City Points storage or RPC exposed to browser roles';
+  end if;
+end $$;
+
+do $$
+declare
+  owner text := '0x' || repeat('c',40);
+  snapshot jsonb;
+  state jsonb;
+begin
+  perform public.landville_upsert_personal_agent(owner,'Pip','FEMININE','CHEEKY',
+    'SCRAP_SHACK','Pip Yard','OFF',120);
+  snapshot := jsonb_build_object('wallet',owner,'chainId',4663,
+    'tokenAddress','0xf7cdbd39720ea583ec56e3a9ff57e805e93e7bbe',
+    'tokenDecimals',18,'tokenBalance','249999000000000000000000',
+    'weight',1,'blockNumber','1234','capturedAt',clock_timestamp(),'source','chain');
+  state := public.landville_city_check_in(owner,snapshot);
+  if state->>'checkedInToday' <> 'true' or state->'farm' <> 'null'::jsonb then
+    raise exception 'Below-minimum holder started a City Points miner';
+  end if;
+  snapshot := jsonb_set(jsonb_set(snapshot,'{tokenBalance}',
+    to_jsonb('250000000000000000000000'::text)),'{weight}',to_jsonb(2));
+  state := public.landville_city_check_in(owner,snapshot);
+  if (state->'farm'->>'ratePerDay')::integer <> 1
+    or (select count(*) from public.landville_city_point_events
+      where wallet=owner and kind='CHECK_IN') <> 1 then
+    raise exception 'Eligible holder could not activate later without a duplicate check-in';
+  end if;
+end $$;

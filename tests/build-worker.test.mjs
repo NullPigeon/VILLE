@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runWorker, artifactFor, extractOutput, materializeGeneratedAsset, reviewedArtifactFor } from '../scripts/build-worker.mjs';
+import { runWorker, artifactFor, builderFailureCode, extractOutput, materializeGeneratedAsset, reviewedArtifactFor } from '../scripts/build-worker.mjs';
 import { MODULE_CSP, artifactPathFor, validateModule, validateSpec, validProposalId } from '../lib/build-contract.ts';
 
 const html = '<!doctype html><html><head><title>Town counter</title></head><body><button id="count">Count</button><script>let count = 0; document.querySelector("button").onclick = () => { document.querySelector("button").textContent = String(++count); };</script></body></html>';
@@ -12,8 +12,8 @@ const env = { LANDVILLE_SITE_URL: 'https://town.example', LANDVILLE_WORKER_SECRE
 const acceptanceReport = ['The Count control increments the visible total in the inline script.'];
 const designReport = ['The idea reads immediately.', 'The visual language matches LANDVILLE.', 'The interaction is responsive and accessible.', 'The module makes no unsupported claims.'];
 const intentReport = ['The requested subject is present.', 'The requested story and tone are present.', 'The requested interaction is implemented.'];
-const reviewResult = { html, acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
-const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.' };
+const reviewResult = { html, storage: [], acceptanceReport, designGate: 'PASS', designReport, intentGate: 'PASS', intentReport, scrapyGate: 'PASS', scrapyReport: 'A proposal-specific mechanical surprise carries Scrapy\'s dry civic wit.' };
+const architectureResult = { feasibility: 'SUPPORTED', implementationPlan: ['Map the approved scope.', 'Build the complete interaction.', 'Polish the responsive presentation.'], visualDirection: 'Use the trusted LANDVILLE visual language.', interactionPlan: ['Make the primary control functional.'], accuracyPlan: ['Use only verified supplied facts.'], limitations: [], scrapySignature: 'A small mechanical counter protests after repeated clicks.', storagePlan: [], runtimeImagePlan: { enabled: false, purpose: '', visualDirection: '', maxImages: 1 }, worldCitizenPlan: { enabled: false, purpose: '' }, walletTransactionPlan: { enabled: false, purpose: '', actions: [] } };
 const builderContext = { sources: [{ path: 'scripts/LANDVILLE_BUILDER.md', text: 'LANDVILLE test context' }], referenceImage: 'data:image/png;base64,dGVzdA==', subjectReferences: [], creativeDirection: null };
 const worker = (environment, http) => runWorker(environment, http, async () => builderContext);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
@@ -24,6 +24,7 @@ function harness(override = () => undefined) {
     calls.push(call);
     const other = override(call, calls);
     if (other) return other;
+    if (url.endsWith('/api/internal/treasury-rewards')) return json({ refresh: { state: 'REFRESHED' }, payout: { state: 'IDLE' } });
     if (url.endsWith('/api/internal/builds')) return json(call.body.action === 'CLAIM' ? { work } : { work: null });
     if (url.includes('api.openai.com')) {
       const name = call.body?.text?.format?.name;
@@ -54,8 +55,9 @@ void test('artifact is deterministic and contains only the scoped module contrac
   const first = artifactFor(work, { html, path: '../../app/api/auth/route.ts', command: 'exfiltrate' });
   assert.deepEqual(first, artifactFor(work, { html }));
   const record = JSON.parse(first.content);
-  assert.deepEqual(Object.keys(record), ['version', 'proposalId', 'title', 'html', 'acceptance']);
+  assert.deepEqual(Object.keys(record), ['version', 'proposalId', 'title', 'html', 'acceptance', 'capabilities']);
   assert.deepEqual(record.acceptance, spec.acceptance);
+  assert.deepEqual(record.capabilities.storage, []);
   assert.match(first.hash, /^[a-f0-9]{64}$/);
 });
 void test('reviewed artifacts require one evidence statement per acceptance check', () => {
@@ -64,6 +66,46 @@ void test('reviewed artifacts require one evidence statement per acceptance chec
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, designGate: 'FAIL' }));
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, intentGate: 'FAIL' }));
   assert.throws(() => reviewedArtifactFor(work, { ...reviewResult, scrapyGate: 'FAIL' }));
+});
+void test('reviewed artifacts retain and enforce every storage declaration used by their code', () => {
+  const storageHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'ideas',capability:'module.storage',input:{operation:'shared.list',collection:'panic_ideas',limit:5}},'*')</script></body>`);
+  const storage = [{ name: 'panic_ideas', mode: 'shared', description: 'Public citizen idea records.' }];
+  const reviewed = reviewedArtifactFor(work, { ...reviewResult, html: storageHtml, storage });
+  assert.deepEqual(JSON.parse(reviewed.artifact.content).capabilities.storage, storage);
+  assert.throws(() => artifactFor(work, { html: storageHtml, storage: [] }), /not declared/);
+  assert.throws(() => artifactFor(work, { html: storageHtml, storage: [{ ...storage[0], mode: 'private' }] }), /mode shared/);
+});
+void test('runtime image generation requires a narrow reviewed artifact permission', () => {
+  const imageHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'portrait',capability:'module.image.generate',input:{operation:'generate',brief:'salvage mayor'}},'*')</script></body>`);
+  const imageGeneration = { purpose: 'Generate three citizen-specific salvage portrait choices.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait set with rust, paper, and acid-lime repair marks.', maxImages: 3 };
+  const record = JSON.parse(artifactFor(work, { html: imageHtml, imageGeneration }).content);
+  assert.deepEqual(record.capabilities.imageGeneration, imageGeneration);
+  assert.throws(() => artifactFor(work, { html: imageHtml }), /not declared/);
+  assert.throws(() => artifactFor(work, { html, imageGeneration }), /declared but not used/);
+});
+void test('publishing a generated citizen requires both reviewed permissions', () => {
+  const citizenHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'portrait',capability:'module.image.generate',input:{operation:'generate',brief:'salvage mayor'}},'*');window.parent.postMessage({type:'landville:capability-request',requestId:'resident',capability:'world.citizen.publish',input:{operation:'status'}},'*')</script></body>`);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
+  const worldCitizen = { purpose: 'Publish the generated character as this citizen\'s public World resident.' };
+  const record = JSON.parse(artifactFor(work, { html: citizenHtml, imageGeneration, worldCitizen }).content);
+  assert.deepEqual(record.capabilities.worldCitizen, worldCitizen);
+  assert.throws(() => artifactFor(work, { html: citizenHtml, imageGeneration }), /not declared/);
+  assert.throws(() => artifactFor(work, { html: citizenHtml, worldCitizen }), /image generation/);
+});
+void test('reviewed capability declarations accept normal JSON-quoted JavaScript keys', () => {
+  const quotedHtml = html.replace('</body>', `<script>window.parent.postMessage({"type":"landville:capability-request","requestId":"portrait","capability":"module.image.generate","input":{"operation":"generate","brief":"salvage mayor"}},'*');window.parent.postMessage({"type":"landville:capability-request","requestId":"resident","capability":"world.citizen.publish","input":{"operation":"status"}},'*')</script></body>`);
+  const imageGeneration = { purpose: 'Generate one citizen-specific salvage portrait.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait with rust, paper, and acid-lime repair marks.', maxImages: 1 };
+  const worldCitizen = { purpose: 'Publish the generated character as this citizen\'s public World resident.' };
+  assert.doesNotThrow(() => artifactFor(work, { html: quotedHtml, imageGeneration, worldCitizen }));
+});
+void test('wallet actions require an exact reviewed declaration', () => {
+  const transactionHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'quote',capability:'wallet.robinhood',input:{operation:'uniswap.quoteExactInputSingle',tokenIn:'0x1111111111111111111111111111111111111111',tokenOut:'0x2222222222222222222222222222222222222222',fee:3000,amountIn:'1'}},'*')</script></body>`);
+  const transactions = { purpose: 'Quote a reviewed direct Uniswap V3 token swap for the citizen.', actions: ['uniswap.quoteExactInputSingle'] };
+  const record = JSON.parse(artifactFor(work, { html: transactionHtml, transactions }).content);
+  assert.deepEqual(record.capabilities.transactions, transactions);
+  assert.throws(() => artifactFor(work, { html: transactionHtml }), /not declared/);
+  assert.throws(() => artifactFor(work, { html, transactions }), /declared but not used/);
+  assert.throws(() => artifactFor(work, { html: transactionHtml, transactions: { ...transactions, actions: ['uniswap.swapExactInputSingle'] } }), /not declared/);
 });
 void test('one generated image is materialized only at the fixed marker', () => {
   const marked = html.replace('<button', '<img data-landville-generated-asset alt="Town"/><button');
@@ -109,6 +151,7 @@ void test('worker creates one scoped commit and PR, never merges or writes main'
   assert.match(buildAi.body.input[0].content[0].text, /approvedArchitecture/);
   assert.match(buildAi.body.input[0].content[0].text, /market\.dexscreener/);
   assert.match(buildAi.body.input[0].content[0].text, /chain\.robinhood/);
+  assert.match(buildAi.body.input[0].content[0].text, /wallet\.robinhood/);
   const reviewAi = f.calls.filter((call) => call.url.includes('api.openai.com'))[2];
   assert.deepEqual(reviewAi.body.tools, [{ type: 'image_generation' }]);
   assert.match(f.calls.find((call) => call.url.endsWith('pulls')).body.body, /Scrapy character gate/);
@@ -173,6 +216,69 @@ void test('background responses are polled until complete', async () => {
   assert.equal((await worker({ ...env, LANDVILLE_BUILDER_POLL_MS: '1' }, f.http)).state, 'REVIEW');
   assert.equal(f.calls.find((call) => call.url.endsWith('/v1/responses/resp_test')).method, 'GET');
 });
+void test('an invalid architecture receives one focused repair pass', async () => {
+  let architectureCalls = 0;
+  const f = harness((call) => {
+    if (call.body?.text?.format?.name !== 'city_architecture') return undefined;
+    architectureCalls += 1;
+    const result = architectureCalls === 1 ? { ...architectureResult, feasibility: 'UNSUPPORTED' } : architectureResult;
+    return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(result) }] }] });
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  assert.equal(architectureCalls, 2);
+  const repaired = f.calls.filter((call) => call.body?.text?.format?.name === 'city_architecture')[1];
+  assert.match(repaired.body.input[0].content[0].text, /rejectedArchitecture/);
+});
+void test('a repeatedly invalid architecture receives final capability adjudication', async () => {
+  let architectureCalls = 0;
+  const f = harness((call) => {
+    if (call.body?.text?.format?.name !== 'city_architecture') return undefined;
+    architectureCalls += 1;
+    const result = architectureCalls < 3 ? { ...architectureResult, feasibility: 'UNSUPPORTED' } : architectureResult;
+    return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(result) }] }] });
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  assert.equal(architectureCalls, 3);
+  const adjudication = f.calls.filter((call) => call.body?.text?.format?.name === 'city_architecture')[2];
+  assert.match(adjudication.body.input[0].content[0].text, /Approved proposal needs a reviewed runtime capability/);
+});
+void test('a contract-invalid draft receives one focused repair pass', async () => {
+  const imageGeneration = { purpose: 'Generate three citizen-specific salvage portrait choices.', visualDirection: 'A tactile LANDVILLE civic-junkyard portrait set with rust, paper, and acid-lime repair marks.', maxImages: 3 };
+  const repairedHtml = html.replace('</body>', `<script>window.parent.postMessage({"type":"landville:capability-request","requestId":"portrait","capability":"module.image.generate","input":{"operation":"generate","brief":"salvage mayor"}},'*');window.parent.postMessage({"type":"landville:capability-request","requestId":"resident","capability":"world.citizen.publish","input":{"operation":"status"}},'*')</script></body>`);
+  const architecture = { ...architectureResult, runtimeImagePlan: { enabled: true, ...imageGeneration }, worldCitizenPlan: { enabled: true, purpose: 'Publish the generated character as the citizen\'s public World resident.' } };
+  let draftCalls = 0;
+  const f = harness((call) => {
+    if (!call.url.includes('api.openai.com')) return undefined;
+    const name = call.body?.text?.format?.name;
+    if (name === 'city_architecture') return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(architecture) }] }] });
+    if (name === 'city_module') {
+      draftCalls += 1;
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ html: draftCalls === 1 ? html : repairedHtml, storage: [] }) }] }] });
+    }
+    if (name === 'reviewed_city_module') return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ ...reviewResult, html: repairedHtml }) }] }] });
+    return undefined;
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  assert.equal(draftCalls, 2);
+  const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
+  assert.equal(artifact.capabilities.imageGeneration.maxImages, 3);
+});
+void test('builder preserves reviewed wallet actions in the artifact and flags the PR', async () => {
+  const transactionHtml = html.replace('</body>', `<script>window.parent.postMessage({type:'landville:capability-request',requestId:'quote',capability:'wallet.robinhood',input:{operation:'uniswap.quoteExactInputSingle',tokenIn:'0x1111111111111111111111111111111111111111',tokenOut:'0x2222222222222222222222222222222222222222',fee:3000,amountIn:'1'}},'*');window.parent.postMessage({type:'landville:capability-request',requestId:'approve',capability:'wallet.robinhood',input:{operation:'uniswap.approveExact',token:'0x1111111111111111111111111111111111111111',amount:'1'}},'*');window.parent.postMessage({type:'landville:capability-request',requestId:'swap',capability:'wallet.robinhood',input:{operation:'uniswap.swapExactInputSingle',tokenIn:'0x1111111111111111111111111111111111111111',tokenOut:'0x2222222222222222222222222222222222222222',fee:3000,amountIn:'1',slippageBps:50}},'*');</script></body>`);
+  const walletTransactionPlan = { enabled: true, purpose: 'Let the citizen quote and sign one direct Uniswap V3 ERC-20 swap.', actions: ['uniswap.quoteExactInputSingle', 'uniswap.approveExact', 'uniswap.swapExactInputSingle'] };
+  const architecture = { ...architectureResult, walletTransactionPlan };
+  const f = harness((call) => {
+    if (!call.url.includes('api.openai.com')) return undefined;
+    const name = call.body?.text?.format?.name;
+    const result = name === 'city_architecture' ? architecture : name === 'city_module' ? { html: transactionHtml, storage: [] } : { ...reviewResult, html: transactionHtml };
+    return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(result) }] }] });
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
+  assert.deepEqual(artifact.capabilities.transactions.actions, walletTransactionPlan.actions);
+  const pull = f.calls.find((call) => call.url.endsWith('pulls')).body;
+  assert.match(pull.title, /WALLET REVIEW/); assert.match(pull.body, /user-signed Robinhood transactions/);
+});
 void test('a failed creative review receives one automatic repair pass', async () => {
   let reviews = 0;
   const failed = { ...reviewResult, designGate: 'FAIL', designReport: ['Hierarchy needs repair.', ...designReport.slice(1)] };
@@ -188,6 +294,24 @@ void test('a failed creative review receives one automatic repair pass', async (
   assert.equal(reviews, 1);
   assert.equal(f.calls.filter((call) => call.url.includes('api.openai.com')).length, 4);
 });
+void test('a contract-invalid final review receives one focused artifact repair pass', async () => {
+  const invalidReviewedHtml = html.replace('</body>', '<form><button>Unsupported submit</button></form></body>');
+  const f = harness((call) => {
+    if (call.body?.text?.format?.name === 'reviewed_city_module') {
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ ...reviewResult, html: invalidReviewedHtml }) }] }] });
+    }
+    if (call.body?.text?.format?.name === 'artifact_contract_repair') {
+      return json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(reviewResult) }] }] });
+    }
+    return undefined;
+  });
+  assert.equal((await worker(env, f.http)).state, 'REVIEW');
+  const repairs = f.calls.filter((call) => call.body?.text?.format?.name === 'artifact_contract_repair');
+  assert.equal(repairs.length, 1);
+  assert.match(repairs[0].body.input[0].content[0].text, /Unsupported module capability/);
+  const artifact = JSON.parse(f.calls.find((call) => call.url.endsWith('git/trees')).body.tree[0].content);
+  assert.doesNotMatch(artifact.html, /<form\b/i);
+});
 void test('a corrective revision writes a new immutable artifact path', async () => {
   const revised = { ...work, job: { ...work.job, attempt: 2, revision: 2, branch: 'codex/build-lv-1-2' } };
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: revised }) : undefined);
@@ -196,12 +320,12 @@ void test('a corrective revision writes a new immutable artifact path', async ()
 });
 void test('disabled builder only finalizes votes and makes no AI/GitHub requests', async () => {
   const f = harness();
-  assert.deepEqual(await worker({ ...env, LANDVILLE_BUILDER_ENABLED: 'false', OPENAI_API_KEY: '' }, f.http), { state: 'IDLE' });
-  assert.equal(f.calls.length, 1); assert.equal(f.calls[0].body.action, 'TICK');
+  assert.deepEqual(await worker({ ...env, LANDVILLE_BUILDER_ENABLED: 'false', OPENAI_API_KEY: '' }, f.http), { state: 'IDLE', treasuryState: 'IDLE' });
+  assert.equal(f.calls.length, 2); assert.equal(f.calls.find((call) => call.url.endsWith('/api/internal/builds')).body.action, 'TICK');
 });
 void test('idle queue makes no paid model request', async () => {
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: null }) : undefined);
-  assert.equal((await worker(env, f.http)).state, 'IDLE'); assert.equal(f.calls.length, 1);
+  assert.equal((await worker(env, f.http)).state, 'IDLE'); assert.equal(f.calls.length, 2);
 });
 void test('missing credentials fail before claiming work', async () => {
   const f = harness();
@@ -209,10 +333,17 @@ void test('missing credentials fail before claiming work', async () => {
 });
 void test('model failure records a failed attempt, never a fake successful build', async () => {
   const f = harness((call) => call.url.includes('api.openai.com') ? json({ secret: 'must not leak' }, 429) : undefined);
-  await assert.rejects(worker(env, f.http), /operator review/);
+  await assert.rejects(worker(env, f.http), /architecture \(rate_limit\)/);
   assert.equal(f.calls.at(-1).body.action, 'FAIL');
+  assert.equal(f.calls.at(-1).body.phase, 'ARCHITECTURE');
+  assert.equal(f.calls.at(-1).body.failure, 'RATE_LIMIT');
   assert.ok(!f.calls.some((call) => call.url.endsWith('git/trees')));
   assert.ok(!JSON.stringify(f.calls.at(-1).body).includes('must not leak'));
+});
+void test('builder failure diagnostics expose only a safe category', () => {
+  assert.equal(builderFailureCode(new Error('AI background response timed out.')), 'TIMEOUT');
+  assert.equal(builderFailureCode(new Error('Module storage is used but not declared.')), 'CONTRACT');
+  assert.equal(builderFailureCode(new Error('private provider detail')), 'UNKNOWN');
 });
 void test('receipt retries do not create duplicate commits or PRs', async () => {
   let attempts = 0;
@@ -229,5 +360,5 @@ void test('invalid module output never reaches GitHub writes', async () => {
 void test('untrusted job cannot choose a repository branch', async () => {
   const f = harness((call) => call.body?.action === 'CLAIM' ? json({ work: { ...work, job: { ...work.job, branch: 'main' } } }) : undefined);
   await assert.rejects(worker(env, f.http), /Invalid server job/);
-  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls.length, 2);
 });

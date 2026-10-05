@@ -4,7 +4,9 @@
 
 A shared digital town that grows through citizen proposals and votes. Approved ideas become interactive objects on the World canvas: games, tools, art and other usable parts of the website.
 
-[Enter LANDVILLE](https://landville.xyz) · [Town Chat](https://landville.xyz/chat) · [Proposals](https://landville.xyz/proposals)
+[Enter LANDVILLE](https://landville.xyz) · [Town Chat](https://landville.xyz/chat) · [Proposals](https://landville.xyz/proposals) · [Scrapy Field Guide](https://landville.xyz/docs)
+
+The public **Scrapy Field Guide** explains every page, token benefits, weekly likes, the builder/review process, supported module services and future directions in plain language. [Page links & copy-ready descriptions](https://landville.xyz/docs/links) are available for sharing. Guide content is maintained in `lib/field-guide.ts`; see [guide release notes](docs/field-guide-release.md) for verification and update instructions.
 
 ## What citizens can do
 
@@ -69,6 +71,8 @@ Voting weight is **1 + floor(SCRAPY / 250,000)**. Holdings are read from the wal
 SEND and ASK SCRAPY share the daily message allowance. Scrapy's replies do not consume it. The allowance resets at 00:00 UTC. Proposal access is open to every registered citizen; complexity-based tiers are not implemented.
 
 Votes, profiles, messages and build records are stored in Supabase. **Voting is off-chain**, using on-chain token balances; it is not a token transfer or an on-chain governance transaction.
+
+Personal robots and yards are account features. Each citizen can name one robot, choose its presentation/personality and one of three houses, and chat privately with it or summon Scrapy. Homes appear on World. Optional Town Chat posting is opt-in per owner, rate-limited, AI-labeled and disabled at the operator level until explicitly activated. See [personal robot setup](docs/personal-agents.md).
 
 ## Current boundaries
 

@@ -1,0 +1,55 @@
+.world-map-scene .world-game-actor{position:absolute;z-index:13;display:grid;justify-items:center;gap:0;width:128px;transform:translate(-50%,-79%);text-decoration:none;transition:left 2.4s linear,top 2.4s linear;filter:drop-shadow(5px 7px 0 #292a1d72)}
+.world-map-scene .world-game-actor.hero{pointer-events:none;z-index:14}
+.world-map-scene .world-game-actor.resident{z-index:14;cursor:pointer}
+.world-map-scene .world-game-actor.resident:hover,.world-map-scene .world-game-actor.resident:focus-visible{z-index:17;filter:drop-shadow(2px 3px 0 #1d2718) drop-shadow(0 0 15px #d6fa83)}
+.world-map-scene .world-game-actor.resident .world-actor-name{background:#d8c79d;color:#26331e;border-bottom-color:#6d8a3c}
+.world-map-scene .world-game-actor.demo-scout{pointer-events:none;animation:world-scout-loop 15s ease-in-out infinite}
+.world-map-scene .world-game-actor.robot{width:106px;border:0;background:none;padding:0;color:inherit;cursor:pointer;transition:left 1.15s linear,top 1.15s linear,filter .2s}
+.world-agent-speech{position:absolute;bottom:100%;left:50%;width:max-content;max-width:190px;transform:translateX(-50%) rotate(-2deg);padding:7px 10px;background:#f1dfac;color:#27331c;border:2px solid #2c3322;border-bottom:5px solid #8f7647;box-shadow:4px 5px #3f342570;font:900 11px/1.3 Arial,sans-serif;text-align:center;white-space:normal;animation:world-speech-pop .28s ease-out both;pointer-events:none}
+.world-agent-speech:after{content:'';position:absolute;top:100%;left:45%;border:7px solid transparent;border-top-color:#2c3322}
+@keyframes world-speech-pop{from{opacity:0;transform:translate(-50%,7px) rotate(-3deg) scale(.9)}to{opacity:1;transform:translate(-50%,0) rotate(-2deg) scale(1)}}
+.world-map-scene .world-game-actor.robot:hover{z-index:16;filter:drop-shadow(2px 3px 0 #1d2718) drop-shadow(0 0 13px #c7ff00)}
+.world-map-scene .world-game-actor.robot.speaking{z-index:18}
+.world-actor-figure{display:grid;place-items:end center;width:100%;height:142px;transform-origin:50% 90%;animation:world-actor-idle 2.6s ease-in-out infinite}
+.world-game-actor.hero.walking .world-actor-figure{animation:world-actor-walk .36s ease-in-out infinite alternate}
+.world-game-actor.robot .world-actor-figure{height:122px;animation-duration:2.1s}
+.world-game-actor .game-hero{width:96px;height:140px;overflow:visible;filter:drop-shadow(2px 2px 0 #101810)}
+.world-game-actor .personal-robot{width:86px;height:118px;overflow:visible;filter:drop-shadow(2px 2px 0 #101810)}
+.world-actor-name{display:block;max-width:155px;padding:4px 8px;background:#1c251bf0;border:2px solid #22281b;border-bottom:4px solid #4d6c34;box-shadow:2px 3px #5a4b2b9c;color:#d9f28f;text-align:center;font:900 10px/1.15 Arial,sans-serif;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:skew(-5deg)}
+.world-game-actor.hero .world-actor-name{background:#e8d19a;color:#25321b;border-bottom-color:#b75b32}
+.world-hero-module-art{width:96px;height:136px;object-fit:contain;filter:drop-shadow(3px 4px 0 #21291b);transform:rotate(-2deg)}
+.world-game-actor.robot.neighbor .world-actor-name{font-size:8px;background:#263327ef}
+.world-wardrobe{position:absolute;z-index:26;right:20px;top:130px;max-width:calc(100% - 30px)}
+.world-wardrobe-trigger{display:flex;align-items:center;gap:7px;padding:10px 12px;border:2px solid #26311e;border-bottom:5px solid #465d2c;background:#e5d29f;color:#28361b;box-shadow:4px 5px #302b1c77;font:900 10px Arial,sans-serif;letter-spacing:.5px;cursor:pointer;transform:skew(-3deg)}
+.world-wardrobe-trigger:hover,.world-wardrobe-trigger[aria-expanded=true]{background:#d3ee79}
+.world-wardrobe-trigger svg{width:16px;height:16px}
+.world-wardrobe-panel{position:absolute;right:0;top:48px;width:360px;max-width:calc(100vw - 26px);max-height:min(680px,calc(100dvh - 180px));overflow:auto;padding:16px;background:#e5d4a7;border:3px solid #26311f;border-bottom:7px solid #53652c;box-shadow:7px 8px #2c281c7d;color:#26311f}
+.world-wardrobe-panel header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding-bottom:10px;border-bottom:2px solid #9c8a58}
+.world-wardrobe-panel header small{font:900 8px monospace;letter-spacing:1px;color:#646d42}
+.world-wardrobe-panel h2{margin:4px 0 0;font:950 25px/.95 Arial,sans-serif;letter-spacing:-1px}
+.world-wardrobe-panel header button{border:0;background:#25371d;color:#e7eece;cursor:pointer;padding:5px}
+.world-wardrobe-panel header button svg{display:block;width:17px;height:17px}
+.world-wardrobe-panel p{font:11px/1.45 Arial,sans-serif;margin:10px 0;color:#4d563b}
+.world-wardrobe-panel h3{font:900 10px Arial,sans-serif;letter-spacing:1px;margin:14px 0 8px;border-left:5px solid #ac633a;padding-left:7px}
+.world-skin-options{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.world-skin-options button{min-width:0;display:grid;justify-items:center;align-content:end;gap:4px;min-height:115px;padding:7px 3px;border:2px solid #6c6846;border-bottom:4px solid #665b39;background:#c8b789;color:#26321c;cursor:pointer;transition:transform .15s,background .15s}
+.world-skin-options button:hover{transform:translateY(-3px);background:#eee0b6}
+.world-skin-options button.active{background:#d2ee79;border-color:#25391c;box-shadow:inset 0 0 0 2px #d8f69a}
+.world-skin-options svg{width:55px;height:79px}
+.world-skin-options .personal-robot{width:58px;height:77px}
+.world-skin-options img{width:50px;height:74px;object-fit:cover;border:2px solid #25321c}
+.world-skin-options span{font:900 9px/1.1 Arial,sans-serif;text-align:center}
+.world-wardrobe-panel>a{display:block;margin:12px 0 8px;padding:8px 10px;border:2px solid #293a22;background:#29411f;color:#d6ed91;font:800 10px Arial,sans-serif;text-decoration:none}
+.world-wardrobe-panel>small{display:block;margin-top:10px;color:#586242;font:9px Arial,sans-serif}
+.world-agent-chat{position:absolute;z-index:27;right:20px;top:190px;width:350px;max-width:calc(100% - 30px);height:min(470px,calc(100dvh - 230px));display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#1b271a;border:3px solid #313c22;border-bottom:7px solid #8d653b;box-shadow:7px 8px #22251b88;color:#e8e9cb}
+.world-agent-chat header{display:flex;align-items:center;gap:10px;padding:11px 12px;background:#b8cb9e;color:#20301b;border-bottom:3px solid #455b30}
+.world-agent-chat header>svg{width:31px;height:31px;padding:5px;border:2px solid #263a1f;background:#334529;color:#d3ef86}
+.world-agent-chat header div{flex:1;min-width:0}.world-agent-chat header small{font:900 8px monospace;letter-spacing:.7px}.world-agent-chat h2{font:900 19px Arial,sans-serif;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.world-agent-chat header button{border:0;background:none;color:#263a1f;cursor:pointer}.world-agent-chat header button svg{width:18px}
+.world-agent-chat-feed{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:9px}.world-agent-chat-feed>div{max-width:92%;padding:8px 10px;border:1px solid #5c6f45;background:#2d3d2b}.world-agent-chat-feed>div.from-you{align-self:flex-end;background:#584b2f;border-color:#9f8752}.world-agent-chat-feed small{display:block;font:900 8px monospace;color:#c9ea88}.world-agent-chat-feed p{margin:4px 0 0;font:12px/1.4 Arial,sans-serif;overflow-wrap:anywhere}.world-agent-chat-empty{font:12px Arial,sans-serif;color:#c7d3aa;text-align:center;margin:auto}
+.world-agent-chat form{padding:10px;border-top:2px solid #62764b;background:#283624}.world-agent-chat textarea{box-sizing:border-box;width:100%;height:62px;resize:vertical;border:1px solid #91a868;background:#162214;color:#e6e9cf;padding:9px;font:12px Arial,sans-serif}.world-agent-chat form>div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}.world-agent-chat form a{font:10px Arial,sans-serif;color:#c8e78c;text-decoration:underline}.world-agent-chat form button{display:flex;align-items:center;gap:6px;border:2px solid #27381c;border-bottom:4px solid #718d39;background:#d1ed7b;color:#26351d;padding:7px 10px;font:900 10px Arial,sans-serif;cursor:pointer}.world-agent-chat form button:disabled{opacity:.5;cursor:default}.world-agent-chat form button svg{width:14px;height:14px}.world-agent-chat-error{margin:0;padding:6px 10px;background:#552c22;color:#ffe1b2;font:11px Arial,sans-serif}
+@keyframes world-actor-idle{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-4px) rotate(1deg)}}
+@keyframes world-actor-walk{from{transform:translateY(0) rotate(-3deg)}to{transform:translateY(-8px) rotate(3deg)}}
+@keyframes world-scout-loop{0%,100%{transform:translate(-50%,-79%)}25%{transform:translate(45px,-112%)}50%{transform:translate(84px,-79%)}75%{transform:translate(-80px,-53%)}}
+@media(max-width:760px){.world-wardrobe{top:140px;right:10px}.world-wardrobe-trigger{font-size:9px;padding:8px}.world-wardrobe-panel{top:42px;max-height:calc(100dvh - 205px)}.world-agent-chat{right:10px;top:auto;bottom:130px;height:min(430px,calc(100dvh - 255px))}.world-map-scene .world-game-actor.robot.neighbor{width:76px}.world-map-scene .world-game-actor.robot.neighbor .personal-robot{width:61px}}
+@media(prefers-reduced-motion:reduce){.world-actor-figure,.world-game-actor.hero.walking .world-actor-figure,.world-map-scene .world-game-actor.demo-scout{animation:none}.world-map-scene .world-game-actor{transition:none}}
+@media(prefers-reduced-motion:reduce){.world-agent-speech{animation:none}}

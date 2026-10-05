@@ -31,8 +31,9 @@ export function ProjectBannerWall() {
   if (!banners.length) return <div className="one-scrapy-empty"><PanelsTopLeft /><p>THE WALL IS CLEAN. SUSPICIOUSLY CLEAN.</p><small>PROJECT SIGNALS WILL APPEAR HERE.</small></div>;
 
   return <section className="one-scrapy-grid" aria-label="Curated project banners">
-    {banners.map((banner) => <a key={banner.id} className="one-scrapy-banner" href={banner.twitterUrl} target="_blank" rel="noopener noreferrer" aria-label={`${banner.name} on X — ${banner.description}`}>
+    {banners.map((banner, index) => <a key={banner.id} className="one-scrapy-banner" href={banner.twitterUrl} target="_blank" rel="noopener noreferrer" aria-label={`${banner.name} on X - ${banner.description}`}>
       <img src={banner.imageUrl} alt={`${banner.name} project banner`} referrerPolicy="no-referrer" />
+      <span className="one-scrapy-card-number">SIGNAL {String(index + 1).padStart(2, '0')}</span>
       <span className="one-scrapy-overlay">
         <span className="one-scrapy-meta"><b>{xLabel(banner.twitterUrl)}</b><i>{hostLabel(banner.websiteUrl)}</i></span>
         <strong>{banner.name}</strong>

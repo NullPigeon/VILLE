@@ -21,8 +21,13 @@ export async function GET(request: NextRequest) {
           database('landville_proposals?select=id&limit=0'),
           database('landville_build_jobs?select=proposal_id&limit=0'),
           database('landville_project_banners?select=id&limit=0'),
+          database('landville_module_private_state?select=module_id&limit=0'),
+          database('landville_module_shared_records?select=id&limit=0'),
+          database('landville_module_counters?select=module_id&limit=0'),
+          database('landville_module_images?select=module_id&limit=0'),
+          database('landville_world_citizens?select=citizen_wallet&limit=0'),
         ]);
-        storage = 'reachable; chat, citizen profiles, builds and project banners available';
+        storage = 'reachable; citizen profiles, universal module storage and project banners available';
       } catch { storage = 'unavailable: check credentials and apply every Supabase migration'; }
     }
     return NextResponse.json({
@@ -30,6 +35,18 @@ export async function GET(request: NextRequest) {
       sessionConfigured: walletSessionConfigured(),
       privyConfigured: Boolean(process.env.NEXT_PUBLIC_PRIVY_APP_ID?.trim() && process.env.PRIVY_APP_SECRET?.trim()),
       ai: { ...mayorConfiguration(), verified: false },
+      moduleImages: {
+        enabled: process.env.LANDVILLE_MODULE_IMAGE_ENABLED === 'true',
+        model: process.env.LANDVILLE_MODULE_IMAGE_MODEL || 'gpt-image-2.5-flare',
+        keyPresent: Boolean(process.env.OPENAI_API_KEY?.trim()),
+      },
+      walletTransactions: {
+        enabled: process.env.LANDVILLE_WALLET_TRANSACTIONS_ENABLED === 'true',
+        adapterConfigured: Boolean(/^0x[0-9a-fA-F]{40}$/.test(process.env.LANDVILLE_TRANSACTION_ROUTER_ADDRESS || '')),
+        treasuryConfigured: Boolean(/^0x[0-9a-fA-F]{40}$/.test(process.env.SCRAPY_TREASURY_ADDRESS || '')),
+        chainId: 4663,
+        mode: 'reviewed adapters / 1% fee swap installed',
+      },
       builderEnabled: process.env.LANDVILLE_BUILDER_ENABLED === 'true',
       builderConfigurationPresent: Boolean((process.env.LANDVILLE_WORKER_SECRET?.length || 0) >= 32 &&
         process.env.LANDVILLE_BUILD_ACTOR && isAdmin(process.env.LANDVILLE_BUILD_ACTOR) &&

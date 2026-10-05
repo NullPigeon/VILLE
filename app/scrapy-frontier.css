@@ -1,0 +1,190 @@
+/* Shared Scrapy art direction. Docs deliberately do not receive this theme. */
+.scrapy-frontier {
+  --scrap-ink: #11170f;
+  --scrap-metal: #242c20;
+  --scrap-edge: #6f7350;
+  --scrap-sand: #ecd09a;
+  --scrap-rust: #c77b43;
+  --scrap-acid: #d0ed66;
+  --scrap-paper: #f2e7c9;
+}
+.scrapy-frontier.city-product,
+.scrapy-frontier.lv-home {
+  color: var(--scrap-paper);
+  background-color: #191e15;
+  background-image: radial-gradient(ellipse at 90% 0%, #af78411c, transparent 55%),
+    repeating-linear-gradient(123deg, transparent 0 96px, #d0bc8120 97px, transparent 98px 190px);
+}
+.scrapy-frontier :is(button, a) { -webkit-tap-highlight-color: #cee97022; }
+.scrapy-frontier :is(button, a, input, textarea, select):focus-visible {
+  outline: 3px solid var(--scrap-acid);
+  outline-offset: 4px;
+}
+.scrapy-frontier.city-product .product-heading h1,
+.scrapy-frontier.lv-home :is(h1, .lv-section-heading h2) {
+  font-family: Impact, 'Arial Narrow', Arial, sans-serif;
+  font-weight: 900;
+  letter-spacing: .01em;
+  text-shadow: 3px 4px 0 #080e08;
+}
+.scrapy-frontier.city-product .product-heading p {
+  display: inline-flex;
+  padding: 5px 9px;
+  background: var(--scrap-sand);
+  color: #303a20;
+  border: 2px solid var(--scrap-ink);
+  border-radius: 3px;
+  box-shadow: 2px 2px #090e0999;
+  font-weight: 800;
+  letter-spacing: .6px;
+}
+.scrapy-frontier.city-product .product-heading p i { background: #536a32; }
+.scrapy-frontier.city-product .product-topbar {
+  background: #20271cf7;
+  border-bottom: 3px solid #0b100a;
+  box-shadow: inset 0 -1px #73754c;
+}
+.scrapy-frontier.city-product .product-rail {
+  background: linear-gradient(110deg, #293022, #191e16 70%);
+  border-right: 3px solid #0e140b;
+  box-shadow: inset -1px 0 #616b43;
+}
+.scrapy-frontier.city-product .product-rail nav a { border-radius: 4px; }
+.scrapy-frontier.city-product .product-rail nav a.active {
+  background: #d2e77d;
+  color: #243319;
+  border: 2px solid #10170c;
+  box-shadow: 3px 3px #718245;
+  font-weight: 800;
+}
+.scrapy-frontier .city-rail-account { border-radius: 5px; background: #323a26; border: 2px solid #777c4e; }
+.scrapy-frontier .city-rail-label { color: #c5b587; font-size: 8px; letter-spacing: .8px; }
+.scrapy-frontier :is(.city-build-cta, .lv-button.primary, .lv-header-join) {
+  background: var(--scrap-acid);
+  color: #263519;
+  border: 2px solid var(--scrap-ink);
+  border-radius: 5px;
+  box-shadow: 3px 4px #667839;
+  font-weight: 800;
+}
+.scrapy-frontier :is(.city-build-cta, .lv-button.primary, .lv-header-join):active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 2px #667839;
+}
+.scrapy-frontier :is(.lv-panel, .proposal-row, .city-my-builds article,
+  .uc-board, .uc-rules, .uc-tier-card, .uc-prize-card, .yard-intro,
+  .yard-chat, .scrapy-metal-panel, .city-miner) {
+  border: 2px solid #777653;
+  border-bottom: 5px solid #11190d;
+  border-radius: 7px;
+  background-color: var(--scrap-metal);
+  box-shadow: 4px 5px 0 #080e0866, inset 0 1px #d7ca8a20;
+}
+.scrapy-frontier .city-next-steps {
+  border: 3px solid #171e10;
+  border-radius: 8px;
+  background: #d8bf87;
+  box-shadow: 5px 6px #080f0866;
+}
+.scrapy-frontier .city-next-steps small { color: #505d33; }
+.scrapy-frontier .city-next-steps h2 { color: #28391e; }
+.scrapy-frontier .city-next-steps nav a { background: #293d1e; color: #e6ecc3; border: 2px solid #162511; border-radius: 4px; }
+
+/* The two rooms are recognisable workbenches; conversation stays quiet and readable. */
+.scrapy-frontier .city-chat-room {
+  border: 2px solid #777c50;
+  border-bottom: 5px solid #0b140a;
+  border-radius: 8px;
+  background: #1d251b;
+  box-shadow: 5px 6px #080f0866;
+}
+.scrapy-frontier .city-chat-room .city-room-header {
+  background: #dbc18b;
+  border-bottom: 3px solid #292f1f;
+  box-shadow: inset 0 2px #f6dfae;
+}
+.scrapy-frontier .town-room .city-room-header { background: #98b9a2; box-shadow: inset 0 2px #c3d9b8; }
+.scrapy-frontier .city-room-header h2 { color: #24331d; font-weight: 900; }
+.scrapy-frontier .city-room-header p { color: #495a36; }
+.scrapy-frontier .city-public-label { color: #425433; border-color: #6d7951; background: #ffffff20; }
+.scrapy-frontier .city-room-icon { border: 2px solid #384729; border-radius: 5px; background: #31472a; }
+.scrapy-frontier .city-room-tip { background: #343a23; color: #d9d7b0; }
+.scrapy-frontier .city-message>div { border-radius: 4px 10px 10px; background: #293324; border-color: #4e5c3e; }
+.scrapy-frontier .city-message.mayor>div { border-left: 3px solid #cde87b; background: #2c3b24; }
+.scrapy-frontier .city-composer { background: #283322; border-top: 2px solid #5e7043; }
+.scrapy-frontier .city-composer textarea { background: #131f10; border-radius: 5px; border-color: #667e48; }
+.scrapy-frontier .city-composer-footer :is(button,a) { border: 2px solid #1a2912; border-radius: 5px; box-shadow: 2px 3px #617934; }
+.scrapy-frontier .city-review-button { border-radius: 4px; font-weight: 800; }
+.scrapy-frontier .city-build-journey li>span { border-radius: 6px; border: 2px solid #5f7540; box-shadow: 2px 2px #0c1609; }
+.scrapy-frontier .city-build-journey .current>span { background: #d5e986; color: #30451a; border-color: #17270d; rotate: -4deg; }
+.scrapy-frontier .filter-row button { border: 2px solid #69764b; border-radius: 5px; }
+.scrapy-frontier .city-proposal-brief summary { color: #d4d69e; }
+.scrapy-frontier .vote-actions button { background: #354921; border: 2px solid #98b755; border-radius: 4px; }
+.scrapy-frontier .vote-actions button.no { background: #3f2e23; border-color: #9c704c; color: #efd0a4; }
+.scrapy-frontier .status-tag { border-radius: 3px; font-weight: 800; }
+
+/* Citizen panels and equipment. */
+.scrapy-frontier .scrapy-profile .scrapy-profile-hero {
+  background: #dbc28d;
+  border: 3px solid #16200f;
+  border-radius: 8px;
+  box-shadow: 5px 6px #080f0866;
+}
+.scrapy-frontier .scrapy-profile .scrapy-profile-hero h2 {
+  color: #29351f;
+  font-family: Impact, 'Arial Narrow', Arial, sans-serif;
+  letter-spacing: .01em;
+  text-shadow: 2px 2px #f5deae;
+}
+.scrapy-frontier .scrapy-profile .scrapy-profile-hero h2 em { color: #4c632b; }
+.scrapy-frontier .scrapy-profile .scrapy-profile-hero p { color: #485b35; }
+.scrapy-frontier .scrapy-profile-hero>div>span { color: #4d6134; }
+.scrapy-frontier .scrapy-profile-hero a { border-radius: 4px; background: #2d3e22; color: #e3eac1; border: 2px solid #192712; }
+.scrapy-frontier .scrapy-metal-panel { background: linear-gradient(130deg, #333c27, #20291b); }
+.scrapy-frontier .scrapy-metal-panel h3 { color: #eddbb4; }
+.scrapy-frontier .scrapy-metal-panel fieldset { border: 1px solid #74804e; border-radius: 5px; background: #1e2b18; }
+.scrapy-frontier .scrapy-metal-panel :is(input,select) { border-radius: 4px; }
+.scrapy-frontier .city-miner { background: linear-gradient(145deg,#393c25,#202a18); }
+.scrapy-frontier .city-miner-head { color: #e3ce9c; padding-bottom: 13px; border-bottom: 2px dashed #777b4e; }
+.scrapy-frontier .city-miner-value strong { color: #d7f17e; text-shadow: 3px 3px #0f1e09; }
+.scrapy-frontier .uc-hero { border: 3px solid #161d0f; border-radius: 8px; box-shadow: 5px 6px #080f0877; background: linear-gradient(118deg,#29351d,#695130); }
+.scrapy-frontier .uc-hero-copy h2 { font-family: Impact,'Arial Narrow',Arial,sans-serif; letter-spacing: .01em; line-height:1.05; text-shadow:3px 4px #10180e; }
+.scrapy-frontier .uc-stamp { border: 3px solid #2c371e; background:#d7bf83; color:#33451e; box-shadow:4px 5px #0d150c77; }
+.scrapy-frontier .uc-season { background:#ddc994; color:#354624; border:2px solid #17210f; border-radius:4px; }
+.scrapy-frontier .uc-board>header { background:#333d29; border-bottom:2px solid #839258; }
+.scrapy-frontier .uc-rule-grid article { border-radius:0; background:#252f1e; }
+.scrapy-frontier .uc-rule-grid p { color:#ccceb2; font-family:Arial,sans-serif; font-size:13px; }
+.scrapy-frontier .uc-top-row:first-child { background:#394829; border-left:4px solid #d9ed80; }
+.scrapy-frontier .yard-desert { border:3px solid #3d3925; border-radius:8px; background:linear-gradient(#b5864e 0%,#dfb774 52%,#b3884c 65%,#8d713e 100%); }
+.scrapy-frontier .yard-sun { background:#f5d893; box-shadow:0 0 0 14px #f5d89315; border:2px solid #e7c484; }
+.scrapy-frontier .yard-home { filter:drop-shadow(8px 10px 0 #45382066); }
+.scrapy-frontier .yard-sign { background:#ead09a; color:#354020; border:3px solid #303a21; border-radius:5px; box-shadow:3px 4px #393c2255; }
+.scrapy-frontier .yard-sign :is(small,span) { color:#546735; }
+.scrapy-frontier .yard-nameplate { border:2px solid #2b381b; border-radius:4px; background:#c9de85; color:#2b401b; }
+.scrapy-frontier .yard-bubble { border-radius:4px 10px 10px; }
+
+/* Landing retains its structure and introduces the same desert town. */
+.scrapy-frontier.lv-home .lv-header { border-bottom:3px solid #0e170a; background:#222a1d; box-shadow:inset 0 -1px #73764c; }
+.scrapy-frontier.lv-home .lv-intro h1 { color:#eddbb1; font-size:clamp(44px,6vw,90px); line-height:1; }
+.scrapy-frontier.lv-home .lv-intro h1 em { color:#d2ee77; font-style:normal; }
+.scrapy-frontier.lv-home .lv-eyebrow { color:#d8c38d; }
+.scrapy-frontier.lv-home .city-start-mayor { padding:6px 15px 6px 4px; background:#2f3925; border:2px solid #7e8353; border-radius:7px; box-shadow:4px 5px #0c140988; rotate:1deg; }
+.scrapy-frontier.lv-home .city-start form>div { border:2px solid #8c9b5c; border-radius:5px; }
+.scrapy-frontier.lv-home .lv-map-section { border:3px solid #1a2612; border-radius:8px; box-shadow:6px 7px #080f0899; }
+.scrapy-frontier.lv-home .lv-district-title { background:#e4c995; color:#344523; border:2px solid #25341b; border-radius:4px; }
+.scrapy-frontier.lv-home .lv-quest-grid>a { background:#2e3826; border:2px solid #777c50; border-bottom:5px solid #111b0c; border-radius:6px; box-shadow:4px 5px #0b140966; }
+.scrapy-frontier.lv-home .lv-quest-grid>a:hover { background:#3b472b; border-color:#b0c776; }
+.scrapy-frontier.lv-home .lv-quest-grid h3 { color:#eedeb8; }
+.scrapy-frontier.lv-home .lv-quest-grid p { color:#c1c9a8; }
+.scrapy-frontier.lv-home :is(.lv-token-file,.lv-guide-banner,.lv-season-banner) { border:2px solid #828851; border-bottom:5px solid #18220e; border-radius:6px; background:#303c24; box-shadow:4px 5px #0b140977; }
+.scrapy-frontier.lv-home .lv-build-steps li { border:2px solid #667547; border-radius:5px; background:#2d3822; }
+@media(max-width:760px) {
+  .scrapy-frontier.city-product .product-heading h1 { font-size:34px; }
+  .scrapy-frontier.lv-home .lv-intro h1 { font-size:clamp(40px,9vw,62px); }
+  .scrapy-frontier .city-next-steps { padding:16px; }
+  .scrapy-frontier .mobile-dock { border-radius:6px 6px 0 0; border-top:2px solid #9ba967; background:#202b18f7; }
+  .scrapy-frontier .mobile-dock a.active { color:#d5ef87; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .scrapy-frontier :is(button,a) { transition:none; }
+}

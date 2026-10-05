@@ -81,8 +81,8 @@ Actions variables:
   `xhigh`).
 - `LANDVILLE_BUILDER_MAX_OUTPUT_TOKENS=24000`: bounded output budget per agent pass
   (accepted range: 12,000–64,000).
-- `LANDVILLE_BUILDER_MAX_MINUTES=22`: maximum wait for the complete background agent loop
-  (accepted range: 8–25 minutes).
+- `LANDVILLE_BUILDER_MAX_MINUTES=35`: maximum wait for the complete background agent loop
+  (accepted range: 8–40 minutes). Complex modules may use the final contract-repair pass.
 - `LANDVILLE_SCHEDULER_ENABLED=true`: enables the scheduled coordinator.
 - `LANDVILLE_BUILDER_ENABLED=false` initially: finalize votes without paid builds.
 

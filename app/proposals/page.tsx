@@ -1,73 +1,50 @@
 'use client';
-
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { Bot, Vote } from 'lucide-react';
+import { ArrowUpRight, Bot, Check, RefreshCw, Vote } from 'lucide-react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { useLandville } from '@/components/landville/provider';
 import { useWallet } from '@/components/landville/wallet-provider';
-import { getBuildQueue, VOTING_HOURS } from '@/lib/proposal-lifecycle';
-import { BASE_VOTE_WEIGHT, shortWallet, TOKENS_PER_VOTE } from '@/lib/governance';
-import { SCRAPY_TOKEN, scrapyTokenExplorerUrl } from '@/lib/scrapy-token';
-import { activeRobinhoodChain } from '@/lib/robinhood-chain';
+import { getBuildQueue, MINIMUM_MODULE_VOTERS, VOTING_HOURS } from '@/lib/proposal-lifecycle';
+import { BuildJourney } from '@/components/landville/build-journey';
+import { ScrapyBot } from '@/components/landville/scrapy-bot';
 
-const filters = ['ALL', 'LIVE', 'PASSED', 'BUILDING', 'BUILT', 'REJECTED'] as const;
+const filters = [{ id: 'ALL', label: 'All ideas' }, { id: 'LIVE', label: 'Vote now' }, { id: 'PASSED', label: 'In queue' }, { id: 'BUILDING', label: 'Being built' }, { id: 'BUILT', label: 'Built' }, { id: 'MINE', label: 'My ideas' }, { id: 'REJECTED', label: 'Not approved' }];
 
 export default function ProposalsPage() {
-  const { proposals, voted, vote, status, activeProposals } = useLandville();
+  const { proposals, objects, voted, vote, status } = useLandville();
   const wallet = useWallet();
-  const [filter, setFilter] = useState<(typeof filters)[number]>('ALL');
-  const [actionMessage, setActionMessage] = useState('');
-  const [busyId, setBusyId] = useState('');
-  const [checkingPower, setCheckingPower] = useState(false);
-  const canAct = Boolean(wallet.address && status === 'ready');
-  const buildQueue = getBuildQueue(proposals);
-  const visible = useMemo(() => filter === 'ALL' ? proposals : proposals.filter((item) => item.status === filter), [filter, proposals]);
-
-  async function checkPower() {
-    if (checkingPower) return;
-    if (!wallet.address) { setActionMessage('CREATE OR SIGN IN TO YOUR CITIZEN ACCOUNT FIRST'); return; }
-    setCheckingPower(true);
-    setActionMessage('CHECKING MAINNET SCRAPY HOLD…');
-    try {
-      const power = await wallet.refreshVotingPower();
-      setActionMessage(power.source === 'chain' ? `${power.weight} VOTES VERIFIED ON MAINNET · BLOCK ${power.blockNumber}` : '1 BASE VOTE · LINK A WALLET TO ADD SCRAPY POWER');
-    } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : 'Could not check holdings.');
-    } finally {
-      setCheckingPower(false);
-    }
-  }
+  const [filter, setFilter] = useState('ALL');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState('');
+  const queue = getBuildQueue(proposals);
+  const visible = proposals.filter((proposal) => filter === 'ALL' || (filter === 'MINE' ? Boolean(wallet.address && proposal.creatorWallet === wallet.address) : proposal.status === filter));
 
   async function castVote(id: string, choice: 'YES' | 'NO') {
-    setBusyId(id);
-    setActionMessage('SNAPSHOTTING SCRAPY HOLD…');
-    try {
-      const receipt = await vote(id, choice);
-      setActionMessage(`${receipt.weight} VOTE${receipt.weight === 1 ? '' : 'S'} CAST · BLOCK ${receipt.blockNumber} · ${shortWallet(receipt.wallet)}`);
-    } catch (error) {
-      setActionMessage(error instanceof Error ? error.message.toUpperCase() : 'VOTE FAILED');
-    } finally {
-      setBusyId('');
-    }
+    if (busy) return;
+    setBusy(id); setNotice('Checking voting power…');
+    try { const receipt = await vote(id, choice); setNotice(`Vote recorded: ${choice.toLowerCase()} with ${receipt.weight} voting power.`); }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'Your vote could not be saved.'); }
+    finally { setBusy(''); }
   }
 
-  return <ProductShell title="PROPOSALS" eyebrow="IMAGINE / HOLD / VOTE" actions={<Link className="lv-button primary" href="/chat"><Bot /> DISCUSS WITH SCRAPY</Link>}>
-    <p className="admin-warning">WANT TO BUILD SOMETHING? Open Town Chat, discuss the idea with Scrapy, and refine it until REVIEW &amp; PROPOSE appears. Proposals cannot be submitted directly from this page. <Link href="/chat">GO TO TOWN CHAT →</Link></p>
-    <section className="governance-rule"><div><small>VOTING RULE / MAINNET</small><strong>{BASE_VOTE_WEIGHT} BASE VOTE + 1 PER {TOKENS_PER_VOTE.toLocaleString('en-US')} SCRAPY</strong><span>No tokens required to vote. Each full 250,000 SCRAPY in a linked wallet adds one vote.</span><a href={scrapyTokenExplorerUrl(activeRobinhoodChain.explorerUrl)} target="_blank" rel="noreferrer">{SCRAPY_TOKEN.ticker} · {shortWallet(SCRAPY_TOKEN.address)} · VERIFIED CONTRACT</a></div><div><small>YOUR LAST VERIFIED POWER</small><strong>{wallet.snapshot ? `${wallet.snapshot.weight} VOTES` : 'NOT CHECKED'}</strong><span>{wallet.address ? wallet.linkedWallet ? `${shortWallet(wallet.linkedWallet)} · ${wallet.snapshot?.tokenBalanceFormatted || '—'} SCRAPY` : 'EMAIL CITIZEN · NO WALLET LINKED' : 'Create or sign in to a citizen account.'}</span></div><button className="lv-button" onClick={checkPower} disabled={checkingPower}>{checkingPower ? 'CHECKING…' : wallet.address ? wallet.linkedWallet ? 'REFRESH HOLD' : 'CHECK BASE POWER' : 'SIGN IN TO CHECK'}</button></section>
-    {actionMessage && <div className="admin-warning" style={{borderColor:'var(--acid)',color:'var(--acid)',background:'#17200d'}}>{actionMessage}</div>}
-    <p className="admin-warning">Each proposal has its own {VOTING_HOURS}-hour vote. YES must exceed NO; ties and zero votes are rejected. Approved proposals are built one at a time, in voting-deadline order.</p>
-    {activeProposals.length > 0 && <p className="admin-warning">YOUR ACTIVE PROPOSALS ({activeProposals.length}/2): {activeProposals.map((proposal, index) => <span key={proposal.id}>{index > 0 && ' · '}<Link href={`#${proposal.id}`}>{proposal.id} · {proposal.title}</Link> ({proposal.status})</span>)}. {activeProposals.length >= 2 ? 'At least one must be built or rejected before you can submit a third.' : 'You may submit one more through Town Chat.'}</p>}
-    <div className="filter-row">{filters.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>
+  return <ProductShell title="What goes up next?" eyebrow="YOUR IDEAS / THE TOWN DECIDES" actions={<Link className="lv-button primary" href="/chat?room=BUILD"><Bot />Pitch an idea</Link>}>
+    <div className="city-proposal-intro"><ScrapyBot portrait /><p>“I’ve got the tools. You lot pick the next building.”<span>— Scrapy</span></p></div>
+    <details className="city-rules-disclosure"><summary>How voting works · {VOTING_HOURS} hours · {MINIMUM_MODULE_VOTERS} citizens minimum</summary><div><p>Every citizen has one vote of power, plus one per full 250K SCRAPY. At least {MINIMUM_MODULE_VOTERS} citizens must vote and YES must exceed NO. Approved ideas enter the build queue. Scrapy builds, then the result is reviewed before it opens in World.</p><button className="lv-button" disabled={!wallet.address || Boolean(busy)} onClick={async () => { setBusy('power'); try { const power = await wallet.refreshVotingPower(); setNotice(`Your verified voting power: ${power.weight}.`); } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not check voting power.'); } finally { setBusy(''); } }}><RefreshCw />Check my voting power</button></div></details>
+    {notice && <output className="city-action-notice">{notice}</output>}
+    <div className="filter-row" aria-label="Filter proposals">{filters.filter((item) => item.id !== 'MINE' || wallet.address).map((item) => <button key={item.id} className={filter === item.id ? 'active' : ''} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>{item.label}</button>)}</div>
     <section className="proposal-list">{visible.map((proposal) => {
-      const total = proposal.yes + proposal.no;
-      const yesPercent = Math.round((proposal.yes / Math.max(1,total))*100);
-      return <article className="proposal-row" id={proposal.id} key={proposal.id}>
-        <div className="proposal-id">{proposal.id}<b className={`status-tag ${proposal.status}`}>{proposal.status}</b><small>{proposal.closesIn}</small>{buildQueue.some((item) => item.id === proposal.id) && <small>{proposal.status === 'BUILDING' ? 'BUILD IN PROGRESS' : `QUEUE #${buildQueue.findIndex((item) => item.id === proposal.id) + 1}`}</small>}</div>
-        <div className="proposal-copy"><small>{proposal.category} · {proposal.district} · {proposal.creator}</small><h2>{proposal.title}</h2><p>{proposal.summary}</p><small>YES MUST EXCEED NO · CLOSES: {proposal.closesAt ? new Date(proposal.closesAt).toLocaleString() : '—'}</small></div>
-        <div className="vote-zone"><div className="vote-numbers"><b>{yesPercent}% YES · {proposal.yes.toLocaleString()} POWER</b><span>{100-yesPercent}% NO · {proposal.no.toLocaleString()} POWER</span></div><div className="vote-track"><i style={{width:`${yesPercent}%`}} /></div>{proposal.status === 'LIVE' && proposal.closesIn !== 'ENDED' ? <div className="vote-actions"><button disabled={!canAct || Boolean(voted[proposal.id]) || busyId === proposal.id} onClick={() => castVote(proposal.id,'YES')}>{voted[proposal.id]?.choice === 'YES' ? `VOTED YES ×${voted[proposal.id].weight} ✓` : 'VOTE YES'}</button><button className="no" disabled={!canAct || Boolean(voted[proposal.id]) || busyId === proposal.id} onClick={() => castVote(proposal.id,'NO')}>{voted[proposal.id]?.choice === 'NO' ? `VOTED NO ×${voted[proposal.id].weight} ✓` : 'VOTE NO'}</button></div> : <span className={`status-tag ${proposal.status}`}>{proposal.status === 'BUILDING' ? 'BUILD IN PROGRESS' : proposal.status === 'PASSED' ? 'WAITING TO BUILD' : 'VOTE CLOSED'}</span>}{proposal.eligibilitySnapshot&&<small className="snapshot-line">PROPOSED WITH ×{proposal.eligibilitySnapshot.weight} POWER · BLOCK {proposal.eligibilitySnapshot.blockNumber}</small>}</div>
+      const yes = Math.round(proposal.yes / Math.max(1, proposal.yes + proposal.no) * 100);
+      const object = objects.find((item) => item.id === proposal.id);
+      const live = proposal.status === 'LIVE' && proposal.closesIn !== 'ENDED';
+      const label = proposal.status === 'LIVE' ? 'Voting open' : proposal.status === 'PASSED' ? `Queue #${queue.findIndex((item) => item.id === proposal.id) + 1}` : proposal.status === 'BUILDING' ? 'Building & review' : proposal.status === 'BUILT' ? 'Open in World' : 'Not approved';
+      return <article className="proposal-row city-proposal-card" id={proposal.id} key={proposal.id}>
+        <div className="proposal-id">{proposal.id}<b className={`status-tag ${proposal.status}`}>{label}</b><small>{live ? proposal.closesIn : proposal.status === 'LIVE' ? 'Finalizing vote…' : ''}</small></div>
+        <div className="proposal-copy"><small>{proposal.district} · {proposal.creator}</small><h2>{proposal.title}</h2><p>{proposal.summary.split('\n')[0].slice(0, 180)}</p><details className="city-proposal-brief"><summary>Read the full plan</summary><p>{proposal.summary}</p></details>{['PASSED','BUILDING','BUILT'].includes(proposal.status) && <BuildJourney proposal={proposal} />}</div>
+        <div className="vote-zone"><div className="vote-numbers"><b>{proposal.yes.toLocaleString()} YES</b><span>{proposal.no.toLocaleString()} NO</span></div><div className="vote-track" aria-label={`${yes}% yes voting power`}><i style={{ width: `${yes}%` }} /></div>
+          {live ? !wallet.address ? <Link className="lv-button primary" href={`/citizens?returnTo=${encodeURIComponent(`/proposals#${proposal.id}`)}`}>Sign in to vote</Link> : voted[proposal.id] ? <span className="city-vote-receipt"><Check />You voted {voted[proposal.id].choice.toLowerCase()}</span> : <div className="vote-actions"><button disabled={status !== 'ready' || Boolean(busy)} onClick={() => void castVote(proposal.id, 'YES')}>{busy === proposal.id ? 'Saving…' : 'Build it'}</button><button className="no" disabled={status !== 'ready' || Boolean(busy)} onClick={() => void castVote(proposal.id, 'NO')}>Vote no</button></div> : object?.modulePath ? <Link className="lv-button primary" href={object.modulePath}>Visit building <ArrowUpRight /></Link> : <small>{proposal.status === 'PASSED' ? 'Waiting for Scrapy' : proposal.status === 'BUILDING' ? 'Checks & review before release' : 'Voting closed'}</small>}
+        </div>
       </article>;
-    })}{status === 'ready' && visible.length === 0 && <div className="empty-state"><Vote />No proposals in this pile.</div>}</section>
-
+    })}{status === 'ready' && !visible.length && <div className="city-proposals-empty"><ScrapyBot /><h2>A little room for a big idea.</h2><Link className="lv-button primary" href="/chat?room=BUILD"><Vote />Start with Scrapy</Link></div>}</section>
   </ProductShell>;
 }

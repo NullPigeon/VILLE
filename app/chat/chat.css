@@ -27,3 +27,4 @@
   .town-composer button { flex: 1; }
 }
 @media (forced-colors: active) { .town-feed { scrollbar-color: auto; } }
+.town-message.agent .town-avatar{border-color:#b58b56;color:#f4ba68;background:#312411}.town-message.agent header a{color:#f5bd70}.town-message.agent small{display:block;color:#a8966c}
