@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowUpRight, BookOpen, Bot, Building2, CircleDollarSign, HelpCircle, Menu, MessageCircle, Pause, Play, Trophy, User, Vote, Wrench, X } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Bot, Building2, CircleDollarSign, Grid2X2, HelpCircle, Menu, MessageCircle, Pause, Play, Trophy, User, Vote, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { useLandville } from '@/components/landville/provider';
@@ -11,6 +11,7 @@ import { openCityChat } from '@/components/landville/mayor-presence';
 
 const nav = [
   { href: '/world', label: 'World', icon: Building2 },
+  { href: '/one-scrapy', label: 'One Scrapy Page', icon: Grid2X2 },
   { href: '/chat', label: 'Build & Talk', icon: MessageCircle },
   { href: '/proposals', label: 'Proposals', icon: Vote },
   { href: '/useful-citizens', label: 'Useful Citizens', icon: Trophy },

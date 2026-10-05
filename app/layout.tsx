@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import './vertical.css';
 import './product.css';
+import './one-scrapy.css';
 import './junkyard.css';
 import './landing-chaos.css';
 import './world-constructor.css';

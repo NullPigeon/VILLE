@@ -20,13 +20,14 @@ export async function GET(request: NextRequest) {
           database('landville_citizens?select=wallet,citizen_number,username,bio,avatar&limit=0'),
           database('landville_proposals?select=id&limit=0'),
           database('landville_build_jobs?select=proposal_id&limit=0'),
+          database('landville_project_banners?select=id&limit=0'),
           database('landville_module_private_state?select=module_id&limit=0'),
           database('landville_module_shared_records?select=id&limit=0'),
           database('landville_module_counters?select=module_id&limit=0'),
           database('landville_module_images?select=module_id&limit=0'),
           database('landville_world_citizens?select=citizen_wallet&limit=0'),
         ]);
-        storage = 'reachable; citizen profiles and universal module storage available';
+        storage = 'reachable; citizen profiles, universal module storage and project banners available';
       } catch { storage = 'unavailable: check credentials and apply every Supabase migration'; }
     }
     return NextResponse.json({
