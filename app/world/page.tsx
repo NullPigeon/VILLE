@@ -192,6 +192,7 @@ export default function WorldPage() {
   );
   const ownPublishedCharacter = citizens.find((citizen) => citizen.wallet.toLowerCase() === wallet.address.toLowerCase());
   const positionsByWallet = new globalThis.Map(positions.map((position) => [position.wallet.toLowerCase(), position]));
+  const residentWallets = new Set(residents.map((resident) => resident.wallet.toLowerCase()));
 
   const clampCamera = useCallback((x: number, y: number, zoom: number) => {
     const { width, height } = bounds.current;
@@ -315,6 +316,13 @@ export default function WorldPage() {
         setPresenceStatus('ready');
       } catch { setPresenceStatus('error'); }
     }, 450);
+  }
+
+  function chooseHeroSkin(skin: HeroSkin | 'MODULE') {
+    setHeroSkin(skin);
+    saveAppearance(skin, robotSkin);
+    moveCamera(heroPosition.x, heroPosition.y, 1.05);
+    setWardrobeOpen(false);
   }
 
   function walkTo(x: number, y: number) {
@@ -859,8 +867,7 @@ export default function WorldPage() {
 
           {citizens.filter((citizen) => {
             const owner = citizen.wallet.toLowerCase();
-            if (owner === wallet.address.toLowerCase()) return heroSkin !== 'MODULE';
-            return positionsByWallet.get(owner)?.heroSkin !== 'MODULE';
+            return owner !== wallet.address.toLowerCase() && !residentWallets.has(owner);
           }).map((citizen, index) => (
             <Link
               key={citizen.wallet}
@@ -958,8 +965,8 @@ export default function WorldPage() {
           {wardrobeOpen && <aside className="world-wardrobe-panel" aria-label="City wardrobe">
             <header><div><small>CITY WARDROBE / YOUR LOOK</small><h2>Dress for the dust.</h2></div><button aria-label="Close wardrobe" onClick={() => setWardrobeOpen(false)}><X /></button></header>
             <p>Your hero moves when you tap the map. Your robot roams near home and talks with you in its yard.</p>
-            <h3>YOUR HERO</h3><div className="world-skin-options">{HERO_SKINS.map((skin) => <button key={skin} className={heroSkin === skin ? 'active' : ''} onClick={() => { setHeroSkin(skin); saveAppearance(skin, robotSkin); }}><GameHero skin={skin} /><span>{HERO_SKIN_LABELS[skin]}</span></button>)}
-              {ownPublishedCharacter && <button className={heroSkin === 'MODULE' ? 'active' : ''} onClick={() => { setHeroSkin('MODULE'); saveAppearance('MODULE', robotSkin); }}><Image src={ownPublishedCharacter.imagePath} alt="" width={50} height={68} unoptimized /><span>City creation</span></button>}
+            <h3>YOUR HERO</h3><div className="world-skin-options">{HERO_SKINS.map((skin) => <button key={skin} className={heroSkin === skin ? 'active' : ''} onClick={() => chooseHeroSkin(skin)}><GameHero skin={skin} /><span>{HERO_SKIN_LABELS[skin]}</span></button>)}
+              {ownPublishedCharacter && <button className={heroSkin === 'MODULE' ? 'active' : ''} onClick={() => chooseHeroSkin('MODULE')}><Image src={ownPublishedCharacter.imagePath} alt="" width={50} height={68} unoptimized /><span>City creation</span></button>}
             </div>
             {ownYard && <><h3>YOUR AGENT</h3><div className="world-skin-options robot-skins">{ROBOT_SKINS.map((skin) => <button key={skin} className={robotSkin === skin ? 'active' : ''} onClick={() => { setRobotSkin(skin); saveAppearance(heroSkin, skin); }}><PersonalRobot skin={skin} presentation={ownYard.presentation} /><span>{ROBOT_SKIN_LABELS[skin]}</span></button>)}</div><Link href={`/yard/${ownYard.ownerWallet}`}>Talk to {ownYard.name} in your yard ↗</Link></>}
             <small>{presenceStatus === 'ready' ? 'Your look and position are shared across the city.' : presenceStatus === 'error' ? 'City sync is unavailable. Your look is saved on this device.' : 'Connecting to the city...'}</small>
