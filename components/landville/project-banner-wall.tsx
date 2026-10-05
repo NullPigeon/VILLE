@@ -33,8 +33,8 @@ export function ProjectBannerWall() {
   return <section className="one-scrapy-grid" aria-label="Curated project banners">
     {banners.map((banner, index) => <a key={banner.id} className="one-scrapy-banner" href={banner.twitterUrl} target="_blank" rel="noopener noreferrer" aria-label={`${banner.name} on X - ${banner.description}`}>
       <img src={banner.imageUrl} alt={`${banner.name} project banner`} referrerPolicy="no-referrer" />
-      <span className="one-scrapy-card-number">SIGNAL {String(index + 1).padStart(2, '0')}</span>
       <span className="one-scrapy-overlay">
+        <span className="one-scrapy-card-number">SIGNAL {String(index + 1).padStart(2, '0')}</span>
         <span className="one-scrapy-meta"><b>{xLabel(banner.twitterUrl)}</b><i>{hostLabel(banner.websiteUrl)}</i></span>
         <strong>{banner.name}</strong>
         <span className="one-scrapy-description">{banner.description}</span>
