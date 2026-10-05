@@ -31,7 +31,7 @@ export default function OneScrapyPage() {
       <section className="one-scrapy-board" aria-labelledby="one-scrapy-board-title">
         <header className="one-scrapy-board-head">
           <div><span>THE WALL / PROJECT SIGNALS</span><h2 id="one-scrapy-board-title">PINNED IN TOWN.</h2></div>
-          <p>Open a banner to visit the project on X.</p>
+          <p>Hover for details. Tap once to preview, twice to open on X.</p>
         </header>
         <ProjectBannerWall />
         <div className="one-scrapy-tile-field" aria-hidden="true">

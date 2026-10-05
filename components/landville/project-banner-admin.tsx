@@ -48,7 +48,7 @@ export function ProjectBannerAdmin() {
     <div className="banner-admin-layout">
       <form className="proposal-form banner-admin-form" onSubmit={submit}>
         <h3>{editing ? 'EDIT PROJECT BANNER' : 'ADD PROJECT BANNER'}</h3>
-        <p>Any image shape works. The wall shows the whole banner without cropping; very tall images scale down to fit.</p>
+        <p>Any image shape works. The wall fits the full image into a compact tile without cropping.</p>
         <label>PROJECT NAME<input required minLength={2} maxLength={80} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
         <label>X / TWITTER URL<input required type="url" maxLength={2048} value={form.twitterUrl} onChange={(event) => setForm({ ...form, twitterUrl: event.target.value })} /></label>
         <label>PROJECT WEBSITE<input required type="url" maxLength={2048} value={form.websiteUrl} onChange={(event) => setForm({ ...form, websiteUrl: event.target.value })} /></label>
