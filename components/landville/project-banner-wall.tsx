@@ -1,8 +1,9 @@
 'use client';
 /* oxlint-disable next/no-img-element -- project artwork uses admin-curated arbitrary HTTPS hosts */
 
-import { useEffect, useState } from 'react';
-import { ArrowUpRight, PanelsTopLeft } from 'lucide-react';
+import { Fragment, useEffect, useState } from 'react';
+import { ArrowUpRight } from 'lucide-react';
+import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import type { ProjectBanner } from '@/lib/project-banner';
 
 function hostLabel(value: string) {
@@ -27,6 +28,7 @@ export function ProjectBannerWall() {
       y: Math.max(8, Math.min(y + 14, window.innerHeight - 235)),
     });
   }
+
   useEffect(() => {
     let current = true;
     fetch('/api/project-banners', { cache: 'no-store' }).then(async (response) => {
@@ -37,36 +39,48 @@ export function ProjectBannerWall() {
     return () => { current = false; };
   }, []);
 
-  if (state === 'loading') return <div className="one-scrapy-empty"><PanelsTopLeft /><p>SCRAPY IS CHECKING THE WALL…</p></div>;
-  if (state === 'error') return <div className="one-scrapy-empty error"><PanelsTopLeft /><p>THE WALL JAMMED. TRY AGAIN SHORTLY.</p></div>;
-  if (!banners.length) return <div className="one-scrapy-empty"><PanelsTopLeft /><p>THE WALL IS CLEAN. SUSPICIOUSLY CLEAN.</p><small>PROJECT SIGNALS WILL APPEAR HERE.</small></div>;
+  const tileCount = Math.max(1050, banners.length * 30 + 30);
 
   return <>
-    <section className="one-scrapy-grid" aria-label="Curated project banners">
-      {banners.map((banner) => <a
-        key={banner.id}
-        className="one-scrapy-banner"
-        href={banner.twitterUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={`${banner.name} on X - ${banner.description}`}
-        onMouseEnter={(event) => { if (window.matchMedia('(hover: hover)').matches) showDetails(banner, event.clientX, event.clientY); }}
-        onMouseMove={(event) => { if (window.matchMedia('(hover: hover)').matches) showDetails(banner, event.clientX, event.clientY); }}
-        onMouseLeave={() => { if (window.matchMedia('(hover: hover)').matches) { setActiveBanner(null); setTouchArmed(null); } }}
-        onFocus={(event) => { const rect = event.currentTarget.getBoundingClientRect(); showDetails(banner, rect.left, rect.bottom); }}
-        onBlur={() => { setActiveBanner(null); setTouchArmed(null); }}
-        onClick={(event) => {
-          if (window.matchMedia('(hover: none)').matches && touchArmed !== banner.id) {
-            event.preventDefault();
-            setTouchArmed(banner.id);
-            const rect = event.currentTarget.getBoundingClientRect();
-            showDetails(banner, rect.left, rect.bottom);
-          }
-        }}
-      >
-        <img src={banner.imageUrl} alt={`${banner.name} project banner`} referrerPolicy="no-referrer" />
-      </a>)}
+    <section className="one-scrapy-grid" aria-label="One Scrapy banner mosaic">
+      {Array.from({ length: tileCount }, (_, index) => {
+        const banner = index % 30 === 14 ? banners[Math.floor(index / 30)] : undefined;
+        const face = index % 71 === 11;
+        return <Fragment key={index}>
+          {banner && <a
+            className="one-scrapy-banner"
+            href={banner.twitterUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${banner.name} on X - ${banner.description}`}
+            onMouseEnter={(event) => { if (window.matchMedia('(hover: hover)').matches) showDetails(banner, event.clientX, event.clientY); }}
+            onMouseLeave={() => { if (window.matchMedia('(hover: hover)').matches) { setActiveBanner(null); setTouchArmed(null); } }}
+            onFocus={(event) => { const rect = event.currentTarget.getBoundingClientRect(); showDetails(banner, rect.left, rect.bottom); }}
+            onBlur={() => { setActiveBanner(null); setTouchArmed(null); }}
+            onClick={(event) => {
+              if (window.matchMedia('(hover: none)').matches && touchArmed !== banner.id) {
+                event.preventDefault();
+                setTouchArmed(banner.id);
+                const rect = event.currentTarget.getBoundingClientRect();
+                showDetails(banner, rect.left, rect.bottom);
+              }
+            }}
+          >
+            <img src={banner.imageUrl} alt={`${banner.name} project banner`} referrerPolicy="no-referrer" onLoad={(event) => {
+              const ratio = event.currentTarget.naturalWidth / event.currentTarget.naturalHeight;
+              const columns = ratio > 2.3 ? 6 : ratio > 1.3 ? 5 : ratio < .6 ? 2 : 3;
+              const rows = ratio > 2.3 ? 2 : ratio > 1.3 ? 3 : ratio < .85 ? 4 : 3;
+              event.currentTarget.parentElement?.style.setProperty('--banner-columns', String(columns));
+              event.currentTarget.parentElement?.style.setProperty('--banner-rows', String(rows));
+            }} />
+          </a>}
+          <span aria-hidden="true" className={`one-scrapy-tile${face ? ' has-face' : ''}${index % 13 === 0 ? ' tile-rust' : index % 7 === 0 ? ' tile-sand' : ''}`}>
+            {face && <ScrapyBot portrait />}
+          </span>
+        </Fragment>;
+      })}
     </section>
+    <output className="one-scrapy-sr-only">{state === 'error' ? 'Project banners are unavailable.' : state === 'loading' ? 'Loading project banners.' : banners.length ? `${banners.length} project banners on the wall.` : 'No project banners yet.'}</output>
     {activeBanner && <aside className="one-scrapy-tooltip" role="tooltip" style={{ left: tooltipPosition.x, top: tooltipPosition.y }}>
       <span className="one-scrapy-meta"><b>{xLabel(activeBanner.twitterUrl)}</b><i>{hostLabel(activeBanner.websiteUrl)}</i></span>
       <strong>{activeBanner.name}</strong>
