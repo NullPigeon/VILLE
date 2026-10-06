@@ -9,8 +9,10 @@ import {
   usePrivy,
   useWallets,
 } from '@privy-io/react-auth';
+import { serializeTypedData } from 'viem';
 
 type WalletTransaction = { from: string; to: string; data: string; value: string };
+export type MarketTypedData = { domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, unknown> };
 
 type PrivyAuthContextValue = {
   configured: boolean;
@@ -24,6 +26,7 @@ type PrivyAuthContextValue = {
   linkEmail(): void;
   getAccessToken(): Promise<string | null>;
   sendTransaction(transaction: WalletTransaction, expectedAddress: string): Promise<string>;
+  signMarketPayment(message: MarketTypedData, expectedAddress: string): Promise<`0x${string}`>;
   logout(): Promise<void>;
 };
 
@@ -39,6 +42,7 @@ const unavailable: PrivyAuthContextValue = {
   linkEmail() { throw new Error('PRIVY SIGN-IN IS NOT CONFIGURED'); },
   async getAccessToken() { return null; },
   async sendTransaction() { throw new Error('CONNECT THE LINKED WALLET TO CONTINUE'); },
+  async signMarketPayment() { throw new Error('CONNECT THE LINKED WALLET TO CONTINUE'); },
   async logout() {},
 };
 
@@ -78,6 +82,22 @@ function PrivyBridge({ children }: { children: React.ReactNode }) {
       const hash = await provider.request({ method: 'eth_sendTransaction', params: [transaction] });
       if (typeof hash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new Error('WALLET DID NOT RETURN A TRANSACTION HASH');
       return hash.toLowerCase();
+    },
+    async signMarketPayment(message, expectedAddress) {
+      if (!walletsReady) throw new Error('WALLET CONNECTION IS STILL LOADING');
+      if (Number(message.domain.chainId) !== 4663) throw new Error('PAYMENT MUST USE ROBINHOOD MAINNET');
+      const expected = expectedAddress.toLowerCase();
+      const wallet = wallets.find((candidate) => candidate.type === 'ethereum' && candidate.address.toLowerCase() === expected);
+      if (!wallet || wallet.type !== 'ethereum') throw new Error('CONNECT THE LINKED WALLET TO CONTINUE');
+      await wallet.switchChain(4663);
+      const provider = await wallet.getEthereumProvider();
+      const chainId = await provider.request({ method: 'eth_chainId' });
+      const accounts = await provider.request({ method: 'eth_accounts' });
+      if (typeof chainId !== 'string' || Number(chainId) !== 4663) throw new Error('SWITCH YOUR WALLET TO ROBINHOOD MAINNET');
+      if (!Array.isArray(accounts) || !accounts.some((account) => typeof account === 'string' && account.toLowerCase() === expected)) throw new Error('THE CONNECTED WALLET DOES NOT MATCH YOUR LINKED WALLET');
+      const signature = await provider.request({ method: 'eth_signTypedData_v4', params: [expectedAddress, serializeTypedData(message as Parameters<typeof serializeTypedData>[0])] });
+      if (typeof signature !== 'string' || !/^0x[0-9a-fA-F]{130}$/.test(signature)) throw new Error('WALLET DID NOT SIGN THE PAYMENT');
+      return signature as `0x${string}`;
     },
     logout,
   }), [

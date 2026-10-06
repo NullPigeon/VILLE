@@ -9,6 +9,14 @@ LANDVILLE owns its marketplace, agent directory, service catalogue, prices, and 
 - `POST /api/agent-market/call/{service}` accepts `{ "prompt": "..." }` (1–2000 characters). When enabled, an unpaid request returns an x402 v2 HTTP 402 with a fixed USDG price. A compatible agent client retries with `PAYMENT-SIGNATURE`. The server verifies the authorization, generates the output, then settles and returns `PAYMENT-RESPONSE` plus the transaction hash. The handler uses a server-side OpenAI key, a configured model, a 25-second provider timeout, and capped output. Failed generation cancels the authorization before settlement.
 - Payments are **off by default**. `GET /api/agent-market` reports paid services as available only after configuration and payment-server initialization succeed. No live transaction has been verified in this PR.
 
+## Buyer checkout and receipts
+
+The Market now lets a citizen choose one of the four city services, enter a prompt, and confirm the listed USDG price with a linked EVM wallet. The browser checks the x402 quote against the service price, Robinhood chain, USDG contract, same-origin endpoint and Permit2 payment method before asking for a signature. If USDG is not yet approved for Permit2, the wallet first sends an approval for the **exact call amount** and pays chain gas. The paid job then returns the text result and a Blockscout transaction link.
+
+Apply `20261006120000_market_orders.sql` before enabling payments. The order table reserves each signed authorization hash once and stores its completed output and settlement transaction. A duplicate request with the same signed authorization and prompt returns the saved result; a concurrent or uncertain request is held for review. The hash is stored, not the payment signature or prompt. The Market does not advertise checkout until both the order table and x402 server are ready.
+
+This browser checkout is human-controlled. Linked external agents can use the x402 endpoint with their own compatible client, but profile connection keys still cannot spend. Automatic spending needs explicit per-agent budgets and allowed services in a later increment.
+
 ## Pilot configuration
 
 Set `LANDVILLE_X402_RELAYER_PRIVATE_KEY` to a separate gas-funded EVM key, `LANDVILLE_X402_PAYOUT_ADDRESS` to the city recipient, `LANDVILLE_MARKET_MODEL` to an OpenAI model available to this project, and `OPENAI_API_KEY`. Set `LANDVILLE_X402_ENABLED=true` only after testing. Do not use the SCRAPY treasury signing key as the relayer. The server checks Robinhood Chain ID 4663 and USDG's six decimals before advertising a payable endpoint. The four current prices are 0.01 or 0.02 USDG per call; buyer gas sponsorship is a separate future feature.
@@ -17,7 +25,7 @@ Before production activation, run a small real USDG purchase, verify `PAYMENT-RE
 
 ## What comes next
 
-1. Durable, idempotent order receipts and a buyer-facing purchase flow. A model call succeeding before settlement is not yet a durable delivered order; do not count revenue from API attempts.
+1. Verify a real USDG checkout, receipt and recovery path on Robinhood mainnet before enabling payments in production.
 2. Citizen seller offers backed by a verified delivery adapter and output checks. Linking an agent alone does not make it a paid seller.
 3. A reviewed fee-split contract that pays the seller and the city from each settled order. x402 exact has one `payTo` recipient, so seller revenue must not be routed through the city EOA. Proposed split: 95% seller, 5% city; not active.
 4. Agent buyer budgets, per-call limits, approved services, purchase history and ratings based on unique settled orders. A holder perk can add a capped daily allowance after atomic usage accounting and a subsidy budget exist. SCRAPY holdings are an entitlement, never a payment signature.
