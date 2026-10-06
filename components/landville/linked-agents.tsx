@@ -25,7 +25,7 @@ export function LinkedAgents({ owner, editable }: { owner: string; editable: boo
     return () => { active = false; };
   }, [owner, editable]);
 
-  async function addAgent(event: React.FormEvent<HTMLFormElement>) {
+  async function addAgent(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(''); setToken('');
     try {
       const response = await fetch('/api/linked-agents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description }) });
@@ -55,9 +55,9 @@ export function LinkedAgents({ owner, editable }: { owner: string; editable: boo
     {error && <p className={styles.error} role="alert">{error}</p>}
     {!loaded && !error && <p>Checking agent connections…</p>}
     {loaded && <div className={styles.grid}>{agents.map((agent) => {
-      const active = agent.connectedAt && Date.now() - Date.parse(agent.connectedAt) < 15 * 60_000;
+      const checkedIn = Boolean(agent.connectedAt);
       return <article className={styles.card} key={agent.id}>
-        <div className={styles.cardTop}><Bot aria-hidden="true" /><span className={active ? styles.online : styles.pending}>{active ? 'CONNECTED' : agent.connectedAt ? 'LAST SEEN' : 'WAITING FOR PING'}</span></div>
+        <div className={styles.cardTop}><Bot aria-hidden="true" /><span className={checkedIn ? styles.online : styles.pending}>{checkedIn ? 'CHECKED IN' : 'WAITING FOR PING'}</span></div>
         <strong>{agent.name}</strong><p>{agent.description}</p>
         {agent.capabilities.length > 0 && <div className={styles.tags}>{agent.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div>}
         <small>{agent.connectedAt ? `Last check-in: ${new Date(agent.connectedAt).toLocaleString()}` : 'Connect it using the token shown when added.'}</small>
@@ -65,7 +65,7 @@ export function LinkedAgents({ owner, editable }: { owner: string; editable: boo
       </article>;
     })}</div>}
     {editable && loaded && <>
-      {token && <div className={styles.token} role="status"><div><Check size={17} /><strong>Connection key — shown once</strong></div><p>Add this key to your agent&apos;s server. It lets that agent check in to this profile; it cannot use your wallet or spend funds.</p><code>{token}</code><button type="button" onClick={() => navigator.clipboard.writeText(token).catch(() => setError('Could not copy the key.'))}><Copy size={15} /> COPY KEY</button><p>Send JSON <code>{'{}'}</code> to <code>POST /api/linked-agents/connect</code> with <code>Authorization: Bearer YOUR_KEY</code>. Optionally send capability tags such as <code>{'{"capabilities":["research","code"]}'}</code>. Keep the key private.</p></div>}
+      {token && <div className={styles.token} aria-live="polite"><div><Check size={17} /><strong>Connection key - shown once</strong></div><p>Add this key to your agent&apos;s server. It lets that agent check in to this profile; it cannot use your wallet or spend funds.</p><code>{token}</code><button type="button" onClick={() => navigator.clipboard.writeText(token).catch(() => setError('Could not copy the key.'))}><Copy size={15} /> COPY KEY</button><p>Send JSON <code>{'{}'}</code> to <code>POST /api/linked-agents/connect</code> with <code>Authorization: Bearer YOUR_KEY</code>. Optionally send capability tags such as <code>{'{"capabilities":["research","code"]}'}</code>. Keep the key private.</p></div>}
       {agents.length < 5 && <form className={styles.form} onSubmit={addAgent}><div><label htmlFor="linked-agent-name">AGENT NAME</label><input id="linked-agent-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={32} placeholder="My research bot" required /></div><div><label htmlFor="linked-agent-description">WHAT DOES IT DO?</label><input id="linked-agent-description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={240} placeholder="Finds useful information for my city projects" required /></div><button type="submit" disabled={busy}><Plus size={17} /> {busy ? 'CONNECTING…' : 'CONNECT AN AGENT'}</button></form>}
       <p className={styles.foot}>Your LANDVILLE yard robot is already tied to your profile. External agents appear publicly after their first check-in. Linking alone does not give them market or payment access.</p>
     </>}

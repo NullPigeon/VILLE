@@ -97,7 +97,7 @@ export default function AgentMarketPage() {
           {wallet.address && market && !market.agentExists && <div className="am-callout"><Bot /><span>Build your robot first. Its market loadout lives with it.</span><Link href={profile}>BUILD MY ROBOT <ArrowUpRight /></Link></div>}
           {market?.agentExists && !market.holderCheckAvailable && <p className="am-note">SCRAPY balance check is unavailable right now. Basic skills still work; holder access will update after a successful chain check.</p>}
           {error && <p className="am-error" role="alert">{error}</p>}
-          {notice && <p className="am-success" role="status">{notice}</p>}
+          {notice && <p className="am-success" aria-live="polite">{notice}</p>}
           <div className="am-skills">
             {AGENT_SKILLS.map((skill, index) => {
               const equipped = market?.holder || selected.includes(skill.id);
