@@ -8,7 +8,7 @@ import { registerExactEvmScheme as registerServerScheme } from '@x402/evm/exact/
 import { createPublicClient, createWalletClient, defineChain, erc20Abi, http, isAddress, parseUnits } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
-import { CITY_PAID_SERVICES, type CityPaidServiceId } from '@/lib/market-services';
+import { MARKET_SERVICES } from '@/lib/market-services';
 
 const NETWORK = 'eip155:4663';
 const USDG = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168';
@@ -17,8 +17,7 @@ const chain = defineChain({ id: activeRobinhoodChain.id, name: activeRobinhoodCh
 
 export function marketPaymentsConfigured() {
   return process.env.LANDVILLE_X402_ENABLED === 'true' &&
-    Boolean(process.env.LANDVILLE_X402_RELAYER_PRIVATE_KEY && process.env.LANDVILLE_X402_PAYOUT_ADDRESS &&
-      process.env.OPENAI_API_KEY && process.env.LANDVILLE_MARKET_MODEL);
+    Boolean(process.env.LANDVILLE_X402_RELAYER_PRIVATE_KEY && process.env.LANDVILLE_X402_PAYOUT_ADDRESS);
 }
 
 let serverPromise: Promise<x402HTTPResourceServer> | undefined;
@@ -65,7 +64,7 @@ async function createMarketPaymentServer() {
   };
   const resource = new x402ResourceServer(facilitatorClient);
   registerServerScheme(resource, { networks: [NETWORK] });
-  const routes: RoutesConfig = Object.fromEntries(CITY_PAID_SERVICES.map((service) => [
+  const routes: RoutesConfig = Object.fromEntries(MARKET_SERVICES.map((service) => [
     `POST /api/agent-market/call/${service.id}`,
     { accepts: { scheme: 'exact', network: NETWORK, payTo: payout,
       price: { asset: USDG, amount: parseUnits(service.priceUsd, decimals).toString(), extra: { assetTransferMethod: 'permit2' } },
@@ -77,6 +76,6 @@ async function createMarketPaymentServer() {
   return httpServer;
 }
 
-export function paidServiceEndpoint(id: CityPaidServiceId) {
+export function paidServiceEndpoint(id: string) {
   return `/api/agent-market/call/${id}`;
 }

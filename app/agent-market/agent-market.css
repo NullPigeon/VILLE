@@ -53,6 +53,14 @@
 .am-future{margin-top:45px}
 .am-directory,.am-services{margin-top:46px}
 .am-section-intro,.am-model-note{max-width:760px;font-size:13px;line-height:1.5;color:#bfcda8;margin:0 0 17px}
+.am-service-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:0 0 18px}
+.am-service-tabs{display:flex;flex-wrap:wrap;gap:6px;border:0;padding:0;margin:0;min-width:0}
+.am-service-tabs button{padding:10px 12px;border:1px solid #77895b;background:#233020;color:#c9d8ae;font:800 10px monospace;letter-spacing:.04em;cursor:pointer}
+.am-service-tabs button[aria-pressed=true]{border-color:#d4e77e;background:#d4e77e;color:#1a2812;box-shadow:3px 3px #0e160b}
+.am-service-controls input{width:min(260px,100%);padding:10px 12px;border:1px solid #83955c;background:#172216;color:#f5f0d6;font:12px Arial,sans-serif}
+.am-service-controls input:focus-visible,.am-service-tabs button:focus-visible{outline:3px solid #d9f379;outline-offset:2px}
+.am-model-id{display:block;overflow-wrap:anywhere;color:#adc18e;font:10px monospace}
+.am-history{margin-top:46px}.am-history-list{display:grid;gap:8px}.am-history-list details{border:1px solid #81925a;background:#22301f}.am-history-list summary{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 17px;cursor:pointer;color:#e8eac6;font:800 11px monospace}.am-history-list summary strong{font:900 20px Impact,Arial,sans-serif}.am-history-list pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;margin:0;color:#ebead1;font:12px/1.5 Arial,sans-serif}.am-history-list a{display:inline-flex;align-items:center;gap:5px;margin:0 16px 16px;color:#d9ee80;font:800 10px monospace}.am-history-list a svg{width:14px}
 .am-model-note{margin:13px 0 0;font:600 11px/1.5 monospace;color:#aebd99}
 .am-service-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .am-service-grid article{display:flex;flex-direction:column;min-height:220px;padding:17px;border:2px solid #8f9755;background:radial-gradient(circle at 100% 0,#d8af5733,transparent 55%),#263421;box-shadow:4px 5px #0c130c}

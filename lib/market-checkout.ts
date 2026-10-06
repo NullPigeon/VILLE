@@ -32,7 +32,7 @@ export async function buyMarketService(service: MarketCheckoutService, prompt: s
   if (!prompt.trim() || prompt.length > 2000) throw new Error('Write a request of 1–2000 characters.');
   if (service.endpoint !== `/api/agent-market/call/${service.id}`) throw new Error('Service endpoint mismatch.');
   const expectedAmount = parseUnits(service.priceUsd, 6).toString();
-  if (BigInt(expectedAmount) <= 0n || BigInt(expectedAmount) > 100_000n) throw new Error('Service price is outside the city checkout limit.');
+  if (BigInt(expectedAmount) <= 0n || BigInt(expectedAmount) > 2_000_000n) throw new Error('Service price is outside the city checkout limit.');
   const requestBody = JSON.stringify({ prompt: prompt.trim() });
   onStage('Checking the exact price…');
   const quoteResponse = await fetch(service.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody, cache: 'no-store' });

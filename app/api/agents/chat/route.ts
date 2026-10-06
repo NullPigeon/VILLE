@@ -5,6 +5,7 @@ import { generateYardReply } from '@/lib/server/personal-agent-ai';
 import { readEquippedSkills } from '@/lib/server/agent-market';
 import { existingYardExchange, readPersonalAgent, readYardMessages, yardMessage } from '@/lib/server/personal-agents';
 import { field, requestId } from '@/lib/server/validation';
+import { yardMarketSuggestion, yardMarketSuggestions } from '@/lib/server/yard-market';
 import type { YardMessage } from '@/lib/personal-agent';
 
 export const runtime = 'nodejs';
@@ -14,7 +15,8 @@ export async function GET(request: NextRequest) {
   try {
     const owner = requireWallet(request);
     if (!await readPersonalAgent(owner)) throw new ApiError(404, 'Build your robot first.');
-    return NextResponse.json({ messages: await readYardMessages(owner) }, { headers: { 'Cache-Control': 'private, no-store' } });
+    const messages = await readYardMessages(owner);
+    return NextResponse.json({ messages, suggestions: await yardMarketSuggestions(messages) }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) { return apiFailure(error); }
 }
 
@@ -35,7 +37,8 @@ export async function POST(request: NextRequest) {
         || !existing.some((message) => message.role === (body.summonMayor === true ? 'MAYOR' : 'AGENT'))) {
         throw new ApiError(409, 'This message ID already belongs to another request.');
       }
-      return NextResponse.json({ messages: existing }, { headers: { 'Cache-Control': 'private, no-store' } });
+      const suggestion = body.summonMayor === true ? null : await yardMarketSuggestion(text);
+      return NextResponse.json({ messages: existing, suggestions: Object.fromEntries(existing.filter((message) => message.role === 'AGENT').map((message) => [message.id, suggestion])) }, { headers: { 'Cache-Control': 'private, no-store' } });
     }
     const agent = await readPersonalAgent(owner);
     if (!agent) throw new ApiError(404, 'Build your robot first.');
@@ -46,13 +49,15 @@ export async function POST(request: NextRequest) {
       throw new ApiError(429, 'Your yard reached 20 AI messages for this UTC day.');
     }
     const equippedSkills = body.summonMayor === true ? [] : await readEquippedSkills(owner);
-    const reply = await generateYardReply(agent, history, text, body.summonMayor === true, equippedSkills);
+    const suggestion = body.summonMayor === true ? null : await yardMarketSuggestion(text);
+    const reply = await generateYardReply(agent, history, text, body.summonMayor === true, equippedSkills, suggestion);
     const rows = await rpc<Array<{ id: string; role: YardMessage['role']; body: string; created_at: string; owner_wallet: string; request_id: string }>>(
       'landville_save_yard_exchange', {
         p_owner: owner, p_request_id: id, p_body: text, p_reply: reply,
         p_role: body.summonMayor === true ? 'MAYOR' : 'AGENT',
       },
     );
-    return NextResponse.json({ messages: rows.map(yardMessage) }, { headers: { 'Cache-Control': 'private, no-store' } });
+    const messages = rows.map(yardMessage);
+    return NextResponse.json({ messages, suggestions: Object.fromEntries(messages.filter((message) => message.role === 'AGENT').map((message) => [message.id, suggestion])) }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) { return apiFailure(error); }
 }
