@@ -73,13 +73,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     try {
       settled = await server.processSettlement(payment.paymentPayload, payment.paymentRequirements,
         payment.declaredExtensions, { request: context, responseHeaders: {} }, undefined, payment.beforeHandlerSettlement);
-    } catch (error) {
+    } catch {
       await finishMarketOrder(authorizationHash, 'settlement_unknown').catch(() => undefined);
-      throw error;
+      throw new ApiError(503, 'Settlement status is unknown. Check your wallet before making another payment.');
     }
     if (!settled.success) {
       await finishMarketOrder(authorizationHash, 'settlement_unknown').catch(() => undefined);
-      return NextResponse.json(settled.response.body ?? { error: 'Settlement failed. Check your wallet before retrying.' },
+      return NextResponse.json({ error: 'Settlement could not be confirmed. Check your wallet before making another payment.' },
         { status: settled.response.status, headers: { ...settled.response.headers, 'Cache-Control': 'private, no-store' } });
     }
     await finishMarketOrder(authorizationHash, 'settled', { output, transaction: settled.transaction, payer: settled.payer || '' }).catch(() => undefined);
