@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
 import { enforceRate, rpc } from '@/lib/server/database';
 import { generateYardReply } from '@/lib/server/personal-agent-ai';
+import { readEquippedSkills } from '@/lib/server/agent-market';
 import { existingYardExchange, readPersonalAgent, readYardMessages, yardMessage } from '@/lib/server/personal-agents';
 import { field, requestId } from '@/lib/server/validation';
 import type { YardMessage } from '@/lib/personal-agent';
@@ -44,7 +45,8 @@ export async function POST(request: NextRequest) {
       && new Date(message.createdAt).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10)).length >= 20) {
       throw new ApiError(429, 'Your yard reached 20 AI messages for this UTC day.');
     }
-    const reply = await generateYardReply(agent, history, text, body.summonMayor === true);
+    const equippedSkills = body.summonMayor === true ? [] : await readEquippedSkills(owner);
+    const reply = await generateYardReply(agent, history, text, body.summonMayor === true, equippedSkills);
     const rows = await rpc<Array<{ id: string; role: YardMessage['role']; body: string; created_at: string; owner_wallet: string; request_id: string }>>(
       'landville_save_yard_exchange', {
         p_owner: owner, p_request_id: id, p_body: text, p_reply: reply,

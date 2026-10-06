@@ -30,6 +30,7 @@ values ('legacy-private-test', '@scrapy', 'Private archived reply', 'MAYOR', 'WO
 \ir ../supabase/migrations/20260914150000_module_image_choices.sql
 \ir ../supabase/migrations/20260915113000_weekly_module_likes.sql
 \ir ../supabase/migrations/20260923120000_personal_agents_and_yards.sql
+\ir ../supabase/migrations/20261006090000_agent_market_loadout.sql
 \ir ../supabase/migrations/20261002120000_city_points.sql
 -- Simulate sessions created under the original miner tiers before upgrading.
 with days as (select pg_catalog.timezone('utc',pg_catalog.clock_timestamp())::date as today)

@@ -95,6 +95,7 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
           {form.townMode !== 'OFF' && !autonomyAvailable && <p className={styles.warning}>Town automation is awaiting operator activation. Your setting will be saved, but the robot will stay quiet until it is enabled.</p>}
         </fieldset>
         <div className={styles.actions}><button className="lv-button primary" type="submit" disabled={saving}><Wrench /> {saving ? 'SAVING…' : created ? 'UPDATE ROBOT & YARD' : 'BUILD ROBOT & YARD'}</button>
+          {created && <Link className="lv-button" href="/agent-market">EQUIP MARKET SKILLS <ArrowUpRight /></Link>}
           {created && <Link className="lv-button" href={`/yard/${owner}`}>ENTER YOUR YARD <ArrowUpRight /></Link>}</div>
         {notice && <output>{notice}</output>}
       </form>
