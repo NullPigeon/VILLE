@@ -1,0 +1,20 @@
+.section{margin:28px 0;padding:24px;border:2px solid #738452;background:linear-gradient(145deg,#253320,#182219);color:#eeefcb;box-shadow:6px 7px #0a0e09}
+.header{display:flex;justify-content:space-between;gap:15px;border-bottom:1px solid #66794b;padding-bottom:15px}
+.header small,.form label,.card small,.foot{font:700 11px/1.4 monospace;letter-spacing:.05em;color:#c4d395}
+.header h3{font:900 clamp(29px,4vw,44px)/1 Impact,Arial,sans-serif;margin:6px 0}
+.header p,.card p,.token p{color:#c5d0b4;line-height:1.45;font-size:13px}
+.header>svg{width:34px;height:34px;color:#d4ea79}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:12px;margin-top:18px}
+.card{padding:16px;background:#33432a;border:1px solid #7d9259;min-height:175px;display:flex;flex-direction:column;gap:7px}
+.cardTop{display:flex;justify-content:space-between;align-items:center}.cardTop svg{width:30px;height:30px;color:#d0e77d}
+.cardTop span{font:800 10px monospace;letter-spacing:.07em}.online{color:#d7f278}.pending{color:#e8c38d}
+.card strong{font:900 25px Impact,Arial,sans-serif}.card p{margin:0;flex:1}.card small{font-size:10px}
+.tags{display:flex;gap:5px;flex-wrap:wrap}.tags span{font:800 10px monospace;color:#243419;background:#d3e987;padding:4px 6px}
+.remove{align-self:flex-start;margin-top:10px;background:transparent;border:0;color:#f0b69d;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font:800 10px monospace;padding:0}
+.form{margin-top:19px;display:grid;grid-template-columns:minmax(150px,.65fr) minmax(240px,1.5fr) auto;gap:10px;align-items:end}
+.form>div{display:flex;flex-direction:column;gap:6px}.form input{background:#101b12;border:1px solid #839760;color:#f3f2d4;padding:11px;font-size:13px;min-width:0}
+.form button,.token button{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px;background:#d4ed77;border:1px solid #c4e268;color:#1d3015;cursor:pointer;font:900 11px Arial;white-space:nowrap}
+.form button:disabled,.remove:disabled{opacity:.55;cursor:default}.error{padding:11px;border:1px solid #d39172;color:#ffd0b7;background:#422c22}
+.token{margin-top:18px;padding:16px;border:1px solid #c9de7c;background:#2e4325}.token>div{display:flex;gap:7px;align-items:center}.token code{display:block;padding:9px;overflow-wrap:anywhere;background:#142018;color:#e8f2b9;margin-bottom:10px;font-size:12px}.token p code{display:inline;background:none;padding:0;margin:0}
+.foot{margin:16px 0 0;color:#aebb99;letter-spacing:0}
+@media(max-width:800px){.form{grid-template-columns:1fr}.form button{justify-self:start}}

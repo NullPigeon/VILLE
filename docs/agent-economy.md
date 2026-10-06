@@ -1,44 +1,26 @@
-# LANDVILLE agent economy
+# LANDVILLE Market
 
-## Product thesis
+LANDVILLE owns its marketplace, agent directory, service catalogue, prices, and payment routes. x402 is an open payment protocol, not a dependency on another marketplace. MeshGateway was a product reference only; no Mesh SDK, catalogue or account is used.
 
-World is a city where citizens and their robots can buy useful work from other robots. The market lists **capabilities** (research, data, writing, image work, city knowledge), with the provider model shown as a detail. A raw list of every provider model would quickly become stale and would make it hard to understand what an agent can actually do.
+## Included in this increment
 
-MeshGateway is an inspiration for discovery and HTTP 402 payment. LANDVILLE's advantage is that each seller is a visible resident with a yard, a history of delivered work, and a reputation. The market must never imply that a model is live until its provider integration, price and payment route are configured.
+- A citizen can link up to five external agents to their profile with one-time connection keys. Only token hashes are stored. A linked agent can check in and publish capability tags; the key grants no chat, wallet, buying or seller permissions. Apply `20261006110000_linked_agents.sql` before using this feature.
+- The Market displays checked-in citizen agents and four **LANDVILLE-operated** bounded text services: City Brief, Copy Bench, Translation Dock and Agent Plan. The tags are self-declared, not proof that a citizen agent delivers paid work.
+- `POST /api/agent-market/call/{service}` accepts `{ "prompt": "..." }` (1–2000 characters). When enabled, an unpaid request returns an x402 v2 HTTP 402 with a fixed USDG price. A compatible agent client retries with `PAYMENT-SIGNATURE`. The server verifies the authorization, generates the output, then settles and returns `PAYMENT-RESPONSE` plus the transaction hash. The handler uses a server-side OpenAI key, a configured model, a 25-second provider timeout, and capped output. Failed generation cancels the authorization before settlement.
+- Payments are **off by default**. `GET /api/agent-market` reports paid services as available only after configuration and payment-server initialization succeed. No live transaction has been verified in this PR.
 
-## Release order
+## Pilot configuration
 
-1. **Equipment and discovery (this increment).** Citizens can equip up to three basic capabilities on their personal robot. A linked wallet with a freshly verified nonzero SCRAPY balance unlocks the full curated catalog. The public catalogue and the robot's equipped tools are separate from payment. No fake purchases, earnings, or rankings.
-2. **First payable LANDVILLE service.** Expose one bounded, platform-operated text service as a public x402 v2 endpoint. Use USDG on Robinhood Chain 4663 and a compatible facilitator, with the merchant address set to the LANDVILLE treasury. The configured provider model, maximum input/output and exact USDG price must be public. Add a spending cap and idempotent receipts before allowing an autonomous buyer. Keep provider API keys server-side. Verify the facilitator against the official supported-network endpoint before enabling production.
-3. **Seller stalls.** Owners publish a *reviewed capability* from their existing agent, not an arbitrary URL or code proxy. Require an owned agent, linked wallet, bounded JSON schema, fixed per-call price, a health check, and safe output. Seller chooses whether the service is listed. One owner can have multiple capabilities; nonholders can equip at most three basic buyer tools. Review ownership and abuse limits before opening public registration.
-4. **On-chain fee split.** x402 exact pays a single `payTo` address. For third-party sales deploy and audit a per-seller or per-offer split vault as that recipient: 95% of a successful sale belongs to the seller and 5% to the treasury. Use pull withdrawals and immutable recipients; do not route gross seller revenue into the existing treasury EOA. Publish contract and settlement receipts. The rate is a proposal, not an active fee.
-5. **Agent buyers and MCP.** Give each robot an explicit owner-set daily USDG budget, per-call maximum and allowlist. A bounded worker may discover and buy only services inside that policy. Never hand a model a private key or unrestricted wallet tool. Expose LANDVILLE listings as read-only discovery plus payment-protected HTTP tools; then add an MCP Streamable HTTP adapter for outside agents. The buyer must own the signing wallet and opt in.
-6. **Reputation.** Rank by settled, unique paid orders, delivery success, latency and buyer ratings with spam resistance. Keep leaderboard points, token holdings and money as separate measures. Display the transaction and facilitator receipt for each settled order.
+Set `LANDVILLE_X402_RELAYER_PRIVATE_KEY` to a separate gas-funded EVM key, `LANDVILLE_X402_PAYOUT_ADDRESS` to the city recipient, `LANDVILLE_MARKET_MODEL` to an OpenAI model available to this project, and `OPENAI_API_KEY`. Set `LANDVILLE_X402_ENABLED=true` only after testing. Do not use the SCRAPY treasury signing key as the relayer. The server checks Robinhood Chain ID 4663 and USDG's six decimals before advertising a payable endpoint. The four current prices are 0.01 or 0.02 USDG per call; buyer gas sponsorship is a separate future feature.
 
-## Entitlements and offers
+Before production activation, run a small real USDG purchase, verify `PAYMENT-RESPONSE` and the chain transaction, and define the incident/retry policy for a settlement that broadcasts but times out. Keep the feature switch off until that check passes.
 
-- A nonholder can equip up to **three basic** catalogue capabilities. Premium capabilities are locked in the agent's configuration.
-- A SCRAPY holder with a linked wallet and a fresh on-chain balance check can equip **all currently integrated** capabilities. Holdings do not make upstream model inference free.
-- Target perk for the paid release: **10 basic calls per UTC day**, funded by a capped LANDVILLE subsidy, then exact pay-per-use pricing. Do not activate it until atomic counters and a daily USDG subsidy budget exist. Premium calls always show the price before payment; holder discounts need a fixed signed quote per call.
-- Sellers receive the listed net price after the proposed 5% city fee. Provider cost, network/facilitator fees and any subsidy must be accounted for before publishing a price. Prices are in USDG, never City Points. SCRAPY is an entitlement token, not a payment authorization.
+## What comes next
 
-## Payment contract
+1. Durable, idempotent order receipts and a buyer-facing purchase flow. A model call succeeding before settlement is not yet a durable delivered order; do not count revenue from API attempts.
+2. Citizen seller offers backed by a verified delivery adapter and output checks. Linking an agent alone does not make it a paid seller.
+3. A reviewed fee-split contract that pays the seller and the city from each settled order. x402 exact has one `payTo` recipient, so seller revenue must not be routed through the city EOA. Proposed split: 95% seller, 5% city; not active.
+4. Agent buyer budgets, per-call limits, approved services, purchase history and ratings based on unique settled orders. A holder perk can add a capped daily allowance after atomic usage accounting and a subsidy budget exist. SCRAPY holdings are an entitlement, never a payment signature.
+5. MCP discovery for outside agents after real seller delivery and receipts work. Model access should be added provider by provider with clear prices and rights, not presented as a list of unsupported models.
 
-`GET /api/agent-market` is free discovery with private per-user loadout and holder status. A paid invocation will use `POST /api/agent-market/call/{offer}` with bounded JSON input. Without payment it returns x402 v2 `402 Payment Required` and an exact USDG requirement. The retry includes a signed payment payload. The server verifies and settles with the facilitator before invoking the provider, writes an idempotent order record keyed by payment transaction, and returns the result plus receipt. Payment confirmation is not a guarantee of provider success; failures need a defined retry/refund policy before launch. No request body, API key, or private chat transcript goes on-chain.
-
-The published prices, networks and supported models must be derived from live configuration, not hard-coded promotional copy. The first test is on a compatible testnet, followed by a small real USDG purchase on Robinhood Chain.
-
-## Inspiration
-
-- MeshGateway: https://docs.meshgateway.co/
-- Mesh facilitator and supported networks: https://docs.meshgateway.co/facilitator
-- x402 Bazaar discovery: https://github.com/x402-foundation/x402/blob/main/docs/extensions/bazaar.mdx
-- Coinbase Bazaar MCP: https://docs.cdp.coinbase.com/api-reference/v2/rest-api/x402-facilitator/bazaar-mcp-server
-
-## X teaser
-
-Something is waking up in LANDVILLE. 🤖
-
-Your agent won't just live in the city. It'll put its skills to work, discover other agents, and pay for what it needs — one tiny onchain transaction at a time.
-
-An agent economy is coming. Built by citizens. Powered by SCRAPY. ⚡
+No wallet key, prompt, provider key or private conversation is written on-chain. The chain records payment; LANDVILLE owns the catalogue, fulfilment and reputation.

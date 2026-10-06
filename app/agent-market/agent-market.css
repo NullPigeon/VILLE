@@ -51,6 +51,13 @@
 .am-side-steps li{display:flex;gap:10px;align-items:center;border-top:1px solid #546648;padding:10px 0;font-size:12px}
 .am-side-steps li b{font:900 15px monospace;color:#d5e881}
 .am-future{margin-top:45px}
+.am-directory,.am-services{margin-top:46px}
+.am-section-intro,.am-model-note{max-width:760px;font-size:13px;line-height:1.5;color:#bfcda8;margin:0 0 17px}
+.am-model-note{margin:13px 0 0;font:600 11px/1.5 monospace;color:#aebd99}
+.am-service-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.am-service-grid article{display:flex;flex-direction:column;min-height:220px;padding:17px;border:2px solid #8f9755;background:radial-gradient(circle at 100% 0,#d8af5733,transparent 55%),#263421;box-shadow:4px 5px #0c130c}
+.am-service-top,.am-service-bottom{display:flex;justify-content:space-between;gap:8px}.am-service-top{color:#d5e987;font:800 9px monospace;letter-spacing:.08em}.am-service-grid h3,.am-directory-grid h3{font:900 31px/1 Impact,Arial,sans-serif;margin:17px 0 5px}.am-service-grid p,.am-directory-grid p{font-size:12px;line-height:1.45;color:#bdc9ad;flex:1}.am-service-bottom{flex-direction:column;margin-top:12px}.am-service-bottom strong{color:#e2cf9f;font:800 15px monospace}.am-service-bottom small{font-size:9px}.am-service-bottom code{overflow-wrap:anywhere;color:#b9cf85;font-size:10px}.am-directory-grid a,.am-directory .am-section-head a,.am-empty-network a{display:inline-flex;align-items:center;gap:5px;color:#d7f079;font:900 10px monospace;letter-spacing:.04em}.am-directory-grid a svg,.am-directory .am-section-head a svg,.am-empty-network a svg{width:14px;height:14px}
+.am-directory-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.am-directory-grid article{min-height:190px;padding:17px;display:flex;flex-direction:column;border:2px solid #a78651;background:linear-gradient(130deg,#3b3d26,#252e20);box-shadow:4px 5px #0b110b}.am-directory-grid article>div:first-child{display:flex;align-items:center;gap:8px;color:#d4e780;font:800 9px monospace}.am-directory-grid article>div:first-child svg{width:25px;height:25px}.am-directory-grid h3{margin-top:12px}.am-directory-tags{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0 13px}.am-directory-tags span{font:800 9px monospace;color:#263718;background:#ccdf88;padding:4px 6px}.am-empty-network{display:flex;align-items:center;gap:15px;padding:21px;border:1px dashed #7a8c5c;background:#202b1e}.am-empty-network>svg{color:#d4eb83;width:30px;flex:none}.am-empty-network p{flex:1;font-size:13px;color:#c9d5b4}
 .am-future-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
 .am-future article{min-height:165px;padding:20px;border:2px dashed #6a7351;background:#1c251b}
 .am-future article>span{display:flex;gap:8px;align-items:center;color:#d4af7d}
@@ -70,4 +77,6 @@
 .am-note>svg{width:17px;flex:none}
 html[data-city-motion=paused] .am-page *,html[data-city-motion=paused] .am-page *:before,html[data-city-motion=paused] .am-page *:after{transition:none!important;animation:none!important}
 @media(max-width:950px){.am-grid{grid-template-columns:1fr}.am-side{grid-template-columns:repeat(2,minmax(0,1fr))}.am-hero-art{height:225px}.am-hero-art .scrapy-bot{height:140px}}
-@media(max-width:650px){.am-hero{grid-template-columns:1fr;min-height:0}.am-hero-art{display:none}.am-hero h2{font-size:44px}.am-skills,.am-side,.am-future-grid{grid-template-columns:1fr}.am-save,.am-footer{align-items:stretch;flex-direction:column}.am-callout{flex-wrap:wrap}}
+@media(max-width:1150px){.am-service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:800px){.am-directory-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.am-hero{grid-template-columns:1fr;min-height:0}.am-hero-art{display:none}.am-hero h2{font-size:44px}.am-skills,.am-side,.am-future-grid,.am-service-grid,.am-directory-grid{grid-template-columns:1fr}.am-save,.am-footer,.am-empty-network{align-items:stretch;flex-direction:column}.am-callout{flex-wrap:wrap}.am-directory .am-section-head{align-items:flex-start;flex-direction:column}}

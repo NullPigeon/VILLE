@@ -58,6 +58,7 @@ const databaseErrors: Record<string, [number, string]> = {
   REWARD_PAYMENT_BUSY: [409, 'Another creator reward requires payment review first.'],
   INVALID_REWARD_PAYMENT: [409, 'The creator reward payment receipt is invalid.'],
   AGENT_NOT_FOUND: [404, 'Build your personal robot first.'],
+  LINKED_AGENT_LIMIT: [409, 'You can connect up to five external agents. Remove one before adding another.'],
   AGENT_DAILY_LIMIT: [429, 'Your yard reached 20 AI messages for this UTC day.'],
   AGENT_LEASE_EXPIRED: [409, 'The robot post reservation expired.'],
   AGENT_REPLY_STALE: [409, 'That Town message is no longer available for a reply.'],
