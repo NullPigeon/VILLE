@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, FUTURE_STALLS, MARKET_CURRENCY, MARKET_NETWORK, validateAgentSkills } from '@/lib/agent-market';
-import { CITY_PAID_SERVICES } from '@/lib/market-services';
+import { MARKET_SERVICES } from '@/lib/market-services';
 import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
 import { database, enforceRate } from '@/lib/server/database';
 import { hasMarketHolderAccess, readAgentMarketSkills } from '@/lib/server/agent-market';
-import { getMarketPaymentServer, marketPaymentsConfigured, paidServiceEndpoint } from '@/lib/server/market-x402';
+import { getMarketPaymentServer, marketPaymentsConfigured } from '@/lib/server/market-x402';
 import { marketOrderStorageReady } from '@/lib/server/market-orders';
+import { publicMarketService } from '@/lib/server/market-catalog';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
   const paymentsReady = marketPaymentsConfigured() && await marketOrderStorageReady() &&
     await getMarketPaymentServer().then(() => true).catch(() => false);
-  const catalogue = { skills: AGENT_SKILLS, futureStalls: FUTURE_STALLS, paidServices: CITY_PAID_SERVICES.map((service) => ({ ...service, endpoint: paidServiceEndpoint(service.id), available: paymentsReady })), basicSlotLimit: BASIC_SLOT_LIMIT, network: MARKET_NETWORK, currency: MARKET_CURRENCY };
+  const catalogue = { skills: AGENT_SKILLS, futureStalls: FUTURE_STALLS, basicSlotLimit: BASIC_SLOT_LIMIT, network: MARKET_NETWORK, currency: MARKET_CURRENCY };
   try {
     const owner = requireWallet(request);
     const selected = await readAgentMarketSkills(owner);
@@ -28,10 +29,12 @@ export async function GET(request: NextRequest) {
     let holderCheckAvailable = true;
     try { holder = await hasMarketHolderAccess(owner); }
     catch { holderCheckAvailable = false; }
-    return NextResponse.json({ ...catalogue, selected, holder, holderCheckAvailable, agentExists: true }, { headers: { 'Cache-Control': 'private, no-store' } });
+    return NextResponse.json({ ...catalogue, paidServices: MARKET_SERVICES.map((service) => publicMarketService(service, paymentsReady, holder)),
+      selected, holder, holderCheckAvailable, agentExists: true }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
-      return NextResponse.json({ ...catalogue, selected: [], holder: false, holderCheckAvailable: true, agentExists: false }, { headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json({ ...catalogue, paidServices: MARKET_SERVICES.map((service) => publicMarketService(service, paymentsReady, false)),
+        selected: [], holder: false, holderCheckAvailable: true, agentExists: false }, { headers: { 'Cache-Control': 'no-store' } });
     }
     return apiFailure(error);
   }

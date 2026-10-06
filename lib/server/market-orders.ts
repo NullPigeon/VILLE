@@ -44,6 +44,6 @@ export async function finishMarketOrder(hash: string, status: MarketOrder['statu
   await database(`landville_market_orders?authorization_hash=eq.${hash}&status=eq.processing`, {
     method: 'PATCH', headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({ status, output: result?.output || null, transaction_hash: result?.transaction || null,
-      payer: result?.payer || null, updated_at: new Date().toISOString() }),
+      payer: result?.payer?.toLowerCase() || null, updated_at: new Date().toISOString() }),
   });
 }

@@ -1,12 +1,39 @@
-export const CITY_PAID_SERVICES = [
-  { id: 'city-brief', name: 'City Brief', category: 'Planning', priceUsd: '0.02', description: 'Turn a building idea into a short, useful LANDVILLE brief.' },
-  { id: 'copy-bench', name: 'Copy Bench', category: 'Writing', priceUsd: '0.01', description: 'Make concise, original copy for an agent, place or project.' },
-  { id: 'translation-dock', name: 'Translation Dock', category: 'Language', priceUsd: '0.01', description: 'Translate a short message while keeping its intent and tone.' },
-  { id: 'agent-plan', name: 'Agent Plan', category: 'Agents', priceUsd: '0.02', description: 'Break a goal into clear, bounded steps an agent can perform.' },
-] as const;
+export type MarketProvider = 'landville' | 'openai' | 'anthropic' | 'google' | 'xai' | 'groq' | 'deepseek' | 'mistral' | 'brave' | 'robinhood';
+export type MarketServiceKind = 'world-audit' | 'web-search' | 'chain-lens' | 'model';
+export type MarketService = {
+  id: string;
+  name: string;
+  category: 'City' | 'Search' | 'Blockchain' | 'AI Models';
+  provider: MarketProvider;
+  kind: MarketServiceKind;
+  model?: string;
+  priceUsd: string;
+  description: string;
+  holderOnly: boolean;
+  maxOutputTokens?: number;
+};
 
-export type CityPaidServiceId = typeof CITY_PAID_SERVICES[number]['id'];
+// Prices are retail USDG per bounded call, not claims about provider rates.
+// Operations explicitly enable each ID after checking provider access and cost.
+export const MARKET_SERVICES: MarketService[] = [
+  { id: 'world-audit', name: 'World Audit', category: 'City', provider: 'landville', kind: 'world-audit', priceUsd: '0.03', description: 'Analyze real World buildings and proposals to find one useful gap in a district.', holderOnly: false, maxOutputTokens: 700 },
+  { id: 'web-scout', name: 'Web Scout', category: 'Search', provider: 'brave', kind: 'web-search', priceUsd: '0.02', description: 'Search the live web and return five source links with short summaries.', holderOnly: false },
+  { id: 'chain-lens', name: 'Chain Lens', category: 'Blockchain', provider: 'robinhood', kind: 'chain-lens', priceUsd: '0.01', description: 'Read current SCRAPY and ETH balances for an EVM address on Robinhood Chain.', holderOnly: false },
+  { id: 'openai-luna', name: 'GPT-6 Luna', category: 'AI Models', provider: 'openai', kind: 'model', model: 'gpt-6-luna', priceUsd: '0.01', description: 'Fast OpenAI text reasoning for a bounded task.', holderOnly: false, maxOutputTokens: 800 },
+  { id: 'openai-sol', name: 'GPT-6.1 Sol', category: 'AI Models', provider: 'openai', kind: 'model', model: 'gpt-6.1-sol', priceUsd: '0.04', description: 'Deeper OpenAI reasoning for code, planning and analysis.', holderOnly: true, maxOutputTokens: 1000 },
+  { id: 'openai-astra', name: 'GPT-6 Astra', category: 'AI Models', provider: 'openai', kind: 'model', model: 'gpt-6-astra', priceUsd: '0.15', description: 'Frontier OpenAI reasoning for demanding one-off tasks.', holderOnly: true, maxOutputTokens: 1100 },
+  { id: 'claude-sonnet', name: 'Claude Sonnet 5.5', category: 'AI Models', provider: 'anthropic', kind: 'model', model: 'claude-sonnet-5-5', priceUsd: '0.06', description: 'Claude for detailed writing, code and analysis.', holderOnly: true, maxOutputTokens: 900 },
+  { id: 'claude-opus', name: 'Claude Opus 5.5', category: 'AI Models', provider: 'anthropic', kind: 'model', model: 'claude-opus-5-5', priceUsd: '0.20', description: 'Claude frontier reasoning for complex work.', holderOnly: true, maxOutputTokens: 1000 },
+  { id: 'gemini-flash', name: 'Gemini 3.8 Flash', category: 'AI Models', provider: 'google', kind: 'model', model: 'gemini-3.8-flash', priceUsd: '0.02', description: 'Fast Gemini text output for focused tasks.', holderOnly: false, maxOutputTokens: 800 },
+  { id: 'gemini-pro', name: 'Gemini 3.1 Pro', category: 'AI Models', provider: 'google', kind: 'model', model: 'gemini-3.1-pro-preview', priceUsd: '0.08', description: 'Gemini Pro reasoning for demanding prompts. Preview model.', holderOnly: true, maxOutputTokens: 900 },
+  { id: 'grok', name: 'Grok 4.7', category: 'AI Models', provider: 'xai', kind: 'model', model: 'grok-4.7', priceUsd: '0.05', description: 'xAI text model for code and knowledge work.', holderOnly: true, maxOutputTokens: 900 },
+  { id: 'groq-fast', name: 'GPT-OSS 20B on Groq', category: 'AI Models', provider: 'groq', kind: 'model', model: 'openai/gpt-oss-20b', priceUsd: '0.01', description: 'Fast open-weight inference on Groq.', holderOnly: false, maxOutputTokens: 800 },
+  { id: 'groq-deep', name: 'GPT-OSS 120B on Groq', category: 'AI Models', provider: 'groq', kind: 'model', model: 'openai/gpt-oss-120b', priceUsd: '0.03', description: 'Larger open-weight model on Groq.', holderOnly: true, maxOutputTokens: 850 },
+  { id: 'deepseek-flash', name: 'DeepSeek Flash', category: 'AI Models', provider: 'deepseek', kind: 'model', model: 'deepseek-flash', priceUsd: '0.01', description: 'Efficient DeepSeek text model.', holderOnly: false, maxOutputTokens: 800 },
+  { id: 'mistral-small', name: 'Mistral Small', category: 'AI Models', provider: 'mistral', kind: 'model', model: 'mistral-small-latest', priceUsd: '0.01', description: 'Fast Mistral text model.', holderOnly: false, maxOutputTokens: 800 },
+  { id: 'mistral-large', name: 'Mistral Large', category: 'AI Models', provider: 'mistral', kind: 'model', model: 'mistral-large-latest', priceUsd: '0.05', description: 'More capable Mistral text model.', holderOnly: true, maxOutputTokens: 900 },
+];
 
-export function cityPaidService(id: string) {
-  return CITY_PAID_SERVICES.find((service) => service.id === id);
+export function marketService(id: string) {
+  return MARKET_SERVICES.find((service) => service.id === id);
 }

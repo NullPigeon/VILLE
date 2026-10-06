@@ -1,26 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cityPaidService } from '@/lib/market-services';
-import { ApiError, apiFailure, jsonBody, requireMutation } from '@/lib/server/api';
+import { marketService } from '@/lib/market-services';
+import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
 import { getMarketPaymentServer, marketPaymentsConfigured } from '@/lib/server/market-x402';
 import { claimMarketOrder, finishMarketOrder, marketHash, marketOrder, marketOrderStorageReady } from '@/lib/server/market-orders';
-import { performMarketWork } from '@/lib/server/market-work';
+import { performMarketWork, validateMarketPrompt } from '@/lib/server/market-work';
+import { marketServiceConfigured } from '@/lib/server/market-catalog';
+import { hasMarketHolderAccess } from '@/lib/server/agent-market';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ service: string }> }) {
   const { service: id } = await params;
-  const service = cityPaidService(id);
+  const service = marketService(id);
   if (!service) return NextResponse.json({ error: 'Service not found.' }, { status: 404 });
   if (!marketPaymentsConfigured()) return NextResponse.json({ error: 'City payments are not open yet.' }, { status: 503 });
   try {
     requireMutation(request);
+    if (!marketServiceConfigured(service)) throw new ApiError(503, 'This service is not open yet.');
+    if (service.holderOnly) {
+      const owner = requireWallet(request);
+      if (!await hasMarketHolderAccess(owner)) throw new ApiError(403, 'Hold SCRAPY in your linked wallet to use this model.');
+    }
     const body = await jsonBody(request);
     if (Object.keys(body).length !== 1 || typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000) {
       throw new ApiError(400, 'Send a prompt of 1–2000 characters.');
     }
     if (!await marketOrderStorageReady()) throw new ApiError(503, 'Market order storage is not ready.');
     const prompt = body.prompt.trim();
+    validateMarketPrompt(service, prompt);
     const signature = request.headers.get('payment-signature');
     const authorizationHash = signature ? marketHash(signature) : null;
     const promptHash = marketHash(prompt);
@@ -63,7 +71,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     let output: string;
     try {
-      output = await performMarketWork(service.id, prompt, authorizationHash);
+      output = await performMarketWork(service, prompt, authorizationHash);
     } catch (error) {
       await payment.cancellationDispatcher.cancel({ reason: 'handler_failed' }).catch(() => undefined);
       await finishMarketOrder(authorizationHash, 'failed').catch(() => undefined);
