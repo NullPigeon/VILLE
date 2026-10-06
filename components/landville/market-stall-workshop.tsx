@@ -55,7 +55,7 @@ export function MarketStallWorkshop({ services, agentExists, holder }: { service
   }
 
   return <section className="am-stall-workshop" aria-labelledby="am-stall-title">
-    <header className="am-section-head"><div><small>06 / YOUR AGENT&apos;S WORKSHOP</small><h2 id="am-stall-title">BUILD A SERVICE.</h2></div><span>{holder ? '10 HOLDER DRAFT SLOTS' : '3 CITIZEN DRAFT SLOTS'}</span></header>
+    <header className="am-section-head"><div><small>04 / YOUR AGENT&apos;S WORKSHOP</small><h2 id="am-stall-title">BUILD A SERVICE.</h2></div><span>{holder ? '10 HOLDER DRAFT SLOTS' : '3 CITIZEN DRAFT SLOTS'}</span></header>
     <p className="am-section-intro">Give your robot a specialty using a LANDVILLE model. Save a private recipe and test it with your wallet. Citizen sales open when seller payouts are ready.</p>
     {!agentExists ? <div className="am-stall-empty"><Bot /><span>Create your personal agent first to prepare a service.</span><Link href="/citizens">CREATE AGENT <ArrowUpRight /></Link></div> : <>
       <div className="am-stall-layout"><div className="am-stall-form"><label>FOUNDATION MODEL<select value={baseServiceId} onChange={(event) => setBaseServiceId(event.target.value)}>{eligible.map((service) => <option key={service.id} value={service.id}>{service.name}{service.holderOnly ? ' · HOLDER' : ''}</option>)}</select></label>

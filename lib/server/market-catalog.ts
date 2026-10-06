@@ -10,6 +10,7 @@ const providerKeys: Partial<Record<MarketProvider, string>> = {
   deepseek: 'DEEPSEEK_API_KEY',
   mistral: 'MISTRAL_API_KEY',
   brave: 'BRAVE_SEARCH_API_KEY',
+  firecrawl: 'FIRECRAWL_API_KEY',
 };
 
 export function marketProviderKey(provider: MarketProvider) {
