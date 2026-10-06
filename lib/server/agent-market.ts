@@ -1,5 +1,5 @@
 import 'server-only';
-import { AGENT_SKILLS, DEFAULT_AGENT_SKILLS, availableAgentSkills, isAgentSkillId, type AgentSkillId } from '@/lib/agent-market';
+import { AGENT_SKILLS, DEFAULT_AGENT_SKILLS, availableAgentSkills, hasMarketHolderBalance, isAgentSkillId, type AgentSkillId } from '@/lib/agent-market';
 import { ApiError } from '@/lib/server/api';
 import { database } from '@/lib/server/database';
 import { readVotingSnapshot } from '@/lib/server/voting';
@@ -17,7 +17,7 @@ export async function readAgentMarketSkills(owner: string): Promise<AgentSkillId
 
 export async function hasMarketHolderAccess(owner: string) {
   const snapshot = await readVotingSnapshot(owner);
-  return snapshot.source === 'chain' && BigInt(snapshot.tokenBalance) > 0n;
+  return snapshot.source === 'chain' && hasMarketHolderBalance(snapshot.tokenBalance);
 }
 
 export async function readEquippedSkills(owner: string) {

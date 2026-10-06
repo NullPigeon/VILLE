@@ -8,7 +8,7 @@ import { marketServiceConfigured } from '@/lib/server/market-catalog';
 import { hasMarketHolderAccess } from '@/lib/server/agent-market';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ service: string }> }) {
   const { service: id } = await params;

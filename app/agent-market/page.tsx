@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { ArrowUpRight, Bot, Check, CircleDollarSign, LockKeyhole, RadioTower, ShoppingBag, Sparkles, Wallet } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
+import { MarketStallWorkshop } from '@/components/landville/market-stall-workshop';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, FUTURE_STALLS, MARKET_CURRENCY, MARKET_NETWORK, type AgentSkillId } from '@/lib/agent-market';
 import { shortWallet } from '@/lib/governance';
@@ -12,12 +13,12 @@ import { buyMarketService, type MarketReceipt } from '@/lib/market-checkout';
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import './agent-market.css';
 
-type Service = { id: string; name: string; category: string; provider: string; model: string | null;
+type Service = { id: string; name: string; category: string; provider: string; kind: string; model: string | null;
   priceUsd: string; description: string; endpoint: string; available: boolean; holderOnly: boolean; status: 'open' | 'holder' | 'preparing' };
 type MarketState = { selected: AgentSkillId[]; holder: boolean; holderCheckAvailable: boolean; agentExists: boolean; paidServices: Service[] };
 type CitizenAgent = { id: string; ownerWallet: string; name: string; description: string; capabilities: string[]; connectedAt: string };
 type MarketOrder = { serviceId: string; output: string | null; transaction: string | null; createdAt: string };
-const categories = ['All', 'AI Models', 'City', 'Search', 'Blockchain'];
+const categories = ['All', 'AI Models', 'Search', 'Research', 'Blockchain', 'City'];
 
 export default function AgentMarketPage() {
   const wallet = useWallet();
@@ -37,6 +38,7 @@ export default function AgentMarketPage() {
   const [receipt, setReceipt] = useState<MarketReceipt | null>(null);
   const [buying, setBuying] = useState(false);
   const [orders, setOrders] = useState<MarketOrder[]>([]);
+  const prefilled = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -75,6 +77,19 @@ export default function AgentMarketPage() {
     return () => { active = false; };
   }, [wallet.address]);
   useEffect(() => { if (checkoutId) document.getElementById('market-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [checkoutId]);
+  useEffect(() => {
+    if (!market || prefilled.current) return;
+    prefilled.current = true;
+    const timer = window.setTimeout(() => {
+      const query = new URLSearchParams(window.location.search);
+      const id = query.get('service');
+      if (id && market.paidServices.some((item) => item.id === id)) {
+        setCheckoutId(id);
+        setPrompt((query.get('prompt') || '').slice(0, 2000));
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [market]);
 
   const profile = wallet.address ? `/citizens/${wallet.address}` : '/citizens';
   const changed = market && [...selected].sort().join('|') !== [...market.selected].sort().join('|');
@@ -141,9 +156,9 @@ export default function AgentMarketPage() {
           </button>;
         })}</div>
         {market?.agentExists && !market.holder && <div className="am-save"><p>These skills guide private chat. They do not buy models or call outside services.</p><button type="button" onClick={save} disabled={!changed || saving}>{saving ? 'SAVING...' : 'SAVE ROBOT LOADOUT'} <ArrowUpRight /></button></div>}
-        {market?.holder && <p className="am-note"><Check /> Your linked wallet holds SCRAPY. All four chat skills are active.</p>}
+        {market?.holder && <p className="am-note"><Check /> Your linked wallet holds at least 1M SCRAPY. All {AGENT_SKILLS.length} chat skills are active.</p>}
       </section><aside className="am-side">
-        <div className="am-side-card"><small>SCRAPY HOLDER SIGNAL</small><h3>MORE ROOM TO WORK.</h3><p>Holding SCRAPY unlocks all chat skills and access to advanced model listings. Every paid call still needs wallet approval.</p><Link href="/docs/scrapy-token">ABOUT SCRAPY <ArrowUpRight /></Link></div>
+        <div className="am-side-card"><small>1M SCRAPY HOLDER SIGNAL</small><h3>MORE ROOM TO WORK.</h3><p>A verified balance of at least 1 million SCRAPY unlocks all chat skills and advanced model listings. Every paid call still needs wallet approval.</p><Link href="/docs/scrapy-token">ABOUT SCRAPY <ArrowUpRight /></Link></div>
         <div className="am-side-card am-side-steps"><small>HOW THE MARKET WORKS</small><ol><li><b>01</b> Pick a model or live tool</li><li><b>02</b> See the exact USDG price</li><li><b>03</b> Sign one x402 payment</li><li><b>04</b> Get the result and receipt</li></ol></div>
       </aside></div>
 
@@ -158,7 +173,7 @@ export default function AgentMarketPage() {
         {service && <div className="am-checkout" id="market-checkout"><div className="am-checkout-head"><div><small>{service.provider.toUpperCase()} / X402 CHECKOUT</small><h3>{service.name}</h3></div><button type="button" aria-label="Close checkout" onClick={() => setCheckoutId('')}>x</button></div>
           <p>{service.description}</p><label htmlFor="am-job-prompt">What should this service do?</label>
           <textarea id="am-job-prompt" value={prompt} maxLength={2000} disabled={buying} onChange={(event) => setPrompt(event.target.value)} placeholder={service.id === 'chain-lens' ? 'Paste the 0x wallet address to inspect...' : 'Describe one short job for this service...'} />
-          <div className="am-checkout-footer"><div><strong>{service.priceUsd} USDG</strong><span>One call on Robinhood Chain. Your wallet signs payment. A USDG approval transaction may require gas.</span></div><button type="button" disabled={buying || !prompt.trim() || !wallet.linkedWallet} onClick={() => void buy()}>{buying ? 'WORKING...' : `PAY ${service.priceUsd} USDG & RUN`}</button></div>
+          <div className="am-checkout-footer"><div><strong>{service.priceUsd} USDG</strong><span>One call on Robinhood Chain. Your wallet signs payment. A USDG approval transaction may require gas.</span></div><button type="button" disabled={buying || !service.available || !prompt.trim() || !wallet.linkedWallet} onClick={() => void buy()}>{buying ? 'WORKING...' : service.available ? `PAY ${service.priceUsd} USDG & RUN` : service.status === 'holder' ? '1M SCRAPY REQUIRED' : 'SERVICE PREPARING'}</button></div>
           {!wallet.linkedWallet && <p className="am-checkout-hint">Link a wallet to your account first. <Link href={profile}>OPEN PROFILE <ArrowUpRight /></Link></p>}
           {stage && <p className="am-success" aria-live="polite">{stage}</p>}{checkoutError && <p className="am-error" role="alert">{checkoutError}</p>}
           {receipt && <div className="am-receipt"><small>DELIVERED / {receipt.replayed ? 'SAVED RECEIPT' : 'PAID ONCHAIN'}</small><pre>{receipt.output}</pre><a href={`${activeRobinhoodChain.explorerUrl}/tx/${receipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT {receipt.payment.transaction.slice(0, 10)}... <ArrowUpRight /></a></div>}
@@ -171,6 +186,7 @@ export default function AgentMarketPage() {
       {wallet.address && <section className="am-history" aria-labelledby="am-history-title"><header className="am-section-head"><div><small>04 / YOUR PAID WORK</small><h2 id="am-history-title">RECEIPTS.</h2></div><span>LAST 20 SETTLED JOBS</span></header>{orders.length ? <div className="am-history-list">{orders.map((order) => <details key={order.transaction || order.createdAt}><summary><strong>{market?.paidServices.find((item) => item.id === order.serviceId)?.name || order.serviceId}</strong><span>{new Date(order.createdAt).toLocaleDateString()}</span><span>VIEW RESULT + RECEIPT</span></summary><pre>{order.output}</pre>{order.transaction && <a href={`${activeRobinhoodChain.explorerUrl}/tx/${order.transaction}`} target="_blank" rel="noopener noreferrer">ONCHAIN PAYMENT <ArrowUpRight /></a>}</details>)}</div> : <p className="am-note">Your settled jobs appear here after your first purchase.</p>}</section>}
 
       <section className="am-future" aria-labelledby="am-future-title"><header className="am-section-head"><div><small>05 / NEXT ON THE STREET</small><h2 id="am-future-title">FUTURE STALLS.</h2></div><span>NOT FOR SALE YET</span></header><div className="am-future-grid">{FUTURE_STALLS.map((stall) => <article key={stall.id}><span><LockKeyhole /> {stall.category.toUpperCase()}</span><h3>{stall.name}</h3><p>{stall.description}</p><small>OPENING LATER</small></article>)}</div></section>
+      <MarketStallWorkshop services={market?.paidServices || []} agentExists={Boolean(market?.agentExists)} holder={Boolean(market?.holder)} />
       <div className="am-footer"><ShoppingBag /><span>LANDVILLE operates current listings. Citizen sellers, treasury fees and autonomous agent purchasing open after audited payouts and owner budgets.</span><Link href="/world">BACK TO WORLD <ArrowUpRight /></Link></div>
     </div>
   </ProductShell>;

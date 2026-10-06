@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Bot, Send, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Bot, Send, ShieldCheck } from 'lucide-react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
 import { YardCityMiner } from '@/components/landville/city-miner';
@@ -10,6 +10,7 @@ import { PersonalRobot, ROBOT_SKINS, type RobotSkin } from '@/components/landvil
 import { useWallet } from '@/components/landville/wallet-provider';
 import { readJsonResponse } from '@/lib/http-response';
 import type { PublicYard, YardMessage } from '@/lib/personal-agent';
+import type { YardMarketSuggestion } from '@/lib/market-services';
 import './yard-scene.css';
 
 class YardNotFoundError extends Error {}
@@ -43,6 +44,7 @@ export function YardScene({ owner }: { owner: string }) {
   const own = wallet.address.toLowerCase() === owner.toLowerCase();
   const [yard, setYard] = useState<PublicYard | null>(null);
   const [messages, setMessages] = useState<YardMessage[]>([]);
+  const [suggestions, setSuggestions] = useState<Record<string, YardMarketSuggestion>>({});
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [yardError, setYardError] = useState('');
@@ -77,8 +79,8 @@ export function YardScene({ owner }: { owner: string }) {
     if (!own || !yard) return;
     let active = true;
     fetch('/api/agents/chat', { cache: 'no-store' })
-      .then((response) => readJsonResponse<{ messages: YardMessage[] }>(response, 'Load private chat'))
-      .then((result) => { if (active) setMessages(result.messages); })
+      .then((response) => readJsonResponse<{ messages: YardMessage[]; suggestions?: Record<string, YardMarketSuggestion> }>(response, 'Load private chat'))
+      .then((result) => { if (active) { setMessages(result.messages); setSuggestions(result.suggestions || {}); } })
       .catch((caught: Error) => { if (active) setChatError(caught.message); });
     return () => { active = false; };
   }, [own, yard]);
@@ -94,8 +96,9 @@ export function YardScene({ owner }: { owner: string }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body, summonMayor, requestId: crypto.randomUUID() }),
       });
-      const result = await readJsonResponse<{ messages: YardMessage[] }>(response, 'Send yard message');
+      const result = await readJsonResponse<{ messages: YardMessage[]; suggestions?: Record<string, YardMarketSuggestion> }>(response, 'Send yard message');
       setMessages((previous) => [...previous, ...result.messages]);
+      setSuggestions((previous) => ({ ...previous, ...result.suggestions }));
       setInput('');
     } catch (caught) { setChatError(caught instanceof Error ? caught.message : 'Message failed.'); }
     finally { setBusy(false); }
@@ -118,7 +121,7 @@ export function YardScene({ owner }: { owner: string }) {
         <section className="yard-lower">
           <div className="yard-intro"><small>ONE CITIZEN · ONE ROBOT · ONE HOME</small><h2>{yard.name} lives here.</h2><p>{own ? 'Your own corner of town. Chat with your robot, check in for points, or take a building idea to Scrapy.' : `${yard.ownerLabel}’s home and personal AI companion.`}</p><div className="city-yard-actions">{own && <Link className="lv-button" href={`/citizens/${owner}#your-agent`}>Customize your robot</Link>}<Link className="lv-button primary" href="/chat?room=BUILD">Build with Scrapy</Link><Link className="lv-button" href="/chat?room=TOWN">Join Town Square</Link></div></div>
           <div className="yard-chat"><header><Bot /><div><h2>{own ? `TALK TO ${yard.name.toUpperCase()}` : 'PRIVATE YARD CHAT'}</h2><small>{own ? 'ONLY YOU CAN READ THIS CONVERSATION' : 'ONLY THE OWNER CAN READ OR WRITE HERE'}</small></div></header>
-            {own ? <><div className="yard-feed" ref={feed} aria-live="polite">{messages.length ? messages.map((message) => <div className={`yard-bubble ${message.role.toLowerCase()}`} key={message.id}><small>{message.role === 'CITIZEN' ? 'YOU' : message.role === 'MAYOR' ? 'MAYOR SCRAPY' : yard.name.toUpperCase()}</small><p>{message.body}</p></div>) : <p className="yard-chat-empty">Your robot is waiting. Start a conversation or call the Mayor in.</p>}</div>
+            {own ? <><div className="yard-feed" ref={feed} aria-live="polite">{messages.length ? messages.map((message) => <div className={`yard-bubble ${message.role.toLowerCase()}`} key={message.id}><small>{message.role === 'CITIZEN' ? 'YOU' : message.role === 'MAYOR' ? 'MAYOR SCRAPY' : yard.name.toUpperCase()}</small><p>{message.body}</p>{suggestions[message.id] && <Link className="yard-market-link" href={`/agent-market?service=${encodeURIComponent(suggestions[message.id].serviceId)}&prompt=${encodeURIComponent(suggestions[message.id].prompt)}`}><span>MARKET PICK · {suggestions[message.id].name}<small>{suggestions[message.id].priceUsd} USDG / CALL · WALLET APPROVAL REQUIRED</small></span><ArrowUpRight /></Link>}</div>) : <p className="yard-chat-empty">Your robot is waiting. Start a conversation or call the Mayor in.</p>}</div>
               <form onSubmit={(event) => { event.preventDefault(); void send(false); }}><textarea aria-label="Private message to your robot" value={input} onChange={(event) => setInput(event.target.value)} maxLength={600} placeholder={`Say something to ${yard.name}…`} disabled={busy} /><div><small>20 AI MESSAGES / UTC DAY</small><button className="lv-button" type="button" disabled={busy || !input.trim()} onClick={() => void send(true)}><Bot /> SUMMON SCRAPY</button><button className="lv-button primary" type="submit" disabled={busy || !input.trim()}><Send /> SEND</button></div></form></> : <div className="yard-visitor-note">You can visit the lot. Its conversation stays private to its owner.</div>}
             {chatError && <p className="yard-error" role="alert">{chatError}</p>}
           </div>
