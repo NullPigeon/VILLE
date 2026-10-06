@@ -8,6 +8,8 @@ import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, FUTURE_STALLS, MARKET_CURRENCY, MARKET_NETWORK, type AgentSkillId } from '@/lib/agent-market';
 import { shortWallet } from '@/lib/governance';
+import { buyMarketService, type MarketReceipt } from '@/lib/market-checkout';
+import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import './agent-market.css';
 
 type MarketState = {
@@ -28,6 +30,12 @@ export default function AgentMarketPage() {
   const [saving, setSaving] = useState(false);
   const [citizenAgents, setCitizenAgents] = useState<CitizenAgent[]>([]);
   const [directoryError, setDirectoryError] = useState('');
+  const [checkoutId, setCheckoutId] = useState('');
+  const [jobPrompt, setJobPrompt] = useState('');
+  const [checkoutStage, setCheckoutStage] = useState('');
+  const [checkoutError, setCheckoutError] = useState('');
+  const [receipt, setReceipt] = useState<MarketReceipt | null>(null);
+  const [buying, setBuying] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -78,6 +86,18 @@ export default function AgentMarketPage() {
 
   const profile = wallet.address ? `/citizens/${wallet.address}` : '/citizens';
   const changed = market && [...selected].sort().join('|') !== [...market.selected].sort().join('|');
+  const checkoutService = market?.paidServices.find((service) => service.id === checkoutId);
+  const buy = async () => {
+    if (!checkoutService || buying) return;
+    setBuying(true); setCheckoutError(''); setReceipt(null);
+    try {
+      setReceipt(await buyMarketService(checkoutService, jobPrompt, wallet, setCheckoutStage));
+      setCheckoutStage('Job delivered and payment settled.');
+    } catch (cause) {
+      setCheckoutError(cause instanceof Error ? cause.message : 'Checkout failed. Check your wallet before retrying.');
+      setCheckoutStage('');
+    } finally { setBuying(false); }
+  };
   return <ProductShell title="AGENT MARKET" eyebrow="CITY ECONOMY / ROBOT SKILLS">
     <div className="am-page">
       <section className="am-hero">
@@ -123,9 +143,20 @@ export default function AgentMarketPage() {
       </section>
 
       <section className="am-services" aria-labelledby="am-services-title"><header className="am-section-head"><div><small>03 / LANDVILLE-OWNED SERVICES</small><h2 id="am-services-title">WORK FOR SALE.</h2></div><span>USDG / X402 / ROBINHOOD CHAIN</span></header>
-        <p className="am-section-intro">Small jobs, one fixed price each. Agents can call an open service endpoint and pay per request through x402 when city payments open.</p>
-        <div className="am-service-grid">{market?.paidServices?.map((service) => <article key={service.id}><div className="am-service-top"><span>{service.category.toUpperCase()}</span><span>{service.available ? 'OPEN' : 'PREPARING'}</span></div><h3>{service.name}</h3><p>{service.description}</p><div className="am-service-bottom"><strong>{service.priceUsd} USDG <small>/ CALL</small></strong><code>{service.endpoint}</code></div></article>)}</div>
-        <p className="am-model-note">These services are operated by LANDVILLE. Citizen agents are discoverable above; owner listings, order history and seller payouts are being built.</p>
+        <p className="am-section-intro">Choose a small job, tell us what you need, and approve one exact USDG payment in your linked wallet. The result and chain receipt appear here.</p>
+        <div className="am-service-grid">{market?.paidServices?.map((service) => <article key={service.id}><div className="am-service-top"><span>{service.category.toUpperCase()}</span><span>{service.available ? 'OPEN' : 'PREPARING'}</span></div><h3>{service.name}</h3><p>{service.description}</p><div className="am-service-bottom"><strong>{service.priceUsd} USDG <small>/ CALL</small></strong><code>{service.endpoint}</code><button type="button" disabled={!service.available || buying} onClick={() => { setCheckoutId(service.id); setJobPrompt(''); setCheckoutError(''); setCheckoutStage(''); setReceipt(null); }}>{service.available ? 'USE SERVICE ↗' : 'OPENING SOON'}</button></div></article>)}</div>
+        {checkoutService && <div className="am-checkout" id="market-checkout">
+          <div className="am-checkout-head"><div><small>DIRECT CITY CHECKOUT / X402</small><h3>{checkoutService.name}</h3></div><button type="button" aria-label="Close checkout" onClick={() => setCheckoutId('')}>×</button></div>
+          <p>{checkoutService.description}</p>
+          <label htmlFor="am-job-prompt">What should this service do?</label>
+          <textarea id="am-job-prompt" value={jobPrompt} maxLength={2000} disabled={buying} onChange={(event) => setJobPrompt(event.target.value)} placeholder="Describe one short job for this service…" />
+          <div className="am-checkout-footer"><div><strong>{checkoutService.priceUsd} USDG</strong><span>Robinhood Chain · one call · wallet signs each payment. A USDG approval transaction may require gas.</span></div><button type="button" disabled={buying || !jobPrompt.trim() || !wallet.linkedWallet} onClick={() => void buy()}>{buying ? 'WORKING…' : `PAY ${checkoutService.priceUsd} USDG & RUN`}</button></div>
+          {!wallet.linkedWallet && <p className="am-checkout-hint">Link a wallet to your citizen account to buy this job. <Link href={profile}>OPEN PROFILE <ArrowUpRight /></Link></p>}
+          {checkoutStage && <p className="am-success" aria-live="polite">{checkoutStage}</p>}
+          {checkoutError && <p className="am-error" role="alert">{checkoutError}</p>}
+          {receipt && <div className="am-receipt"><small>DELIVERED / {receipt.replayed ? 'SAVED RECEIPT' : 'PAID ONCHAIN'}</small><pre>{receipt.output}</pre><a href={`${activeRobinhoodChain.explorerUrl}/tx/${receipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT {receipt.payment.transaction.slice(0, 10)}… <ArrowUpRight /></a></div>}
+        </div>}
+        <p className="am-model-note">These services are operated by LANDVILLE. External agent calls use the same x402 endpoints. Citizen seller shops and automatic agent spending are being built.</p>
       </section>
 
       <section className="am-future" aria-labelledby="am-future-title"><header className="am-section-head"><div><small>04 / NEXT ON THE STREET</small><h2 id="am-future-title">FUTURE STALLS.</h2></div><span>NOT FOR SALE YET</span></header><div className="am-future-grid">{FUTURE_STALLS.map((stall) => <article key={stall.id}><span><LockKeyhole /> {stall.category.toUpperCase()}</span><h3>{stall.name}</h3><p>{stall.description}</p><small>OPENING LATER</small></article>)}</div></section>

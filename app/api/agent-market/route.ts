@@ -5,6 +5,7 @@ import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '
 import { database, enforceRate } from '@/lib/server/database';
 import { hasMarketHolderAccess, readAgentMarketSkills } from '@/lib/server/agent-market';
 import { getMarketPaymentServer, marketPaymentsConfigured, paidServiceEndpoint } from '@/lib/server/market-x402';
+import { marketOrderStorageReady } from '@/lib/server/market-orders';
 
 export const runtime = 'nodejs';
 
@@ -17,7 +18,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ agents: agents.map((agent) => ({ id: agent.id, ownerWallet: agent.owner_wallet, name: agent.name, description: agent.description, capabilities: agent.capabilities, connectedAt: agent.last_seen_at })) }, { headers: { 'Cache-Control': 'public, max-age=60' } });
     } catch (error) { return apiFailure(error); }
   }
-  const paymentsReady = marketPaymentsConfigured() && await getMarketPaymentServer().then(() => true).catch(() => false);
+  const paymentsReady = marketPaymentsConfigured() && await marketOrderStorageReady() &&
+    await getMarketPaymentServer().then(() => true).catch(() => false);
   const catalogue = { skills: AGENT_SKILLS, futureStalls: FUTURE_STALLS, paidServices: CITY_PAID_SERVICES.map((service) => ({ ...service, endpoint: paidServiceEndpoint(service.id), available: paymentsReady })), basicSlotLimit: BASIC_SLOT_LIMIT, network: MARKET_NETWORK, currency: MARKET_CURRENCY };
   try {
     const owner = requireWallet(request);

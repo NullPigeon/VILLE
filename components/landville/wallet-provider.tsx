@@ -10,6 +10,8 @@ import { SCRAPY_TOKEN } from '@/lib/scrapy-token';
 import { readJsonResponse } from '@/lib/http-response';
 import { usePrivyAuth } from '@/components/landville/privy-auth-provider';
 import { citizenReturnPath } from '@/lib/city-navigation';
+import { serializeTypedData } from 'viem';
+import type { MarketTypedData } from '@/components/landville/privy-auth-provider';
 
 type WalletStatus = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -30,6 +32,7 @@ type WalletContextValue = {
   refreshVotingPower(): Promise<VotingPowerSnapshot>;
   addScrapyToken(): Promise<void>;
   sendModuleTransaction(transaction: { from: string; to: string; data: string; value: string }): Promise<string>;
+  signMarketPayment(message: MarketTypedData): Promise<`0x${string}`>;
   disconnectWallet(): Promise<void>;
 };
 
@@ -60,6 +63,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     ready: privyReady,
     sendEmailCode: sendPrivyEmailCode,
     sendTransaction: sendPrivyTransaction,
+    signMarketPayment: signPrivyMarketPayment,
     verifyEmailCode: verifyPrivyEmailCode,
   } = usePrivyAuth();
   const [address, setAddress] = useState('');
@@ -237,6 +241,24 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           return hash.toLowerCase();
         }
       },
+      async signMarketPayment(message) {
+        if (!linkedWallet) throw new Error('LINK A WALLET TO THIS CITIZEN ACCOUNT FIRST');
+        if (Number(message.domain.chainId) !== 4663) throw new Error('PAYMENT MUST USE ROBINHOOD MAINNET');
+        try {
+          return await signPrivyMarketPayment(message, linkedWallet);
+        } catch (caught) {
+          const reason = caught instanceof Error ? caught.message : '';
+          if (!['CONNECT THE LINKED WALLET TO CONTINUE', 'WALLET CONNECTION IS STILL LOADING', 'PRIVY SIGN-IN IS NOT CONFIGURED'].includes(reason)) throw caught;
+          const provider = (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
+          if (!provider) throw caught;
+          await addRobinhoodNetwork();
+          const accounts = await provider.request({ method: 'eth_accounts' });
+          if (!Array.isArray(accounts) || !accounts.some((account) => typeof account === 'string' && account.toLowerCase() === linkedWallet.toLowerCase())) throw new Error('THE CONNECTED WALLET DOES NOT MATCH YOUR LINKED WALLET');
+          const signature = await provider.request({ method: 'eth_signTypedData_v4', params: [linkedWallet, serializeTypedData(message as Parameters<typeof serializeTypedData>[0])] });
+          if (typeof signature !== 'string' || !/^0x[0-9a-fA-F]{130}$/.test(signature)) throw new Error('WALLET DID NOT SIGN THE PAYMENT');
+          return signature as `0x${string}`;
+        }
+      },
       async disconnectWallet() {
         const response = await fetch('/api/auth/session', { method: 'DELETE' });
         if (!response.ok) throw new Error('Could not sign out. Try again.');
@@ -254,7 +276,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [
       address, linkedWallet, email, authMethod, error, snapshot, status, profile,
       refreshProfile, router, privyAuthenticated, privyConfigured, linkPrivyWallet,
-      linkPrivyEmail, loginWithWallet, logoutPrivy, sendPrivyEmailCode, sendPrivyTransaction, syncPrivySession, verifyPrivyEmailCode,
+      linkPrivyEmail, loginWithWallet, logoutPrivy, sendPrivyEmailCode, sendPrivyTransaction, signPrivyMarketPayment, syncPrivySession, verifyPrivyEmailCode,
     ],
   );
 
