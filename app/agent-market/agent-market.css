@@ -201,13 +201,19 @@ html[data-city-motion=paused] .am-page *,html[data-city-motion=paused] .am-page 
 .am-merchant-tabs{margin:0 0 22px}
 .am-merchant-tabs button[aria-pressed=true]{border-color:#f0c27b;background:#eac17e;color:#2b2b1b}
 .am-merchant-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.am-availability{display:flex;flex-wrap:wrap;gap:9px;min-width:0;margin:0 0 18px;padding:0;border:0}
+.am-availability button{padding:10px 13px;border:1px solid #a8bd77;background:#263325;color:#f1efd7;font:800 12px Arial,Helvetica,sans-serif;letter-spacing:.03em;cursor:pointer}
+.am-availability button[aria-pressed="true"]{background:#d8e986;color:#1e2e1a;box-shadow:3px 3px #11170d}
+.am-availability button:focus-visible{outline:3px solid #f2d385;outline-offset:3px}
 .am-merchant-card{display:flex;flex-direction:column;align-items:flex-start;min-height:195px;gap:10px;padding:17px;border:2px solid #a38a59;background:radial-gradient(circle at 96% 0,#a9764250,transparent 42%),#253324;color:#f8eed2;text-align:left;box-shadow:4px 5px #11170d;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s}
 .am-merchant-card:hover{transform:translateY(-3px) rotate(-.3deg);border-color:#e7c078;box-shadow:5px 8px #11170d}
+.am-merchant-card-pending{border-color:#748261;background:linear-gradient(145deg,#263226,#222d23)}
+.am-merchant-card-pending .am-merchant-access{border-color:#717f5d;background:#283523;color:#cbd9b5}
 .am-merchant-card:focus-visible{outline:3px solid #f2d385;outline-offset:3px}
 .am-merchant-card-top{display:flex;justify-content:space-between;gap:8px;width:100%;font:900 11px Arial,sans-serif;letter-spacing:.05em}
 .am-merchant-card-top b{padding:5px 7px;background:#d8e986;color:#23341a;box-shadow:2px 2px #11190f}
 .am-merchant-card-top small{align-self:center;color:#dfc899;font-size:11px}
-.am-merchant-card>strong{font:900 29px/1 Impact,Arial,sans-serif;letter-spacing:.01em}
+.am-merchant-card>strong{font:800 clamp(20px,2vw,25px)/1.25 Arial,Helvetica,sans-serif;letter-spacing:-.025em;overflow-wrap:anywhere}
 .am-merchant-card>span:nth-child(3){color:#d5dec4;font-size:14px;line-height:1.4}
 .am-merchant-card em{display:flex;align-items:center;gap:6px;margin-top:auto;color:#e9c78a;font-size:11px;font-weight:900;font-style:normal}
 .am-merchant-card em svg,.am-merchant-docs svg{width:14px;height:14px}
@@ -241,4 +247,11 @@ html[data-city-motion=paused] .am-page *,html[data-city-motion=paused] .am-page 
 .am-merchant-docs{display:inline-flex;align-items:center;gap:6px;margin:2px 0 16px;color:#e6c889;font-size:11px;font-weight:900}
 @media(max-width:950px){.am-merchant-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.am-merchants{padding:19px 14px}.am-merchant-grid{grid-template-columns:1fr}.am-merchant-card{min-height:165px}}
-.am-citizen-market{margin-top:54px;padding:25px clamp(16px,2.6vw,32px);border:2px solid #b7c877;background:linear-gradient(145deg,#283725,#19251c 70%);box-shadow:6px 7px #0b110b}.am-citizen-market .am-section-head small{color:#e5ee9d}.am-citizen-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.am-citizen-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:180px;padding:18px;border:2px solid #8f9d68;background:radial-gradient(circle at 95% 6%,#d6ae6840,transparent 45%),#2a3927;color:#f2edcf;text-align:left;box-shadow:4px 4px #0d150d;cursor:pointer;transition:transform .17s,border-color .17s}.am-citizen-grid button:hover{transform:translateY(-3px);border-color:#e5ef9c}.am-citizen-grid button:focus-visible{outline:3px solid #e4ed9a;outline-offset:3px}.am-citizen-grid small{color:#d8e999;font:800 11px monospace}.am-citizen-grid strong{font:900 28px/1 Impact,Arial,sans-serif}.am-citizen-grid span{color:#d8ddc5;font-size:14px;line-height:1.4}.am-citizen-grid em{display:flex;align-items:center;gap:5px;margin-top:auto;color:#efda9d;font-size:12px;font-style:normal;font-weight:900}.am-citizen-grid em svg{width:15px}.am-citizen-market .am-checkout{margin-bottom:22px}@media(max-width:950px){.am-citizen-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.am-citizen-market{padding:18px 14px}.am-citizen-grid{grid-template-columns:1fr}}
+.am-citizen-market{margin-top:54px;padding:25px clamp(16px,2.6vw,32px);border:2px solid #b7c877;background:linear-gradient(145deg,#283725,#19251c 70%);box-shadow:6px 7px #0b110b}.am-citizen-market .am-section-head small{color:#e5ee9d}.am-citizen-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.am-citizen-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:180px;padding:18px;border:2px solid #8f9d68;background:radial-gradient(circle at 95% 6%,#d6ae6840,transparent 45%),#2a3927;color:#f2edcf;text-align:left;box-shadow:4px 4px #0d150d;cursor:pointer;transition:transform .17s,border-color .17s}.am-citizen-grid button:hover{transform:translateY(-3px);border-color:#e5ef9c}.am-citizen-grid button:focus-visible{outline:3px solid #e4ed9a;outline-offset:3px}.am-citizen-grid small{color:#d8e999;font:800 11px monospace}.am-citizen-grid strong{font:800 24px/1.25 Arial,Helvetica,sans-serif;letter-spacing:-.02em}.am-citizen-grid span{color:#d8ddc5;font-size:14px;line-height:1.4}.am-citizen-grid em{display:flex;align-items:center;gap:5px;margin-top:auto;color:#efda9d;font-size:12px;font-style:normal;font-weight:900}.am-citizen-grid em svg{width:15px}.am-citizen-market .am-checkout{margin-bottom:22px}@media(max-width:950px){.am-citizen-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.am-citizen-market{padding:18px 14px}.am-citizen-grid{grid-template-columns:1fr}}
+
+.am-merchant-checkout .am-checkout-head h3,.am-services .am-checkout-head h3{font:800 clamp(25px,3vw,36px)/1.2 Arial,Helvetica,sans-serif;letter-spacing:-.025em}
+.am-merchants .am-services{margin-top:0}
+.am-direct-option{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:14px 0;padding:15px;border:1px solid #d7ba79;background:#3b3525;color:#f5e6bd;font-size:14px;line-height:1.45}
+.am-direct-option button{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:10px 14px;border:2px solid #15220f;background:#dcea8a;color:#24351c;font:800 12px Arial,sans-serif;cursor:pointer}
+.am-direct-option button svg{width:15px;height:15px}
+@media(max-width:650px){.am-direct-option{align-items:stretch;flex-direction:column}}

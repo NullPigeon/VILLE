@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, ArrowUpRight, Bot, Check, ChevronRight, CircleDollarSign, RadioTower, Search, ShieldCheck, ShoppingBag, Sparkles, Wallet, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Bot, Check, CircleDollarSign, RadioTower, Search, ShieldCheck, ShoppingBag, Sparkles, Wallet, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
@@ -24,11 +24,18 @@ type MarketOrder = { serviceId: string; output: string | null; transaction: stri
 type CitizenStall = { id: string; seller: string; title: string; description: string; baseName: string;
   category: string; priceUsd: string; endpoint: string };
 
-const categoryOrder = ['All', 'AI Models', 'Search', 'Web & Scraping', 'Research', 'Market Data', 'Blockchain', 'City'];
 const providerNames: Record<string, string> = {
   landville: 'LANDVILLE', openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google Gemini',
   xai: 'xAI', groq: 'Groq', deepseek: 'DeepSeek', mistral: 'Mistral', brave: 'Brave Search', firecrawl: 'Firecrawl', robinhood: 'Robinhood Chain',
 };
+
+function directAlternative(service: Service) {
+  const routeId = service.kind === 'model' || service.kind === 'long-form' ? 'model-network' : ({
+    'web-scout': 'agent402-search', 'news-radar': 'agent402-news',
+    'page-reader': 'agent402-extract', 'research-brief': 'agent402-answer',
+  } as Record<string, string>)[service.id];
+  return EXTERNAL_MARKET_SERVICES.find((item) => item.id === routeId);
+}
 
 function serviceStatus(service: Service) {
   if (service.status === 'open') return 'Ready to run';
@@ -45,8 +52,6 @@ export default function AgentMarketPage() {
   const [saving, setSaving] = useState(false);
   const [agents, setAgents] = useState<CitizenAgent[]>([]);
   const [directoryError, setDirectoryError] = useState('');
-  const [category, setCategory] = useState('All');
-  const [search, setSearch] = useState('');
   const [checkoutId, setCheckoutId] = useState('');
   const [testDraft, setTestDraft] = useState<MarketRecipeTest | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -55,11 +60,13 @@ export default function AgentMarketPage() {
   const [receipt, setReceipt] = useState<MarketReceipt | null>(null);
   const [buying, setBuying] = useState(false);
   const [merchantCategory, setMerchantCategory] = useState('All');
+  const [serviceAvailability, setServiceAvailability] = useState<'ready' | 'all' | 'upcoming'>('ready');
+  const [merchantSearch, setMerchantSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
   const [merchantInput, setMerchantInput] = useState('');
   const [merchantModelId, setMerchantModelId] = useState('');
   const [merchantModelSearch, setMerchantModelSearch] = useState('');
-  const [merchantModels, setMerchantModels] = useState<ExternalModel[]>([]);
+  const [merchantModels, setMerchantModels] = useState<(ExternalModel & { source: 'model-network' | 'metered-models' })[]>([]);
   const [merchantModelsError, setMerchantModelsError] = useState('');
   const [merchantQuote, setMerchantQuote] = useState<ExternalQuote | null>(null);
   const [merchantReceipt, setMerchantReceipt] = useState<MarketReceipt | null>(null);
@@ -87,11 +94,17 @@ export default function AgentMarketPage() {
   useEffect(() => {
     if (merchantId !== 'model-network' && merchantId !== 'metered-models') return;
     let active = true;
-    fetch(`/api/agent-market/external?models=${merchantId}`, { cache: 'no-store' }).then(async (response) => {
+    void Promise.allSettled((['model-network', 'metered-models'] as const).map(async (source) => {
+      const response = await fetch(`/api/agent-market/external?models=${source}`, { cache: 'no-store' });
       const result = await response.json() as { models?: ExternalModel[]; error?: string };
       if (!response.ok) throw new Error(result.error || 'Model catalog unavailable.');
-      if (active) { setMerchantModels(result.models || []); setMerchantModelsError(''); }
-    }).catch((cause) => { if (active) setMerchantModelsError(cause instanceof Error ? cause.message : 'Model catalog unavailable.'); });
+      return (result.models || []).map((model) => ({ ...model, source }));
+    })).then((results) => {
+      if (!active) return;
+      const models = results.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+      setMerchantModels(models);
+      setMerchantModelsError(models.length ? '' : 'Model catalogs are temporarily unavailable.');
+    });
     return () => { active = false; };
   }, [merchantId]);
 
@@ -151,24 +164,31 @@ export default function AgentMarketPage() {
   const changed = Boolean(market) && [...selected].sort().join('|') !== [...market!.selected].sort().join('|');
   const activeService = market?.paidServices.find((item) => item.id === checkoutId);
   const services = market?.paidServices || [];
-  const categories = categoryOrder.filter((item) => item === 'All' || services.some((service) => service.category === item));
-  const shown = services.filter((item) => (category === 'All' || item.category === category) &&
-    `${item.name} ${item.provider} ${item.description}`.toLowerCase().includes(search.toLowerCase().trim()));
-  const providerGroups = Array.from(new Set(shown.map((item) => item.provider))).map((provider) => ({
-    provider, services: shown.filter((item) => item.provider === provider),
-  }));
-  const openCount = services.filter((item) => item.status === 'open').length;
-  const holderCount = services.filter((item) => item.holderOnly).length;
+  const searchTerm = merchantSearch.toLowerCase().trim();
+  const shown = services.filter((item) => (serviceAvailability === 'all' || (serviceAvailability === 'ready' ? item.setupReady : !item.setupReady)) &&
+    (merchantCategory === 'All' || item.category === merchantCategory) &&
+    `${item.name} ${item.provider} ${item.description}`.toLowerCase().includes(searchTerm));
   const merchant = EXTERNAL_MARKET_SERVICES.find((item) => item.id === merchantId);
   const activeStall = citizenStalls.find((item) => item.id === stallId);
-  const merchantCategories = ['All', ...Array.from(new Set(EXTERNAL_MARKET_SERVICES.map((item) => item.category)))];
-  const shownMerchants = EXTERNAL_MARKET_SERVICES.filter((item) => merchantCategory === 'All' || item.category === merchantCategory);
+  const merchantCategories = ['All', ...Array.from(new Set([...EXTERNAL_MARKET_SERVICES.map((item) => item.category), ...services.map((item) => item.category)]))];
+  const shownMerchants = EXTERNAL_MARKET_SERVICES.filter((item) => serviceAvailability !== 'upcoming' && item.id !== 'metered-models' &&
+    (merchantCategory === 'All' || item.category === merchantCategory) &&
+    `${item.name} ${item.category} ${item.description}`.toLowerCase().includes(searchTerm));
   const shownMerchantModels = merchantModels.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(merchantModelSearch.toLowerCase().trim())).slice(0, 100);
 
   function chooseMerchant(service: ExternalMarketService) {
     setMerchantId(service.id); setMerchantInput(''); setMerchantModelId(''); setMerchantModelSearch(''); setMerchantModels([]); setMerchantModelsError('');
     setMerchantQuote(null); setMerchantReceipt(null); setMerchantError(''); setMerchantStage('');
     window.setTimeout(() => document.getElementById('merchant-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  }
+
+  function tryDirectAlternative(service: Service) {
+    const alternative = directAlternative(service);
+    if (!alternative) return;
+    chooseMerchant(alternative);
+    setMerchantInput(prompt);
+    if (alternative.modelPicker) setMerchantModelSearch(service.provider === 'landville' ? '' : service.provider);
+    setCheckoutId('');
   }
 
   async function getMerchantQuote() {
@@ -270,20 +290,21 @@ export default function AgentMarketPage() {
       </section>
 
       <section className="am-merchants" id="services" aria-labelledby="am-merchants-title">
-        <header className="am-section-head"><div><small>01 / WALLET-PAID MARKET</small><h2 id="am-merchants-title">FIND YOUR TOOL.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length} SERVICE ROUTES</span></header>
-        <p className="am-section-intro">Pick an AI model or tool. See its live USDG quote, then pay the outside x402 operator from your wallet. The operator handles the upstream provider bill. One request at a time; no subscription.</p>
-        <fieldset className="am-service-tabs am-merchant-tabs" aria-label="Merchant category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset>
+        <header className="am-section-head"><div><small>THE MARKET / PAY PER USE</small><h2 id="am-merchants-title">CITY SERVICES.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length - 1 + services.length} TOOLS &amp; SERVICES</span></header>
+        <p className="am-section-intro">Pick a service and describe one job. You will see its price before signing. Available outside tools charge your wallet in USDG; city jobs open as LANDVILLE connects them. Premium models need 1M+ SCRAPY.</p>
+        <fieldset className="am-availability" aria-label="Service availability"><button type="button" aria-pressed={serviceAvailability === 'ready'} onClick={() => setServiceAvailability('ready')}>CHECK PRICE &amp; BUY</button><button type="button" aria-pressed={serviceAvailability === 'upcoming'} onClick={() => setServiceAvailability('upcoming')}>OPENING LATER</button><button type="button" aria-pressed={serviceAvailability === 'all'} onClick={() => setServiceAvailability('all')}>SHOW ALL</button></fieldset>
+        <div className="am-service-controls"><fieldset className="am-service-tabs am-merchant-tabs" aria-label="Service category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset><label className="am-search"><Search aria-hidden="true" /><input aria-label="Search all city services" value={merchantSearch} onChange={(event) => setMerchantSearch(event.target.value)} placeholder="Search all services" /></label></div>
         {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider === 'relay' ? 'MODEL NETWORK' : merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>
           <p>{merchant.description}</p>
           {merchant.modelPicker && <div className="am-merchant-models"><label htmlFor="am-model-search">1 / FIND A MODEL</label>
             <input id="am-model-search" className="am-merchant-input" value={merchantModelSearch} onChange={(event) => setMerchantModelSearch(event.target.value)} placeholder="Search OpenAI, Claude, Gemini, DeepSeek…" />
-            <select aria-label="Choose a model" className="am-merchant-input" value={merchantModelId} disabled={!merchantModels.length || merchantBusy} onChange={(event) => { setMerchantModelId(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }}>
-              <option value="">Choose a model</option>{merchantModelId && !shownMerchantModels.some((item) => item.id === merchantModelId) && <option value={merchantModelId}>{merchantModelId}</option>}
-              {shownMerchantModels.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.provider}</option>)}
+            <select aria-label="Choose a model" className="am-merchant-input" value={merchantModelId ? `${merchantId}:${merchantModelId}` : ''} disabled={!merchantModels.length || merchantBusy} onChange={(event) => { const selectedModel = merchantModels.find((item) => `${item.source}:${item.id}` === event.target.value); if (!selectedModel) return; setMerchantId(selectedModel.source); setMerchantModelId(selectedModel.id); setMerchantQuote(null); setMerchantReceipt(null); }}>
+              <option value="">Choose a model</option>{merchantModelId && !shownMerchantModels.some((item) => item.id === merchantModelId && item.source === merchantId) && <option value={`${merchantId}:${merchantModelId}`}>{merchantModelId}</option>}
+              {shownMerchantModels.map((item) => <option value={`${item.source}:${item.id}`} key={`${item.source}:${item.id}`} disabled={item.holderOnly && !market?.holder}>{item.name} · {item.provider}{item.holderOnly ? ' · 1M+ SCRAPY' : ''} · {item.source === 'model-network' ? 'network A' : 'network B'}</option>)}
             </select>
-            <small>{merchantModelsError || (merchantModels.length ? `${merchantModels.length} models in the live catalog. Availability is confirmed when you check the price.` : 'Loading model catalog…')}</small>
+            <small>{merchantModelsError || (merchantModels.length ? `${merchantModels.length} model routes. Advanced models need 1M+ SCRAPY; every request still needs a live USDG quote.` : 'Loading model catalog…')}</small>
           </div>}
-          {merchant.input !== 'none' && <><label htmlFor="am-merchant-input">{merchant.input === 'prompt' ? 'WHAT SHOULD THE MODEL DO?' : merchant.input === 'query' ? 'WHAT SHOULD WE SEARCH FOR?' : merchant.input === 'url' ? 'PAGE URL' : merchant.input === 'symbol' ? 'STOCK SYMBOL' : 'PUBLIC WALLET ADDRESS'}</label>
+          {merchant.input !== 'none' && <><label htmlFor="am-merchant-input">{merchant.input === 'prompt' ? 'WHAT SHOULD THE MODEL DO?' : merchant.input === 'query' ? 'TOPIC OR QUESTION' : merchant.input === 'url' ? 'PUBLIC PAGE URL' : merchant.input === 'symbol' ? 'STOCK SYMBOL' : merchant.input === 'domain' ? 'PUBLIC DOMAIN' : 'PUBLIC WALLET ADDRESS'}</label>
             {merchant.input === 'prompt' ? <textarea id="am-merchant-input" value={merchantInput} maxLength={merchant.modelPicker ? 4000 : 1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} /> : <input id="am-merchant-input" className="am-merchant-input" value={merchantInput} maxLength={1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} />}</>}
           <div className="am-checkout-footer"><div>{merchantQuote ? <><strong>{merchantQuote.amountUsd} USDG / CALL</strong><span>Paid to the outside service operator at the quoted address. No LANDVILLE fee. Wallet gas or token approval may apply.</span></> : <><strong>LIVE PRICE BEFORE PAYMENT</strong><span>Checkout opens only when the seller quotes USDG on Robinhood Chain. Model calls have an output limit of 2,000 tokens.</span></>}</div>
             {merchantQuote ? <button type="button" disabled={merchantBusy || !wallet.linkedWallet} onClick={() => void payMerchant()}>{merchantBusy ? 'WORKING…' : 'APPROVE & RUN'}</button> : <button type="button" disabled={merchantBusy || (merchant.input !== 'none' && !merchantInput.trim()) || (merchant.modelPicker && !merchantModelId) || !wallet.address} onClick={() => void getMerchantQuote()}>{merchantBusy ? 'CHECKING…' : 'CHECK LIVE PRICE'}</button>}</div>
@@ -293,43 +314,29 @@ export default function AgentMarketPage() {
           {merchantStage && <p className="am-success" aria-live="polite">{merchantStage}</p>}{merchantError && <p className="am-error" role="alert">{merchantError}</p>}
           {merchantReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{merchantReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${merchantReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${merchantReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
         </div>}
-        <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>{item.provider === 'relay' ? 'MODEL NETWORK' : item.provider.toUpperCase()}</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">OPEN TO ALL · PAY MERCHANT DIRECT</span><em>CHECK LIVE PRICE <ArrowUpRight /></em></button>)}</div>
-      </section>
-
-      <section className="am-services" id="city-services" aria-labelledby="am-services-title">
-        <header className="am-section-head"><div><small>02 / LANDVILLE-OPERATED SERVICES</small><h2 id="am-services-title">CITY-RUN JOBS.</h2></div><span>{services.length} SERVICE OPTIONS · {openCount} READY</span></header>
-        <p className="am-section-intro">Optional city-run jobs use provider accounts configured by LANDVILLE. Their fixed USDG price covers one bounded run. They open individually as the city connects and checks each provider.</p>
-        <div className="am-access-key" aria-label="Market access rules">
-          <span><b>OPEN TO ALL</b> {services.length - holderCount} tools need no SCRAPY balance</span>
-          <span><b>1M+ SCRAPY</b> {holderCount} advanced models need a verified linked wallet</span>
-          <small>Both groups pay per run. A token balance unlocks access; it does not pay for the model.</small>
+        <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>CHECK LIVE PRICE</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">USDG PRICE SHOWN BEFORE SIGNING</span><em>CHOOSE SERVICE <ArrowUpRight /></em></button>)}
+          {shown.map((item) => <button key={item.id} type="button" className={`am-merchant-card${item.setupReady ? '' : ' am-merchant-card-pending'}`} onClick={() => choose(item)}><span className="am-merchant-card-top"><b>LANDVILLE JOB</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">{item.holderOnly ? '1M+ SCRAPY · ' : ''}{item.setupReady ? `${item.priceUsd} USDG / RUN` : directAlternative(item) ? 'CITY SETUP PENDING · DIRECT OPTION AVAILABLE' : 'OPENS AFTER CITY SETUP'}</span><em>{item.setupReady ? 'CHOOSE SERVICE' : 'SEE HOW IT WORKS'} <ArrowUpRight /></em></button>)}
         </div>
-        {market && !market.holderCheckAvailable && <p className="am-note">SCRAPY balance verification is temporarily unavailable. Holder-only checkout will open after the chain check succeeds.</p>}
-        <div className="am-service-controls"><fieldset className="am-service-tabs" aria-label="Service category">{categories.map((item) => <button key={item} type="button" aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</button>)}</fieldset>
-          <label className="am-search"><Search aria-hidden="true" /><input aria-label="Search services" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search models or tools" /></label></div>
-        {!market && !error && <p className="am-note">Loading the service board…</p>}
-        {error && !market && <p className="am-error" role="alert">{error}</p>}
+        {!shownMerchants.length && !shown.length && <p className="am-note">No services found. Try a different name or category.</p>}
+        <div className="am-services" id="city-services">
+        {error && <p className="am-error" role="alert">LANDVILLE services are temporarily unavailable: {error}</p>}
         {activeService && <div className="am-checkout" id="market-checkout"><div className="am-checkout-head"><div><small>{providerNames[activeService.provider] || activeService.provider} / {activeService.category}</small><h3>{testDraft ? `TEST ${testDraft.title}` : activeService.name}</h3></div><button type="button" aria-label="Close service" onClick={() => { setCheckoutId(''); setTestDraft(null); }}><X /></button></div>
           <p>{activeService.description}</p>
           {testDraft && <div className="am-recipe-test-note"><Bot /> Your saved recipe guides this private test. Write a customer job below. Nothing is published for sale.</div>}
           <div className="am-checkout-access"><span className={activeService.holderOnly ? 'am-access-pill am-access-pill-holder' : 'am-access-pill'}>{activeService.holderOnly ? '1M+ SCRAPY TO USE' : 'OPEN TO ALL'}</span><span>PAY PER RUN · NO SUBSCRIPTION</span></div>
           {!activeService.setupReady && <div className="am-setup-message"><ShieldCheck /> Checkout is not live yet. LANDVILLE must connect this provider and the payment system.</div>}
+          {directAlternative(activeService) && <div className="am-direct-option"><span>{activeService.kind === 'model' ? 'The outside catalogue may offer this model or a similar one. Its availability and USDG price are checked live.' : activeService.kind === 'long-form' ? 'Try a direct AI model now. Direct calls are capped at 2,000 output tokens, so this is shorter than Longform Desk.' : activeService.id === 'research-brief' ? 'Try a short cited web answer now. A full Research Brief remains a separate LANDVILLE job.' : 'A direct x402 tool can handle a similar request now. Its price comes from the operator.'}</span><button type="button" onClick={() => tryDirectAlternative(activeService)}>TRY DIRECT X402 <ArrowUpRight /></button></div>}
           {activeService.holderOnly && !market?.holder && <div className="am-setup-message"><ShieldCheck /> Your linked wallet needs at least 1M verified SCRAPY to run this model.</div>}
           <label htmlFor="am-job-prompt">{testDraft ? 'GIVE YOUR RECIPE A TEST JOB' : 'WHAT DO YOU WANT DONE?'}</label>
           <textarea id="am-job-prompt" value={prompt} maxLength={testDraft ? 600 : 2000} disabled={buying || !activeService.available} onChange={(event) => setPrompt(event.target.value)} placeholder={testDraft ? 'For example: Turn this rough idea into a one-page pitch for new citizens…' : activeService.id === 'chain-lens' ? 'Paste a 0x wallet address…' : activeService.id === 'page-reader' ? 'Paste one public HTTPS page URL…' : 'Describe a focused task for this service…'} />
-          <div className="am-checkout-footer"><div><strong>{activeService.priceUsd} USDG / RUN</strong><span>{activeService.setupReady ? 'Fixed price for this bounded job. You pay only when you approve a run; network gas may apply.' : 'Listed price for one bounded job. Payment opens after setup.'}</span>{!activeService.available && <em className={`am-status am-status-${activeService.status}`}>{serviceStatus(activeService)}</em>}</div>
+          <div className="am-checkout-footer"><div><strong>{activeService.setupReady ? `${activeService.priceUsd} USDG / RUN` : 'CHECKOUT OPENS AFTER SETUP'}</strong><span>{activeService.setupReady ? 'Fixed price for this bounded job. You pay only when you approve a run; network gas may apply.' : 'LANDVILLE must connect and test this service before taking payment.'}</span>{!activeService.available && <em className={`am-status am-status-${activeService.status}`}>{serviceStatus(activeService)}</em>}</div>
             <button type="button" disabled={buying || !activeService.available || !prompt.trim() || !wallet.linkedWallet} onClick={() => void buy()}>{buying ? 'WORKING…' : activeService.available ? 'APPROVE PAYMENT & RUN' : 'CHECKOUT NOT OPEN'}</button></div>
           {activeService.available && !wallet.linkedWallet && <p className="am-checkout-hint">Connect your wallet in <Link href={profile}>your profile <ArrowUpRight /></Link> to use this service.</p>}
           {stage && <p className="am-success" aria-live="polite">{stage}</p>}{checkoutError && <p className="am-error" role="alert">{checkoutError}</p>}
           {receipt && <div className="am-receipt"><small>DELIVERED / {receipt.replayed ? 'SAVED RECEIPT' : 'PAID ONCHAIN'}</small><pre>{receipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${receipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT {receipt.payment.transaction.slice(0, 10)}… <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${receipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
         </div>}
-        <div className="am-provider-grid">{providerGroups.map(({ provider, services: options }) => <article className="am-provider" key={provider}>
-          <div className="am-provider-head"><div className="am-provider-icon">{providerNames[provider]?.slice(0, 1) || '?'}</div><div><small>{options[0].category}</small><h3>{providerNames[provider] || provider}</h3></div><span>{options.length} {options.length === 1 ? 'service' : 'services'}</span></div>
-          <div className="am-provider-list">{options.map((item) => <button type="button" key={item.id} className="am-provider-option" onClick={() => choose(item)} aria-label={`${item.name}. ${item.holderOnly ? 'Requires 1 million SCRAPY' : 'Open to all'}. ${item.priceUsd} USDG per run. ${item.setupReady ? 'Checkout ready' : 'Checkout not live yet'}.`}>
-            <span className="am-option-copy"><span className="am-option-title"><strong>{item.name}</strong><span className={item.holderOnly ? 'am-access-pill am-access-pill-holder' : 'am-access-pill'}>{item.holderOnly ? '1M+ SCRAPY' : 'OPEN TO ALL'}</span></span><small>{item.description}</small><span className="am-option-foot"><em className={`am-status am-status-${item.status}`}>{serviceStatus(item)}</em><span className="am-option-price">{item.priceUsd} USDG <small>/ RUN</small></span></span></span><ChevronRight aria-hidden="true" /></button>)}</div>
-        </article>)}</div>
-        {market && !shown.length && <p className="am-note">No services match that search. Try another category or keyword.</p>}
-        <div className="am-market-explain"><Bot /><div><strong>EXTERNAL AGENTS CAN DISCOVER THE MARKET</strong><p>Connect an MCP client to search tools and read routes. For paid work it calls the x402 endpoint with its own payment wallet. A connected agent of a verified SCRAPY holder can use holder listings with its profile key, but that key never spends the owner&apos;s wallet.</p><div className="am-mcp-connect"><code>{mcpUrl || '/mcp'}</code><button type="button" disabled={!mcpUrl} onClick={() => void navigator.clipboard.writeText(mcpUrl).then(() => setMcpCopied(true))}>{mcpCopied ? 'COPIED' : 'COPY MCP URL'}</button></div></div></div>
+        </div>
+        <div className="am-market-explain"><Bot /><div><strong>AGENTS CAN USE THE SAME MARKET</strong><p>Connect an agent through MCP to find services. For paid calls the agent needs its own payment wallet and owner-set spending limits.</p><div className="am-mcp-connect"><code>{mcpUrl || '/mcp'}</code><button type="button" disabled={!mcpUrl} onClick={() => void navigator.clipboard.writeText(mcpUrl).then(() => setMcpCopied(true))}>{mcpCopied ? 'COPIED' : 'COPY MCP URL'}</button></div></div></div>
       </section>
 
       <section className="am-citizen-market" aria-labelledby="am-citizen-title">
@@ -355,12 +362,12 @@ export default function AgentMarketPage() {
           <span className="am-skill-top"><small>{skill.category}</small>{equipped ? <Check /> : <Sparkles />}</span><strong>{skill.name}</strong><span className="am-skill-desc">{skill.description}</span><span className="am-skill-foot">{equipped ? 'EQUIPPED' : 'EQUIP SKILL'} <ArrowUpRight /></span></button>; })}</div>
         {market?.agentExists && !market.holder && <div className="am-save"><p>Three free chat skill slots. Skills never trigger paid calls by themselves.</p><button type="button" onClick={() => void save()} disabled={!changed || saving}>{saving ? 'SAVING…' : 'SAVE SKILLS'} <ArrowUpRight /></button></div>}
         {market?.agentExists && market.holder && <p className="am-note"><Check /> Your linked wallet holds at least 1M SCRAPY. All chat skills are active; eligible advanced services still need payment per call.</p>}
-        <div className="am-holder-note"><ShieldCheck /><p><strong>1M SCRAPY holder benefit:</strong> every chat skill and access to advanced model listings. This does not include free provider usage or automatic spending.</p><Link href="/docs/scrapy-token">TOKEN DETAILS <ArrowUpRight /></Link></div>
+        <div className="am-holder-note"><ShieldCheck /><p><strong>1M SCRAPY holder benefit:</strong> advanced models, every chat skill, more citizen service recipes, and eligible advanced LANDVILLE jobs when configured. Every model call still costs its quoted USDG price.</p><Link href="/docs/scrapy-token">TOKEN DETAILS <ArrowUpRight /></Link></div>
       </section>
 
       <section className="am-directory" aria-labelledby="am-directory-title"><header className="am-section-head"><div><small>05 / CITIZEN NETWORK</small><h2 id="am-directory-title">AGENTS IN TOWN.</h2></div><Link href={profile}>CONNECT YOUR AGENT <ArrowUpRight /></Link></header>
         {directoryError ? <p className="am-note">{directoryError}</p> : agents.length ? <div className="am-directory-grid">{agents.map((agent) => <article key={agent.id}><div><Bot aria-hidden="true" /><small>CONNECTED AGENT</small></div><h3>{agent.name}</h3><p>{agent.description}</p><div className="am-directory-tags">{agent.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div><Link href={`/citizens/${agent.ownerWallet}`}>CITIZEN {shortWallet(agent.ownerWallet)} <ArrowUpRight /></Link></article>)}</div> : <div className="am-empty-network"><RadioTower /><p>Connect an external agent to your profile to make it discoverable in town.</p><Link href={profile}>CONNECT AN AGENT <ArrowUpRight /></Link></div>}
-        <p className="am-model-note">Connected agents verify profile-key ownership. Their capabilities are self-declared; citizen-to-citizen selling is not open yet.</p>
+        <p className="am-model-note">Connected agents verify profile-key ownership. Their capabilities are self-declared; public citizen services appear when sellers publish and payouts are enabled.</p>
       </section>
 
       <MarketStallWorkshop services={services} agentExists={Boolean(market?.agentExists)} holder={Boolean(market?.holder)} onTest={testRecipe} onPublishChange={() => setStallRevision((value) => value + 1)} />
