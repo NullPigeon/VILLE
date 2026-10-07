@@ -17,7 +17,7 @@ import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import './agent-market.css';
 
 type Service = { id: string; name: string; category: string; provider: string; kind: string; model: string | null;
-  priceUsd: string; description: string; endpoint: string; available: boolean; holderOnly: boolean; status: 'open' | 'holder' | 'preparing' };
+  priceUsd: string; description: string; endpoint: string; available: boolean; setupReady: boolean; holderOnly: boolean; status: 'open' | 'holder' | 'preparing' };
 type MarketState = { selected: AgentSkillId[]; holder: boolean; holderCheckAvailable: boolean; agentExists: boolean; paidServices: Service[] };
 type CitizenAgent = { id: string; ownerWallet: string; name: string; description: string; capabilities: string[]; connectedAt: string };
 type MarketOrder = { serviceId: string; output: string | null; transaction: string | null; createdAt: string };
@@ -31,9 +31,9 @@ const providerNames: Record<string, string> = {
 };
 
 function serviceStatus(service: Service) {
-  if (service.status === 'open') return 'Available';
-  if (service.status === 'holder') return 'SCRAPY holder access';
-  return 'Needs project setup';
+  if (service.status === 'open') return 'Ready to run';
+  if (service.status === 'holder') return 'Hold 1M SCRAPY to run';
+  return 'Checkout not live yet';
 }
 
 export default function AgentMarketPage() {
@@ -143,6 +143,7 @@ export default function AgentMarketPage() {
     provider, services: shown.filter((item) => item.provider === provider),
   }));
   const openCount = services.filter((item) => item.status === 'open').length;
+  const holderCount = services.filter((item) => item.holderOnly).length;
   const merchant = EXTERNAL_MARKET_SERVICES.find((item) => item.id === merchantId);
   const activeStall = citizenStalls.find((item) => item.id === stallId);
   const merchantCategories = ['All', ...Array.from(new Set(EXTERNAL_MARKET_SERVICES.map((item) => item.category)))];
@@ -239,21 +240,27 @@ export default function AgentMarketPage() {
       <section className="am-hero" aria-labelledby="market-title">
         <div className="am-hero-copy"><span className="am-kicker"><RadioTower /> SCRAPY SERVICE DOCK</span>
           <h1 id="market-title">GIVE YOUR AGENT <em>MORE TO DO.</em></h1>
-          <p>Find a model or tool, describe the job, and get the result here. Your agent can point you to the right service.</p>
+          <p>Find a model or tool, describe the job, and get the result here. Pay per use: one price for each run, with no subscription.</p>
           <div className="am-hero-actions"><a href="#services">EXPLORE SERVICES <ArrowRight /></a><Link href={profile}>MY AGENT <ArrowUpRight /></Link></div>
-          <div className="am-hero-tags"><span><Wallet /> {MARKET_NETWORK}</span><span><CircleDollarSign /> {MARKET_CURRENCY} · {openCount ? `${openCount} AVAILABLE` : 'PAYMENTS IN SETUP'}</span></div>
+          <div className="am-hero-tags"><span><Wallet /> {MARKET_NETWORK}</span><span><CircleDollarSign /> {MARKET_CURRENCY} · {openCount ? `${openCount} AVAILABLE` : 'PAYMENTS IN SETUP'}</span><span>PAY PER USE · NO PLAN</span></div>
         </div><div className="am-hero-art"><span>SCRAPY&apos;S SERVICE BOARD</span><ScrapyBot portrait /><b>WHAT&apos;S THE JOB?</b></div>
       </section>
 
       <section className="am-guide" aria-label="How to use the market">
         <div><b>01</b><span><strong>Choose a service</strong><small>Models, search, research and chain data.</small></span></div>
         <div><b>02</b><span><strong>Describe one task</strong><small>Ask for a report, answer or lookup.</small></span></div>
-        <div><b>03</b><span><strong>Approve & receive</strong><small>When live, each paid call needs a wallet signature.</small></span></div>
+        <div><b>03</b><span><strong>Pay for this run</strong><small>See the price before signing. No subscription.</small></span></div>
       </section>
 
       <section className="am-services" id="services" aria-labelledby="am-services-title">
         <header className="am-section-head"><div><small>01 / MARKETPLACE</small><h2 id="am-services-title">FIND YOUR TOOL.</h2></div><span>{services.length} SERVICE OPTIONS · {openCount} READY</span></header>
-        <p className="am-section-intro">Browse by provider. Each option is a single bounded job, not a subscription. Only configured services can take payment.</p>
+        <p className="am-section-intro">Pay only when you run a job. The listed LANDVILLE price covers one bounded run, not unlimited model access or a subscription. Your wallet sees the amount before approval.</p>
+        <div className="am-access-key" aria-label="Market access rules">
+          <span><b>OPEN TO ALL</b> {services.length - holderCount} tools need no SCRAPY balance</span>
+          <span><b>1M+ SCRAPY</b> {holderCount} advanced models need a verified linked wallet</span>
+          <small>Both groups pay per run. A token balance unlocks access; it does not pay for the model.</small>
+        </div>
+        {market && !market.holderCheckAvailable && <p className="am-note">SCRAPY balance verification is temporarily unavailable. Holder-only checkout will open after the chain check succeeds.</p>}
         <div className="am-service-controls"><fieldset className="am-service-tabs" aria-label="Service category">{categories.map((item) => <button key={item} type="button" aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</button>)}</fieldset>
           <label className="am-search"><Search aria-hidden="true" /><input aria-label="Search services" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search models or tools" /></label></div>
         {!market && !error && <p className="am-note">Loading the service board…</p>}
@@ -261,11 +268,12 @@ export default function AgentMarketPage() {
         {activeService && <div className="am-checkout" id="market-checkout"><div className="am-checkout-head"><div><small>{providerNames[activeService.provider] || activeService.provider} / {activeService.category}</small><h3>{testDraft ? `TEST ${testDraft.title}` : activeService.name}</h3></div><button type="button" aria-label="Close service" onClick={() => { setCheckoutId(''); setTestDraft(null); }}><X /></button></div>
           <p>{activeService.description}</p>
           {testDraft && <div className="am-recipe-test-note"><Bot /> Your saved recipe guides this private test. Write a customer job below. Nothing is published for sale.</div>}
-          {activeService.status === 'preparing' && <div className="am-setup-message"><ShieldCheck /> This service is listed for preview. LANDVILLE must connect the provider and payment system before checkout opens.</div>}
-          {activeService.status === 'holder' && <div className="am-setup-message"><ShieldCheck /> This service requires a verified balance of at least 1M SCRAPY in your linked wallet.</div>}
+          <div className="am-checkout-access"><span className={activeService.holderOnly ? 'am-access-pill am-access-pill-holder' : 'am-access-pill'}>{activeService.holderOnly ? '1M+ SCRAPY TO USE' : 'OPEN TO ALL'}</span><span>PAY PER RUN · NO SUBSCRIPTION</span></div>
+          {!activeService.setupReady && <div className="am-setup-message"><ShieldCheck /> Checkout is not live yet. LANDVILLE must connect this provider and the payment system.</div>}
+          {activeService.holderOnly && !market?.holder && <div className="am-setup-message"><ShieldCheck /> Your linked wallet needs at least 1M verified SCRAPY to run this model.</div>}
           <label htmlFor="am-job-prompt">{testDraft ? 'GIVE YOUR RECIPE A TEST JOB' : 'WHAT DO YOU WANT DONE?'}</label>
           <textarea id="am-job-prompt" value={prompt} maxLength={testDraft ? 600 : 2000} disabled={buying || !activeService.available} onChange={(event) => setPrompt(event.target.value)} placeholder={testDraft ? 'For example: Turn this rough idea into a one-page pitch for new citizens…' : activeService.id === 'chain-lens' ? 'Paste a 0x wallet address…' : activeService.id === 'page-reader' ? 'Paste one public HTTPS page URL…' : 'Describe a focused task for this service…'} />
-          <div className="am-checkout-footer"><div>{activeService.available ? <><strong>{activeService.priceUsd} USDG / CALL</strong><span>Fixed price for this bounded job. Wallet approval and network gas may be required.</span></> : <strong>{serviceStatus(activeService)}</strong>}</div>
+          <div className="am-checkout-footer"><div><strong>{activeService.priceUsd} USDG / RUN</strong><span>{activeService.setupReady ? 'Fixed price for this bounded job. You pay only when you approve a run; network gas may apply.' : 'Listed price for one bounded job. Payment opens after setup.'}</span>{!activeService.available && <em className={`am-status am-status-${activeService.status}`}>{serviceStatus(activeService)}</em>}</div>
             <button type="button" disabled={buying || !activeService.available || !prompt.trim() || !wallet.linkedWallet} onClick={() => void buy()}>{buying ? 'WORKING…' : activeService.available ? 'APPROVE PAYMENT & RUN' : 'CHECKOUT NOT OPEN'}</button></div>
           {activeService.available && !wallet.linkedWallet && <p className="am-checkout-hint">Connect your wallet in <Link href={profile}>your profile <ArrowUpRight /></Link> to use this service.</p>}
           {stage && <p className="am-success" aria-live="polite">{stage}</p>}{checkoutError && <p className="am-error" role="alert">{checkoutError}</p>}
@@ -273,8 +281,8 @@ export default function AgentMarketPage() {
         </div>}
         <div className="am-provider-grid">{providerGroups.map(({ provider, services: options }) => <article className="am-provider" key={provider}>
           <div className="am-provider-head"><div className="am-provider-icon">{providerNames[provider]?.slice(0, 1) || '?'}</div><div><small>{options[0].category}</small><h3>{providerNames[provider] || provider}</h3></div><span>{options.length} {options.length === 1 ? 'service' : 'services'}</span></div>
-          <div className="am-provider-list">{options.map((item) => <button type="button" key={item.id} className="am-provider-option" onClick={() => choose(item)}>
-            <span><strong>{item.name}</strong><small>{item.description}</small><em className={`am-status am-status-${item.status}`}>{serviceStatus(item)}</em></span><ChevronRight aria-hidden="true" /></button>)}</div>
+          <div className="am-provider-list">{options.map((item) => <button type="button" key={item.id} className="am-provider-option" onClick={() => choose(item)} aria-label={`${item.name}. ${item.holderOnly ? 'Requires 1 million SCRAPY' : 'Open to all'}. ${item.priceUsd} USDG per run. ${item.setupReady ? 'Checkout ready' : 'Checkout not live yet'}.`}>
+            <span className="am-option-copy"><span className="am-option-title"><strong>{item.name}</strong><span className={item.holderOnly ? 'am-access-pill am-access-pill-holder' : 'am-access-pill'}>{item.holderOnly ? '1M+ SCRAPY' : 'OPEN TO ALL'}</span></span><small>{item.description}</small><span className="am-option-foot"><em className={`am-status am-status-${item.status}`}>{serviceStatus(item)}</em><span className="am-option-price">{item.priceUsd} USDG <small>/ RUN</small></span></span></span><ChevronRight aria-hidden="true" /></button>)}</div>
         </article>)}</div>
         {market && !shown.length && <p className="am-note">No services match that search. Try another category or keyword.</p>}
         <div className="am-market-explain"><Bot /><div><strong>EXTERNAL AGENTS CAN DISCOVER THE MARKET</strong><p>Connect an MCP client to search tools and read routes. For paid work it calls the x402 endpoint with its own payment wallet. A connected agent of a verified SCRAPY holder can use holder listings with its profile key, but that key never spends the owner&apos;s wallet.</p><div className="am-mcp-connect"><code>{mcpUrl || '/mcp'}</code><button type="button" disabled={!mcpUrl} onClick={() => void navigator.clipboard.writeText(mcpUrl).then(() => setMcpCopied(true))}>{mcpCopied ? 'COPIED' : 'COPY MCP URL'}</button></div></div></div>
@@ -282,7 +290,7 @@ export default function AgentMarketPage() {
 
       <section className="am-merchants" aria-labelledby="am-merchants-title">
         <header className="am-section-head"><div><small>02 / DIRECT X402 MERCHANTS</small><h2 id="am-merchants-title">OUTSIDE THE CITY. ON YOUR TEAM.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length} CURATED TOOLS</span></header>
-        <p className="am-section-intro">Search, models, web reading and market data from independent sellers. Choose one job, inspect its live USDG quote, then pay that merchant directly on Robinhood Chain. Merchant availability can change.</p>
+        <p className="am-section-intro">Open to all. Choose a job, check the merchant&apos;s live price, then pay that seller directly in USDG. No SCRAPY minimum or subscription. Merchant availability can change.</p>
         <fieldset className="am-service-tabs am-merchant-tabs" aria-label="Merchant category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset>
         {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>
           <p>{merchant.description}</p>
@@ -296,12 +304,12 @@ export default function AgentMarketPage() {
           {merchantStage && <p className="am-success" aria-live="polite">{merchantStage}</p>}{merchantError && <p className="am-error" role="alert">{merchantError}</p>}
           {merchantReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{merchantReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${merchantReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${merchantReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
         </div>}
-        <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>{item.provider.toUpperCase()}</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><em>CHECK LIVE PRICE <ArrowUpRight /></em></button>)}</div>
+        <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>{item.provider.toUpperCase()}</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">OPEN TO ALL · PAY MERCHANT DIRECT</span><em>CHECK LIVE PRICE <ArrowUpRight /></em></button>)}</div>
       </section>
 
       <section className="am-citizen-market" aria-labelledby="am-citizen-title">
         <header className="am-section-head"><div><small>03 / CITIZEN SERVICES</small><h2 id="am-citizen-title">THE CITY WORKS FOR YOU.</h2></div><span>{citizenStalls.length} LIVE STALLS</span></header>
-        <p className="am-section-intro">Real citizens teach their agents a specialty and sell a bounded job. The price includes the foundation service and a seller markup. The seller earns 90% of that markup; 10% goes to the city treasury.</p>
+        <p className="am-section-intro">Anyone can buy a published citizen job, even when its seller uses a holder-only foundation model. The seller must keep their SCRAPY eligibility. The price includes the foundation service and a seller markup; 90% of that markup goes to the seller and 10% to the city treasury.</p>
         {activeStall && <div className="am-checkout" id="citizen-checkout"><div className="am-checkout-head"><div><small>{activeStall.baseName} / CITIZEN {shortWallet(activeStall.seller)}</small><h3>{activeStall.title}</h3></div><button type="button" aria-label="Close citizen service" onClick={() => setStallId('')}><X /></button></div><p>{activeStall.description}</p>
           <label htmlFor="am-stall-job">WHAT JOB SHOULD THIS AGENT DO?</label><textarea id="am-stall-job" value={stallPrompt} maxLength={2000} disabled={stallBusy} onChange={(event) => setStallPrompt(event.target.value)} placeholder="Describe the result you want…" />
           <div className="am-checkout-footer"><div><strong>{activeStall.priceUsd} USDG / CALL</strong><span>One bounded job. You review the wallet signature before paying.</span></div><button type="button" disabled={stallBusy || !stallPrompt.trim() || !wallet.linkedWallet || activeStall.seller === wallet.address} onClick={() => void buyCitizenStall()}>{stallBusy ? 'WORKING…' : 'APPROVE & RUN'}</button></div>
@@ -309,19 +317,19 @@ export default function AgentMarketPage() {
           {stallStage && <p className="am-success" aria-live="polite">{stallStage}</p>}{stallError && <p className="am-error" role="alert">{stallError}</p>}
           {stallReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{stallReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${stallReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${stallReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
         </div>}
-        {citizenStalls.length ? <div className="am-citizen-grid">{citizenStalls.map((stall) => <button type="button" key={stall.id} onClick={() => { setStallId(stall.id); setStallPrompt(''); setStallStage(''); setStallError(''); setStallReceipt(null); window.setTimeout(() => document.getElementById('citizen-checkout')?.scrollIntoView({ behavior: 'smooth' }), 0); }}><small>{stall.category} · CITIZEN {shortWallet(stall.seller)}</small><strong>{stall.title}</strong><span>{stall.description}</span><em>{stall.priceUsd} USDG / JOB <ArrowUpRight /></em></button>)}</div> : <div className="am-empty-network"><Bot /><p>The first citizen stalls will appear here after sellers publish their tested services and city payouts open.</p></div>}
+        {citizenStalls.length ? <div className="am-citizen-grid">{citizenStalls.map((stall) => <button type="button" key={stall.id} onClick={() => { setStallId(stall.id); setStallPrompt(''); setStallStage(''); setStallError(''); setStallReceipt(null); window.setTimeout(() => document.getElementById('citizen-checkout')?.scrollIntoView({ behavior: 'smooth' }), 0); }}><small>{stall.category} · CITIZEN {shortWallet(stall.seller)}</small><strong>{stall.title}</strong><span>{stall.description}</span><span className="am-access-pill">OPEN TO ALL</span><em>{stall.priceUsd} USDG / JOB <ArrowUpRight /></em></button>)}</div> : <div className="am-empty-network"><Bot /><p>The first citizen stalls will appear here after sellers publish their tested services and city payouts open.</p></div>}
       </section>
 
-      <section className="am-skills-section" aria-labelledby="am-skills-title"><header className="am-section-head"><div><small>04 / YOUR AGENT</small><h2 id="am-skills-title">SET ITS STYLE.</h2></div><span>{market?.holder ? 'ALL SKILLS UNLOCKED' : `${selected.length} / ${BASIC_SLOT_LIMIT} EQUIPPED`}</span></header>
+      <section className="am-skills-section" aria-labelledby="am-skills-title"><header className="am-section-head"><div><small>04 / YOUR AGENT</small><h2 id="am-skills-title">SET ITS STYLE.</h2></div><span>{market?.agentExists ? market.holder ? 'ALL SKILLS UNLOCKED' : `${selected.length} / ${BASIC_SLOT_LIMIT} EQUIPPED` : 'CREATE AN AGENT TO EQUIP SKILLS'}</span></header>
         <p className="am-section-intro">These skills shape how your own agent talks in your yard. They are separate from paid models and tools above.</p>
         {!wallet.address && <div className="am-callout"><Bot /><span>Join LANDVILLE to create an agent and choose its skills.</span><Link href={profile}>JOIN THE CITY <ArrowUpRight /></Link></div>}
         {wallet.address && market && !market.agentExists && <div className="am-callout"><Bot /><span>Create your agent first, then choose its skills.</span><Link href={profile}>CREATE MY AGENT <ArrowUpRight /></Link></div>}
         {market?.agentExists && !market.holderCheckAvailable && <p className="am-note">SCRAPY balance check is unavailable. Basic skills still work; holder access updates after the chain check succeeds.</p>}
         {error && market && <p className="am-error" role="alert">{error}</p>}{notice && <p className="am-success" aria-live="polite">{notice}</p>}
-        <div className="am-skills">{AGENT_SKILLS.map((skill) => { const equipped = Boolean(market?.holder || selected.includes(skill.id)); return <button type="button" className={`am-skill ${equipped ? 'equipped' : ''}`} key={skill.id} onClick={() => toggle(skill.id)} disabled={!market?.agentExists || market.holder} aria-pressed={equipped}>
+        <div className="am-skills">{AGENT_SKILLS.map((skill) => { const equipped = Boolean(market?.agentExists && (market.holder || selected.includes(skill.id))); return <button type="button" className={`am-skill ${equipped ? 'equipped' : ''}`} key={skill.id} onClick={() => toggle(skill.id)} disabled={!market?.agentExists || market.holder} aria-pressed={equipped}>
           <span className="am-skill-top"><small>{skill.category}</small>{equipped ? <Check /> : <Sparkles />}</span><strong>{skill.name}</strong><span className="am-skill-desc">{skill.description}</span><span className="am-skill-foot">{equipped ? 'EQUIPPED' : 'EQUIP SKILL'} <ArrowUpRight /></span></button>; })}</div>
         {market?.agentExists && !market.holder && <div className="am-save"><p>Three free chat skill slots. Skills never trigger paid calls by themselves.</p><button type="button" onClick={() => void save()} disabled={!changed || saving}>{saving ? 'SAVING…' : 'SAVE SKILLS'} <ArrowUpRight /></button></div>}
-        {market?.holder && <p className="am-note"><Check /> Your linked wallet holds at least 1M SCRAPY. All chat skills are active; eligible advanced services still need payment per call.</p>}
+        {market?.agentExists && market.holder && <p className="am-note"><Check /> Your linked wallet holds at least 1M SCRAPY. All chat skills are active; eligible advanced services still need payment per call.</p>}
         <div className="am-holder-note"><ShieldCheck /><p><strong>1M SCRAPY holder benefit:</strong> every chat skill and access to advanced model listings. This does not include free provider usage or automatic spending.</p><Link href="/docs/scrapy-token">TOKEN DETAILS <ArrowUpRight /></Link></div>
       </section>
 

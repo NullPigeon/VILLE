@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AGENT_SKILLS, BASIC_SLOT_LIMIT, FUTURE_STALLS, MARKET_CURRENCY, MARKET_NETWORK, validateAgentSkills } from '@/lib/agent-market';
+import { AGENT_SKILLS, BASIC_SLOT_LIMIT, FUTURE_STALLS, MARKET_CURRENCY, MARKET_NETWORK, validateAgentSkills, type AgentSkillId } from '@/lib/agent-market';
 import { MARKET_SERVICES } from '@/lib/market-services';
 import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
 import { database, enforceRate } from '@/lib/server/database';
@@ -24,15 +24,22 @@ export async function GET(request: NextRequest) {
   const catalogue = { skills: AGENT_SKILLS, futureStalls: FUTURE_STALLS, basicSlotLimit: BASIC_SLOT_LIMIT, network: MARKET_NETWORK, currency: MARKET_CURRENCY };
   try {
     const owner = requireWallet(request);
-    const selected = await readAgentMarketSkills(owner);
+    let selected: AgentSkillId[] = [];
+    let agentExists = false;
+    try {
+      selected = await readAgentMarketSkills(owner);
+      agentExists = true;
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 404) throw error;
+    }
     let holder = false;
     let holderCheckAvailable = true;
     try { holder = await hasMarketHolderAccess(owner); }
     catch { holderCheckAvailable = false; }
     return NextResponse.json({ ...catalogue, paidServices: MARKET_SERVICES.map((service) => publicMarketService(service, paymentsReady, holder)),
-      selected, holder, holderCheckAvailable, agentExists: true }, { headers: { 'Cache-Control': 'private, no-store' } });
+      selected, holder, holderCheckAvailable, agentExists }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
-    if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
+    if (error instanceof ApiError && error.status === 401) {
       return NextResponse.json({ ...catalogue, paidServices: MARKET_SERVICES.map((service) => publicMarketService(service, paymentsReady, false)),
         selected: [], holder: false, holderCheckAvailable: true, agentExists: false }, { headers: { 'Cache-Control': 'no-store' } });
     }
