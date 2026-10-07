@@ -1,17 +1,24 @@
 export type ExternalMarketService = {
   id: string;
   name: string;
-  provider: 'agent402' | 'spraay' | 'stockkit';
+  provider: 'agent402' | 'spraay' | 'stockkit' | 'relay';
   category: 'AI Models' | 'Search' | 'Web & Scraping' | 'Market Data';
   description: string;
   input: 'prompt' | 'query' | 'url' | 'symbol' | 'address' | 'none';
   placeholder: string;
-  docs: string;
+  docs?: string;
+  modelPicker?: boolean;
 };
 
 // Each upstream route is constructed here, never from a caller-supplied URL.
 // A listing is usable only when its live 402 quote offers USDG on Robinhood Chain.
 export const EXTERNAL_MARKET_SERVICES: ExternalMarketService[] = [
+  { id: 'model-network', name: 'Model Network', provider: 'relay', category: 'AI Models',
+    description: 'Choose a model and pay its live USDG quote per request. No provider account needed.', input: 'prompt',
+    placeholder: 'What should this model do for you?', modelPicker: true },
+  { id: 'metered-models', name: 'Metered Models', provider: 'agent402', category: 'AI Models',
+    description: 'Choose from the live model catalog. The quote depends on your prompt and output limit.', input: 'prompt',
+    placeholder: 'Describe a task, article, code question or report.', modelPicker: true },
   { id: 'agent402-auto-chat', name: 'Auto Model Chat', provider: 'agent402', category: 'AI Models',
     description: 'One AI answer; the merchant chooses a suitable model for your task.', input: 'prompt',
     placeholder: 'What should this model help you with?', docs: 'https://agent402.tools/tools/category/llm' },
@@ -58,10 +65,13 @@ export function externalResourceMatches(serviceId: string, quotedUrl: string, re
   return false;
 }
 
-export function externalMarketRequest(service: ExternalMarketService, rawInput: string) {
+export function externalMarketRequest(service: ExternalMarketService, rawInput: string, modelId = '') {
   const input = rawInput.trim();
-  if (input.length > 1000) throw new Error('Keep this request under 1,000 characters.');
+  if (input.length > (service.modelPicker ? 4000 : 1000)) throw new Error('Keep this request shorter.');
   if (service.input !== 'none' && !input) throw new Error('Enter a request for this service.');
+  if (service.modelPicker && (!/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:/-]{0,120}$/i.test(modelId) || modelId.includes('*'))) {
+    throw new Error('Choose a model from the live catalog.');
+  }
   if (service.input === 'symbol' && !/^[A-Za-z][A-Za-z0-9.-]{0,14}$/.test(input)) throw new Error('Enter a stock symbol such as NVDA.');
   if (service.input === 'address' && !/^0x[0-9a-fA-F]{40}$/.test(input)) throw new Error('Enter one EVM wallet address.');
   if (service.input === 'url') {
@@ -72,6 +82,10 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
   }
   if (service.id === 'agent402-auto-chat') return { url: 'https://agent402.tools/v1/auto/chat/completions', method: 'POST' as const,
     body: JSON.stringify({ messages: [{ role: 'user', content: input }], max_tokens: 700, stream: false }) };
+  if (service.id === 'model-network') return { url: 'https://api.meshgateway.co/x/openrouter/v1/chat/completions', method: 'POST' as const,
+    body: JSON.stringify({ model: modelId, messages: [{ role: 'user', content: input }], max_tokens: 2000, stream: false }) };
+  if (service.id === 'metered-models') return { url: 'https://agent402.tools/v1/metered/chat/completions', method: 'POST' as const,
+    body: JSON.stringify({ model: modelId, messages: [{ role: 'user', content: input }], max_tokens: 2000, stream: false }) };
   if (service.id === 'agent402-search') return { url: `https://agent402.tools/api/search?q=${encodeURIComponent(input)}`, method: 'GET' as const, body: undefined };
   if (service.id === 'agent402-extract') return { url: 'https://agent402.tools/api/extract', method: 'POST' as const,
     body: JSON.stringify({ url: input }) };
@@ -84,4 +98,36 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
   if (service.id === 'stockkit-portfolio') return { url: `https://api.stockkit.dev/v1/x402/portfolio/${input}`, method: 'GET' as const, body: undefined };
   if (service.id === 'stockkit-history') return { url: `https://api.stockkit.dev/v1/x402/history/${input.toUpperCase()}`, method: 'GET' as const, body: undefined };
   throw new Error('Service not found.');
+}
+
+export type ExternalModel = { id: string; name: string; provider: string };
+
+const catalogCache = new Map<string, { expires: number; models: ExternalModel[] }>();
+
+export async function externalModelCatalog(source: 'model-network' | 'metered-models'): Promise<ExternalModel[]> {
+  const cached = catalogCache.get(source);
+  if (cached && cached.expires > Date.now()) return cached.models;
+  const url = source === 'model-network' ? 'https://openrouter.ai/api/v1/models' : 'https://agent402.tools/v1/models';
+  const response = await fetch(url, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(12_000) });
+  if (!response.ok) throw new Error('Model catalog is temporarily unavailable.');
+  const raw = await response.text();
+  if (raw.length > 8_000_000) throw new Error('Model catalog is too large.');
+  const parsed = JSON.parse(raw) as { data?: unknown };
+  if (!Array.isArray(parsed.data)) throw new Error('Model catalog is unreadable.');
+  const seen = new Set<string>();
+  const models = parsed.data.flatMap((entry: unknown) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const item = entry as Record<string, unknown>;
+    const id = typeof item.id === 'string' ? item.id : '';
+    if (!/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:/-]{0,120}$/i.test(id) || id.includes('*') || seen.has(id)) return [];
+    const architecture = item.architecture as { output_modalities?: unknown } | undefined;
+    if (source === 'model-network' && architecture?.output_modalities &&
+      (!Array.isArray(architecture.output_modalities) || !architecture.output_modalities.includes('text'))) return [];
+    seen.add(id);
+    return [{ id, name: typeof item.name === 'string' ? item.name.slice(0, 100) : id.split('/').at(-1) || id,
+      provider: id.split('/')[0] }];
+  }).slice(0, 1500);
+  if (!models.length) throw new Error('No models are available right now.');
+  catalogCache.set(source, { expires: Date.now() + 5 * 60_000, models });
+  return models;
 }
