@@ -211,6 +211,26 @@ html[data-city-motion=paused] .am-page *,html[data-city-motion=paused] .am-page 
 .am-merchant-card>span:nth-child(3){color:#d5dec4;font-size:14px;line-height:1.4}
 .am-merchant-card em{display:flex;align-items:center;gap:6px;margin-top:auto;color:#e9c78a;font-size:11px;font-weight:900;font-style:normal}
 .am-merchant-card em svg,.am-merchant-docs svg{width:14px;height:14px}
+.am-access-key{display:flex;flex-wrap:wrap;gap:9px;margin:-4px 0 21px;padding:14px 16px;border:1px solid #869862;background:#202e20}
+.am-access-key>span{display:flex;align-items:center;gap:9px;padding:7px 10px;background:#2e4028;color:#e6edca;font-size:13px;line-height:1.35}
+.am-access-key>span:nth-child(2){background:#423923}
+.am-access-key b{color:#dcec85;font:900 11px Arial,sans-serif;white-space:nowrap}
+.am-access-key>span:nth-child(2) b{color:#f2d18b}
+.am-access-key>small{flex-basis:100%;color:#d1dcc0;font-size:12px;line-height:1.4}
+.am-option-copy{width:100%}
+.am-option-title,.am-option-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px}
+.am-provider-option .am-option-title strong{font-size:17px;color:#fff1d1}
+.am-access-pill{display:inline-flex;align-items:center;width:fit-content;padding:5px 8px;border:1px solid #a9c66e;background:#334b29;color:#e2f49f;font:900 10px/1.2 Arial,sans-serif;letter-spacing:.04em;white-space:nowrap}
+.am-access-pill-holder{border-color:#d9b36f;background:#59492d;color:#ffe0a4}
+.am-option-foot{margin-top:7px;padding-top:10px;border-top:1px solid #566a48}
+.am-option-foot .am-status{font-size:12px}
+.am-option-price{color:#f6e5ad;font:900 14px/1.2 Arial,sans-serif;white-space:nowrap}
+.am-provider-option .am-option-price small{color:#d8d1b4;font:800 10px Arial,sans-serif}
+.am-checkout-access{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:15px 0;color:#e9e1bc;font-size:12px;font-weight:800}
+.am-merchant-access{padding:6px 8px;border:1px solid #899e65;background:#304127;color:#e4ecbe;font:800 10px Arial,sans-serif;letter-spacing:.03em}
+.am-citizen-grid .am-access-pill{color:#e2f49f;font:900 10px/1.2 Arial,sans-serif}
+.am-checkout-footer .am-status{margin-top:5px;font-size:12px;font-style:normal}
+@media(max-width:650px){.am-access-key{padding:12px}.am-access-key>span{width:100%;flex-wrap:wrap}.am-provider-option{padding:15px}.am-option-price{font-size:13px}}
 .am-merchant-checkout{border-color:#edc47d;background:radial-gradient(circle at 95% 0,#aa764c45,transparent 48%),#293725}
 .am-merchant-input{display:block;width:100%;min-height:52px;padding:12px 14px;border:2px solid #a6ac71;border-radius:3px;background:#142016;color:#f3efd9;font:15px Arial,sans-serif}
 .am-merchant-input:focus-visible{outline:3px solid #f1d98e;outline-offset:3px}

@@ -29,13 +29,15 @@ export function marketServiceConfigured(service: MarketService) {
 }
 
 export function publicMarketService(service: MarketService, paymentsReady: boolean, holder: boolean) {
+  const setupReady = paymentsReady && marketServiceConfigured(service);
   return {
     id: service.id, name: service.name, category: service.category,
     provider: service.provider, kind: service.kind, model: service.model || null,
     priceUsd: service.priceUsd, description: service.description,
     holderOnly: service.holderOnly,
     endpoint: `/api/agent-market/call/${service.id}`,
-    available: paymentsReady && marketServiceConfigured(service) && (!service.holderOnly || holder),
-    status: !paymentsReady || !marketServiceConfigured(service) ? 'preparing' : service.holderOnly && !holder ? 'holder' : 'open',
+    setupReady,
+    available: setupReady && (!service.holderOnly || holder),
+    status: service.holderOnly && !holder ? 'holder' : !setupReady ? 'preparing' : 'open',
   };
 }
