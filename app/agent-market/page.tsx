@@ -259,7 +259,7 @@ export default function AgentMarketPage() {
           <h1 id="market-title">GIVE YOUR AGENT <em>MORE TO DO.</em></h1>
           <p>Find a model or tool, describe the job, and get the result here. Pay per use: one price for each run, with no subscription.</p>
           <div className="am-hero-actions"><a href="#services">EXPLORE SERVICES <ArrowRight /></a><Link href={profile}>MY AGENT <ArrowUpRight /></Link></div>
-          <div className="am-hero-tags"><span><Wallet /> {MARKET_NETWORK}</span><span><CircleDollarSign /> {MARKET_CURRENCY} · {openCount ? `${openCount} AVAILABLE` : 'PAYMENTS IN SETUP'}</span><span>PAY PER USE · NO PLAN</span></div>
+          <div className="am-hero-tags"><span><Wallet /> {MARKET_NETWORK}</span><span><CircleDollarSign /> {MARKET_CURRENCY} · LIVE X402 QUOTES</span><span>PAY PER USE · NO PLAN</span></div>
         </div><div className="am-hero-art"><span>SCRAPY&apos;S SERVICE BOARD</span><ScrapyBot portrait /><b>WHAT&apos;S THE JOB?</b></div>
       </section>
 
@@ -269,9 +269,36 @@ export default function AgentMarketPage() {
         <div><b>03</b><span><strong>Pay for this run</strong><small>See the price before signing. No subscription.</small></span></div>
       </section>
 
-      <section className="am-services" id="services" aria-labelledby="am-services-title">
-        <header className="am-section-head"><div><small>01 / MARKETPLACE</small><h2 id="am-services-title">FIND YOUR TOOL.</h2></div><span>{services.length} SERVICE OPTIONS · {openCount} READY</span></header>
-        <p className="am-section-intro">Pay only when you run a job. The listed LANDVILLE price covers one bounded run, not unlimited model access or a subscription. Your wallet sees the amount before approval.</p>
+      <section className="am-merchants" id="services" aria-labelledby="am-merchants-title">
+        <header className="am-section-head"><div><small>01 / WALLET-PAID MARKET</small><h2 id="am-merchants-title">FIND YOUR TOOL.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length} SERVICE ROUTES</span></header>
+        <p className="am-section-intro">Pick an AI model or tool. See its live USDG quote, then pay the outside x402 operator from your wallet. The operator handles the upstream provider bill. One request at a time; no subscription.</p>
+        <fieldset className="am-service-tabs am-merchant-tabs" aria-label="Merchant category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset>
+        {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider === 'relay' ? 'MODEL NETWORK' : merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>
+          <p>{merchant.description}</p>
+          {merchant.modelPicker && <div className="am-merchant-models"><label htmlFor="am-model-search">1 / FIND A MODEL</label>
+            <input id="am-model-search" className="am-merchant-input" value={merchantModelSearch} onChange={(event) => setMerchantModelSearch(event.target.value)} placeholder="Search OpenAI, Claude, Gemini, DeepSeek…" />
+            <select aria-label="Choose a model" className="am-merchant-input" value={merchantModelId} disabled={!merchantModels.length || merchantBusy} onChange={(event) => { setMerchantModelId(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }}>
+              <option value="">Choose a model</option>{merchantModelId && !shownMerchantModels.some((item) => item.id === merchantModelId) && <option value={merchantModelId}>{merchantModelId}</option>}
+              {shownMerchantModels.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.provider}</option>)}
+            </select>
+            <small>{merchantModelsError || (merchantModels.length ? `${merchantModels.length} models in the live catalog. Availability is confirmed when you check the price.` : 'Loading model catalog…')}</small>
+          </div>}
+          {merchant.input !== 'none' && <><label htmlFor="am-merchant-input">{merchant.input === 'prompt' ? 'WHAT SHOULD THE MODEL DO?' : merchant.input === 'query' ? 'WHAT SHOULD WE SEARCH FOR?' : merchant.input === 'url' ? 'PAGE URL' : merchant.input === 'symbol' ? 'STOCK SYMBOL' : 'PUBLIC WALLET ADDRESS'}</label>
+            {merchant.input === 'prompt' ? <textarea id="am-merchant-input" value={merchantInput} maxLength={merchant.modelPicker ? 4000 : 1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} /> : <input id="am-merchant-input" className="am-merchant-input" value={merchantInput} maxLength={1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} />}</>}
+          <div className="am-checkout-footer"><div>{merchantQuote ? <><strong>{merchantQuote.amountUsd} USDG / CALL</strong><span>Paid to the outside service operator at the quoted address. No LANDVILLE fee. Wallet gas or token approval may apply.</span></> : <><strong>LIVE PRICE BEFORE PAYMENT</strong><span>Checkout opens only when the seller quotes USDG on Robinhood Chain. Model calls have an output limit of 2,000 tokens.</span></>}</div>
+            {merchantQuote ? <button type="button" disabled={merchantBusy || !wallet.linkedWallet} onClick={() => void payMerchant()}>{merchantBusy ? 'WORKING…' : 'APPROVE & RUN'}</button> : <button type="button" disabled={merchantBusy || (merchant.input !== 'none' && !merchantInput.trim()) || (merchant.modelPicker && !merchantModelId) || !wallet.address} onClick={() => void getMerchantQuote()}>{merchantBusy ? 'CHECKING…' : 'CHECK LIVE PRICE'}</button>}</div>
+          {!wallet.address && <p className="am-checkout-hint">Join LANDVILLE to request a quote.</p>}
+          {wallet.address && !wallet.linkedWallet && <p className="am-checkout-hint">Link a wallet in <Link href={profile}>your profile <ArrowUpRight /></Link> to pay.</p>}
+          {merchant.docs && <a className="am-merchant-docs" href={merchant.docs} target="_blank" rel="noopener noreferrer">MERCHANT DETAILS <ArrowUpRight /></a>}
+          {merchantStage && <p className="am-success" aria-live="polite">{merchantStage}</p>}{merchantError && <p className="am-error" role="alert">{merchantError}</p>}
+          {merchantReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{merchantReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${merchantReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${merchantReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
+        </div>}
+        <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>{item.provider === 'relay' ? 'MODEL NETWORK' : item.provider.toUpperCase()}</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">OPEN TO ALL · PAY MERCHANT DIRECT</span><em>CHECK LIVE PRICE <ArrowUpRight /></em></button>)}</div>
+      </section>
+
+      <section className="am-services" id="city-services" aria-labelledby="am-services-title">
+        <header className="am-section-head"><div><small>02 / LANDVILLE-OPERATED SERVICES</small><h2 id="am-services-title">CITY-RUN JOBS.</h2></div><span>{services.length} SERVICE OPTIONS · {openCount} READY</span></header>
+        <p className="am-section-intro">Optional city-run jobs use provider accounts configured by LANDVILLE. Their fixed USDG price covers one bounded run. They open individually as the city connects and checks each provider.</p>
         <div className="am-access-key" aria-label="Market access rules">
           <span><b>OPEN TO ALL</b> {services.length - holderCount} tools need no SCRAPY balance</span>
           <span><b>1M+ SCRAPY</b> {holderCount} advanced models need a verified linked wallet</span>
@@ -303,33 +330,6 @@ export default function AgentMarketPage() {
         </article>)}</div>
         {market && !shown.length && <p className="am-note">No services match that search. Try another category or keyword.</p>}
         <div className="am-market-explain"><Bot /><div><strong>EXTERNAL AGENTS CAN DISCOVER THE MARKET</strong><p>Connect an MCP client to search tools and read routes. For paid work it calls the x402 endpoint with its own payment wallet. A connected agent of a verified SCRAPY holder can use holder listings with its profile key, but that key never spends the owner&apos;s wallet.</p><div className="am-mcp-connect"><code>{mcpUrl || '/mcp'}</code><button type="button" disabled={!mcpUrl} onClick={() => void navigator.clipboard.writeText(mcpUrl).then(() => setMcpCopied(true))}>{mcpCopied ? 'COPIED' : 'COPY MCP URL'}</button></div></div></div>
-      </section>
-
-      <section className="am-merchants" aria-labelledby="am-merchants-title">
-        <header className="am-section-head"><div><small>02 / DIRECT X402 MERCHANTS</small><h2 id="am-merchants-title">OUTSIDE THE CITY. ON YOUR TEAM.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length} CURATED TOOLS</span></header>
-        <p className="am-section-intro">Open to all. Choose a model or tool, see its live price, then pay the outside seller in USDG. One call at a time. No subscription. Availability can change.</p>
-        <fieldset className="am-service-tabs am-merchant-tabs" aria-label="Merchant category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset>
-        {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider === 'relay' ? 'MODEL NETWORK' : merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>
-          <p>{merchant.description}</p>
-          {merchant.modelPicker && <div className="am-merchant-models"><label htmlFor="am-model-search">1 / FIND A MODEL</label>
-            <input id="am-model-search" className="am-merchant-input" value={merchantModelSearch} onChange={(event) => setMerchantModelSearch(event.target.value)} placeholder="Search OpenAI, Claude, Gemini, DeepSeek…" />
-            <select aria-label="Choose a model" className="am-merchant-input" value={merchantModelId} disabled={!merchantModels.length || merchantBusy} onChange={(event) => { setMerchantModelId(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }}>
-              <option value="">Choose a model</option>{merchantModelId && !shownMerchantModels.some((item) => item.id === merchantModelId) && <option value={merchantModelId}>{merchantModelId}</option>}
-              {shownMerchantModels.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.provider}</option>)}
-            </select>
-            <small>{merchantModelsError || (merchantModels.length ? `${merchantModels.length} models in the live catalog. Availability is confirmed when you check the price.` : 'Loading model catalog…')}</small>
-          </div>}
-          {merchant.input !== 'none' && <><label htmlFor="am-merchant-input">{merchant.input === 'prompt' ? 'WHAT SHOULD THE MODEL DO?' : merchant.input === 'query' ? 'WHAT SHOULD WE SEARCH FOR?' : merchant.input === 'url' ? 'PAGE URL' : merchant.input === 'symbol' ? 'STOCK SYMBOL' : 'PUBLIC WALLET ADDRESS'}</label>
-            {merchant.input === 'prompt' ? <textarea id="am-merchant-input" value={merchantInput} maxLength={merchant.modelPicker ? 4000 : 1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} /> : <input id="am-merchant-input" className="am-merchant-input" value={merchantInput} maxLength={1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} />}</>}
-          <div className="am-checkout-footer"><div>{merchantQuote ? <><strong>{merchantQuote.amountUsd} USDG / CALL</strong><span>Paid to the outside service operator at the quoted address. No LANDVILLE fee. Wallet gas or token approval may apply.</span></> : <><strong>LIVE PRICE BEFORE PAYMENT</strong><span>Checkout opens only when the seller quotes USDG on Robinhood Chain. Model calls have an output limit of 2,000 tokens.</span></>}</div>
-            {merchantQuote ? <button type="button" disabled={merchantBusy || !wallet.linkedWallet} onClick={() => void payMerchant()}>{merchantBusy ? 'WORKING…' : 'APPROVE & RUN'}</button> : <button type="button" disabled={merchantBusy || (merchant.input !== 'none' && !merchantInput.trim()) || (merchant.modelPicker && !merchantModelId) || !wallet.address} onClick={() => void getMerchantQuote()}>{merchantBusy ? 'CHECKING…' : 'CHECK LIVE PRICE'}</button>}</div>
-          {!wallet.address && <p className="am-checkout-hint">Join LANDVILLE to request a quote.</p>}
-          {wallet.address && !wallet.linkedWallet && <p className="am-checkout-hint">Link a wallet in <Link href={profile}>your profile <ArrowUpRight /></Link> to pay.</p>}
-          {merchant.docs && <a className="am-merchant-docs" href={merchant.docs} target="_blank" rel="noopener noreferrer">MERCHANT DETAILS <ArrowUpRight /></a>}
-          {merchantStage && <p className="am-success" aria-live="polite">{merchantStage}</p>}{merchantError && <p className="am-error" role="alert">{merchantError}</p>}
-          {merchantReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{merchantReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${merchantReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${merchantReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
-        </div>}
-        <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>{item.provider === 'relay' ? 'MODEL NETWORK' : item.provider.toUpperCase()}</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">OPEN TO ALL · PAY MERCHANT DIRECT</span><em>CHECK LIVE PRICE <ArrowUpRight /></em></button>)}</div>
       </section>
 
       <section className="am-citizen-market" aria-labelledby="am-citizen-title">
