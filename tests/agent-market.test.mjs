@@ -22,7 +22,7 @@ void test('verified holder access covers all live skills and stays on Robinhood 
 });
 
 void test('paid catalogue has unique bounded listings and distinct live tools', () => {
-  assert.equal(MARKET_SERVICES.length, 19);
+  assert.equal(MARKET_SERVICES.length, 20);
   assert.equal(new Set(MARKET_SERVICES.map((service) => service.id)).size, MARKET_SERVICES.length);
   for (const service of MARKET_SERVICES) {
     assert.match(service.id, /^[a-z0-9-]+$/);
@@ -32,5 +32,5 @@ void test('paid catalogue has unique bounded listings and distinct live tools', 
     if (service.kind === 'model') assert.ok(service.model && service.maxOutputTokens);
   }
   assert.deepEqual(new Set(MARKET_SERVICES.filter((service) => service.kind !== 'model').map((service) => service.kind)),
-    new Set(['world-audit', 'web-search', 'web-news', 'research-brief', 'chain-lens', 'long-form']));
+    new Set(['world-audit', 'web-search', 'web-news', 'web-scrape', 'research-brief', 'chain-lens', 'long-form']));
 });

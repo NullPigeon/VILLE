@@ -1,10 +1,10 @@
-export type MarketProvider = 'landville' | 'openai' | 'anthropic' | 'google' | 'xai' | 'groq' | 'deepseek' | 'mistral' | 'brave' | 'robinhood';
+export type MarketProvider = 'landville' | 'openai' | 'anthropic' | 'google' | 'xai' | 'groq' | 'deepseek' | 'mistral' | 'brave' | 'firecrawl' | 'robinhood';
 export type YardMarketSuggestion = { serviceId: string; name: string; priceUsd: string; prompt: string };
-export type MarketServiceKind = 'world-audit' | 'web-search' | 'web-news' | 'research-brief' | 'chain-lens' | 'model' | 'long-form';
+export type MarketServiceKind = 'world-audit' | 'web-search' | 'web-news' | 'web-scrape' | 'research-brief' | 'chain-lens' | 'model' | 'long-form';
 export type MarketService = {
   id: string;
   name: string;
-  category: 'City' | 'Search' | 'Research' | 'Blockchain' | 'AI Models';
+  category: 'City' | 'Search' | 'Web & Scraping' | 'Research' | 'Blockchain' | 'AI Models';
   provider: MarketProvider;
   kind: MarketServiceKind;
   model?: string;
@@ -20,6 +20,7 @@ export const MARKET_SERVICES: MarketService[] = [
   { id: 'world-audit', name: 'World Audit', category: 'City', provider: 'landville', kind: 'world-audit', priceUsd: '0.03', description: 'Analyze real World buildings and proposals to find one useful gap in a district.', holderOnly: false, maxOutputTokens: 700 },
   { id: 'web-scout', name: 'Web Scout', category: 'Search', provider: 'brave', kind: 'web-search', priceUsd: '0.02', description: 'Search the live web and return five source links with short summaries.', holderOnly: false },
   { id: 'news-radar', name: 'News Radar', category: 'Search', provider: 'brave', kind: 'web-news', priceUsd: '0.02', description: 'Find recent news on a topic with source links and dates.', holderOnly: false },
+  { id: 'page-reader', name: 'Page Reader', category: 'Web & Scraping', provider: 'firecrawl', kind: 'web-scrape', priceUsd: '0.05', description: 'Read the main text of one public HTTPS page and return its source link.', holderOnly: false },
   { id: 'research-brief', name: 'Research Brief', category: 'Research', provider: 'landville', kind: 'research-brief', priceUsd: '0.12', description: 'Search live sources and write a sourced brief. Up to 2,500 output tokens.', holderOnly: false, maxOutputTokens: 2500 },
   { id: 'chain-lens', name: 'Chain Lens', category: 'Blockchain', provider: 'robinhood', kind: 'chain-lens', priceUsd: '0.01', description: 'Read current SCRAPY and ETH balances for an EVM address on Robinhood Chain.', holderOnly: false },
   { id: 'long-form', name: 'Longform Desk', category: 'AI Models', provider: 'openai', kind: 'long-form', priceUsd: '0.18', description: 'Create a detailed article, report or guide from your brief. One bounded request, up to 6,000 output tokens.', holderOnly: false, maxOutputTokens: 6000 },
