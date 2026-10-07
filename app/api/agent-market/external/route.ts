@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { parsePaymentPayload } from '@x402/core/schemas';
-import { EXTERNAL_MARKET_SERVICES, externalMarketRequest, externalMarketService, externalResourceMatches } from '@/lib/external-market';
+import { EXTERNAL_MARKET_SERVICES, externalMarketRequest, externalMarketService, externalModelCatalog, externalResourceMatches } from '@/lib/external-market';
 import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
 import { claimMarketOrder, finishMarketOrder, marketHash, marketOrder, marketOrderStorageReady } from '@/lib/server/market-orders';
 import { linkedAgentCredential } from '@/lib/server/linked-agents';
@@ -13,26 +13,33 @@ const NETWORK = 'eip155:4663';
 const USDG = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168';
 const noStore = { 'Cache-Control': 'private, no-store' };
 
-function quoteToken(owner: string, serviceId: string, input: string, expires: number, amount: string) {
+function quoteToken(owner: string, serviceId: string, input: string, modelId: string, expires: number, amount: string, payTo: string) {
   const secret = process.env.WALLET_SESSION_SECRET;
   if (!secret || secret.length < 32) throw new ApiError(503, 'Wallet checkout is not configured.');
-  const message = JSON.stringify([owner.toLowerCase(), serviceId, input.trim(), expires, amount]);
-  return `${expires}.${amount}.${createHmac('sha256', secret).update(message).digest('hex')}`;
+  const message = JSON.stringify([owner.toLowerCase(), serviceId, input.trim(), modelId, expires, amount, payTo.toLowerCase()]);
+  return `${expires}.${amount}.${payTo.toLowerCase()}.${createHmac('sha256', secret).update(message).digest('hex')}`;
 }
 
-function verifyQuoteToken(token: string, owner: string, serviceId: string, input: string) {
-  const [stamp, amount, digest] = token.split('.');
+function verifyQuoteToken(token: string, owner: string, serviceId: string, input: string, modelId: string) {
+  const [stamp, amount, payTo, digest, extra] = token.split('.');
   if (!/^\d{13}$/.test(stamp || '') || !/^\d{1,7}$/.test(amount || '') ||
-    BigInt(amount) <= 0n || BigInt(amount) > 2_000_000n || !/^[0-9a-f]{64}$/.test(digest || '')) throw new ApiError(409, 'Refresh the merchant quote before paying.');
+    BigInt(amount) <= 0n || BigInt(amount) > 2_000_000n || !/^0x[0-9a-f]{40}$/.test(payTo || '') ||
+    !/^[0-9a-f]{64}$/.test(digest || '') || extra !== undefined) throw new ApiError(409, 'Refresh the merchant quote before paying.');
   const expires = Number(stamp);
   if (expires < Date.now() || expires > Date.now() + 5 * 60_000) throw new ApiError(409, 'Merchant quote expired. Refresh it before paying.');
-  const expected = quoteToken(owner, serviceId, input, expires, amount).split('.')[2];
+  const expected = quoteToken(owner, serviceId, input, modelId, expires, amount, payTo).split('.')[3];
   if (!timingSafeEqual(Buffer.from(digest), Buffer.from(expected))) throw new ApiError(409, 'Merchant quote does not match this request.');
-  return BigInt(amount);
+  return { amount: BigInt(amount), payTo };
 }
 
-export async function GET() {
-  return NextResponse.json({ services: EXTERNAL_MARKET_SERVICES }, { headers: noStore });
+export async function GET(request: NextRequest) {
+  try {
+    const modelSource = request.nextUrl.searchParams.get('models');
+    if (modelSource === 'model-network' || modelSource === 'metered-models') {
+      return NextResponse.json({ models: await externalModelCatalog(modelSource) }, { headers: noStore });
+    }
+    return NextResponse.json({ services: EXTERNAL_MARKET_SERVICES }, { headers: noStore });
+  } catch (error) { return apiFailure(error); }
 }
 
 function externalPaymentChallenge(body: unknown, header: string | null, serviceId: string, expectedUrl: string) {
@@ -71,7 +78,7 @@ function paymentReceipt(header: string | null) {
   return { transaction: value.transaction, network: value.network, payer: typeof value.payer === 'string' ? value.payer : '' };
 }
 
-function verifySignedMerchantQuote(signature: string, amount: bigint, serviceId: string, expectedUrl: string) {
+function verifySignedMerchantQuote(signature: string, amount: bigint, payTo: string, serviceId: string, expectedUrl: string) {
   let decoded: unknown;
   try { decoded = JSON.parse(Buffer.from(signature, 'base64').toString('utf8')); }
   catch { throw new ApiError(409, 'Payment signature is unreadable. Refresh the quote.'); }
@@ -80,7 +87,7 @@ function verifySignedMerchantQuote(signature: string, amount: bigint, serviceId:
   const { accepted, resource } = result.data;
   if (accepted.scheme !== 'exact' || accepted.network !== NETWORK ||
     accepted.asset.toLowerCase() !== USDG.toLowerCase() || accepted.amount !== amount.toString() ||
-    !/^0x[0-9a-fA-F]{40}$/.test(accepted.payTo) ||
+    accepted.payTo.toLowerCase() !== payTo.toLowerCase() ||
     !resource?.url || !externalResourceMatches(serviceId, resource.url, expectedUrl)) {
     throw new ApiError(409, 'Signed merchant payment differs from the quoted service or price.');
   }
@@ -93,23 +100,28 @@ export async function POST(request: NextRequest) {
     const agent = token ? await linkedAgentCredential(token) : null;
     const owner = agent?.ownerWallet || requireWallet(request);
     const body = await jsonBody(request);
-    if (Object.keys(body).some((key) => !['serviceId', 'input', 'paymentSignature', 'quoteToken'].includes(key)) ||
+    if (Object.keys(body).some((key) => !['serviceId', 'input', 'modelId', 'paymentSignature', 'quoteToken'].includes(key)) ||
       typeof body.serviceId !== 'string' || typeof body.input !== 'string') throw new ApiError(400, 'Choose one merchant service and enter its input.');
     const service = externalMarketService(body.serviceId);
     if (!service) throw new ApiError(404, 'Merchant service not found.');
+    const modelId = service.modelPicker && typeof body.modelId === 'string' ? body.modelId : '';
+    if (service.modelPicker && !body.paymentSignature) {
+      const models = await externalModelCatalog(service.id as 'model-network' | 'metered-models');
+      if (!models.some((model) => model.id === modelId)) throw new ApiError(400, 'Choose a model from the live catalog.');
+    } else if (body.modelId !== undefined) throw new ApiError(400, 'This service does not accept a model selection.');
     let upstream;
-    try { upstream = externalMarketRequest(service, body.input); }
+    try { upstream = externalMarketRequest(service, body.input, modelId); }
     catch (error) { throw new ApiError(400, error instanceof Error ? error.message : 'Invalid service input.'); }
     const signature = body.paymentSignature;
     if (signature !== undefined && (typeof signature !== 'string' || signature.length > 12_000 || !/^[A-Za-z0-9+/=_-]+$/.test(signature))) {
       throw new ApiError(400, 'Invalid x402 payment signature.');
     }
     const authorizationHash = signature ? marketHash(signature) : null;
-    const requestHash = marketHash(JSON.stringify([service.id, body.input.trim()]));
+    const requestHash = marketHash(JSON.stringify(modelId ? [service.id, body.input.trim(), modelId] : [service.id, body.input.trim()]));
     if (signature) {
       if (typeof body.quoteToken !== 'string') throw new ApiError(409, 'Refresh the merchant quote before paying.');
-      const amount = verifyQuoteToken(body.quoteToken, owner, service.id, body.input);
-      verifySignedMerchantQuote(signature, amount, service.id, upstream.url);
+      const { amount, payTo } = verifyQuoteToken(body.quoteToken, owner, service.id, body.input, modelId);
+      verifySignedMerchantQuote(signature, amount, payTo, service.id, upstream.url);
       if (agent) await checkAgentMarketBudget(agent, 'merchants', amount);
       if (!await marketOrderStorageReady()) throw new ApiError(503, 'Market receipt storage is unavailable.');
       const existing = await marketOrder(authorizationHash!);
@@ -149,7 +161,7 @@ export async function POST(request: NextRequest) {
       const quote = externalPaymentChallenge(parsed, response.headers.get('payment-required'), service.id, upstream.url);
       const offer = quote.accepts[0] as { amount: string; payTo: string };
       if (agent) await checkAgentMarketBudget(agent, 'merchants', BigInt(offer.amount));
-      return NextResponse.json({ serviceId: service.id, quote, quoteToken: quoteToken(owner, service.id, body.input, Date.now() + 5 * 60_000, offer.amount),
+      return NextResponse.json({ serviceId: service.id, modelId, quote, quoteToken: quoteToken(owner, service.id, body.input, modelId, Date.now() + 5 * 60_000, offer.amount, offer.payTo),
         amountUsd: (Number(offer.amount) / 1_000_000).toFixed(6), payTo: offer.payTo }, { status: 402, headers: noStore });
     }
     if (!signature) throw new ApiError(502, 'Merchant did not request an x402 payment. This listing is temporarily unavailable.');

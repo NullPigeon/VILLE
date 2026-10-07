@@ -14,30 +14,30 @@ const USDG = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168';
 const chain = defineChain({ id: activeRobinhoodChain.id, name: activeRobinhoodChain.name,
   nativeCurrency: activeRobinhoodChain.nativeCurrency, rpcUrls: { default: { http: [activeRobinhoodChain.rpcUrl] } } });
 type Quote = ReturnType<x402HTTPClient['getPaymentRequiredResponse']>;
-export type ExternalQuote = { serviceId: string; input: string; quote: Quote; quoteToken: string; amountUsd: string; payTo: string };
+export type ExternalQuote = { serviceId: string; input: string; modelId: string; quote: Quote; quoteToken: string; amountUsd: string; payTo: string };
 
 async function errorMessage(response: Response, fallback: string) {
   const body = await response.json().catch(() => ({})) as { error?: string };
   return new Error(body.error || fallback);
 }
 
-export async function quoteExternalService(service: ExternalMarketService, input: string): Promise<ExternalQuote> {
+export async function quoteExternalService(service: ExternalMarketService, input: string, modelId = ''): Promise<ExternalQuote> {
   const normalized = input.trim();
-  externalMarketRequest(service, normalized);
+  externalMarketRequest(service, normalized, modelId);
   const response = await fetch('/api/agent-market/external', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ serviceId: service.id, input: normalized }), cache: 'no-store' });
+    body: JSON.stringify({ serviceId: service.id, input: normalized, ...(service.modelPicker ? { modelId } : {}) }), cache: 'no-store' });
   if (response.status !== 402) throw await errorMessage(response, 'Could not get a merchant quote.');
-  const result = await response.json() as { serviceId: string; quote: Quote; quoteToken: string; amountUsd: string; payTo: string };
+  const result = await response.json() as { serviceId: string; modelId: string; quote: Quote; quoteToken: string; amountUsd: string; payTo: string };
   const offer = result.quote?.accepts?.[0];
-  const upstream = externalMarketRequest(service, normalized);
-  if (result.serviceId !== service.id || result.quote?.x402Version !== 2 || result.quote.accepts.length !== 1 ||
+  const upstream = externalMarketRequest(service, normalized, modelId);
+  if (result.serviceId !== service.id || result.modelId !== modelId || result.quote?.x402Version !== 2 || result.quote.accepts.length !== 1 ||
     !externalResourceMatches(service.id, result.quote.resource?.url || '', upstream.url) || !offer || offer.scheme !== 'exact' || offer.network !== NETWORK ||
     offer.asset?.toLowerCase() !== USDG.toLowerCase() || !/^\d+$/.test(offer.amount) ||
     BigInt(offer.amount) <= 0n || BigInt(offer.amount) > 2_000_000n || !isAddress(offer.payTo) ||
     result.payTo.toLowerCase() !== offer.payTo.toLowerCase() ||
     result.amountUsd !== (Number(offer.amount) / 1_000_000).toFixed(6) ||
-    !/^[0-9]{13}\.[0-9]{1,7}\.[0-9a-f]{64}$/.test(result.quoteToken) ||
-    result.quoteToken.split('.')[1] !== offer.amount) {
+    !/^[0-9]{13}\.[0-9]{1,7}\.0x[0-9a-f]{40}\.[0-9a-f]{64}$/.test(result.quoteToken) ||
+    result.quoteToken.split('.')[1] !== offer.amount || result.quoteToken.split('.')[2] !== offer.payTo.toLowerCase()) {
     throw new Error('Merchant quote differs from the selected service or Robinhood USDG. Nothing was signed.');
   }
   const transfer = offer.extra?.assetTransferMethod;
@@ -80,7 +80,8 @@ export async function buyExternalService(service: ExternalMarketService, current
   if (!signature) throw new Error('Could not prepare the merchant payment signature.');
   onStage('Merchant is working. Checking the onchain receipt…');
   const response = await fetch('/api/agent-market/external', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ serviceId: service.id, input: current.input, quoteToken: current.quoteToken, paymentSignature: signature }), cache: 'no-store' });
+    body: JSON.stringify({ serviceId: service.id, input: current.input, ...(service.modelPicker ? { modelId: current.modelId } : {}),
+      quoteToken: current.quoteToken, paymentSignature: signature }), cache: 'no-store' });
   if (!response.ok) throw await errorMessage(response, 'Merchant could not complete the call. Check your wallet before retrying.');
   const result = await response.json() as MarketReceipt;
   if (!result.output || !/^0x[0-9a-fA-F]{64}$/.test(result.payment?.transaction || '')) throw new Error('Merchant result has no confirmed payment receipt.');

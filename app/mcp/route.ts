@@ -2,7 +2,7 @@ import { createMcpHandler } from 'mcp-handler';
 import { z } from 'zod';
 import { MARKET_CURRENCY, MARKET_NETWORK } from '@/lib/agent-market';
 import { MARKET_SERVICES, marketService } from '@/lib/market-services';
-import { EXTERNAL_MARKET_SERVICES, externalMarketService } from '@/lib/external-market';
+import { EXTERNAL_MARKET_SERVICES, externalMarketService, externalModelCatalog } from '@/lib/external-market';
 import { marketServiceConfigured } from '@/lib/server/market-catalog';
 import { database } from '@/lib/server/database';
 import { sellerAmounts, sellerPayoutReady } from '@/lib/server/market-economy';
@@ -38,6 +38,20 @@ async function citizenServices() {
 }
 
 const handler = createMcpHandler((server) => {
+  server.registerTool('find_market_models', {
+    title: 'Find wallet-paid AI models',
+    description: 'Search live model catalogues for the model ID used when requesting an x402 quote.',
+    inputSchema: z.object({ serviceId: z.enum(['model-network', 'metered-models']), query: z.string().max(100).optional() }).strict(),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async ({ serviceId, query }) => {
+    try {
+      const models = await externalModelCatalog(serviceId);
+      const term = query?.trim().toLowerCase() || '';
+      return toolResult({ serviceId, models: models.filter((item) => !term || `${item.name} ${item.id}`.toLowerCase().includes(term)).slice(0, 100),
+        total: models.length, note: 'Availability and price are confirmed only by a live x402 quote.' });
+    } catch { return { ...toolResult({ error: 'Model catalog is temporarily unavailable.' }), isError: true }; }
+  });
+
   server.registerTool('search_market', {
     title: 'Search LANDVILLE Market',
     description: 'Discover LANDVILLE-operated AI models and tools. This is a public catalogue; listing a service does not mean checkout is open.',
@@ -79,7 +93,7 @@ const handler = createMcpHandler((server) => {
     const merchant = externalMarketService(id);
     if (merchant) return toolResult({ ...merchant, status: 'live-quote', paymentProtocol: 'x402 v2',
       network: MARKET_NETWORK, currency: MARKET_CURRENCY, method: 'POST', endpoint: '/api/agent-market/external',
-      quoteBody: { serviceId: merchant.id, input: merchant.placeholder || '' },
+      quoteBody: { serviceId: merchant.id, input: merchant.placeholder || '', ...(merchant.modelPicker ? { modelId: 'Choose an ID with find_market_models' } : {}) },
       note: 'Request a live quote first, then pay the selected external merchant from your own wallet. A connected agent sends its profile key in Authorization: Bearer lvag_...; this key cannot spend its owner wallet.' });
     const service = marketService(id);
     if (!service) return { ...toolResult({ error: 'Service not found.' }), isError: true };

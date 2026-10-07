@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, DEFAULT_AGENT_SKILLS, MARKET_NETWORK, MARKET_HOLDER_MINIMUM, availableAgentSkills, hasMarketHolderBalance, validateAgentSkills } from '../lib/agent-market.ts';
 import { MARKET_SERVICES, marketService } from '../lib/market-services.ts';
+import { externalMarketRequest, externalMarketService } from '../lib/external-market.ts';
 
 void test('nonholders can equip at most three distinct basic skills', () => {
   assert.deepEqual(validateAgentSkills(DEFAULT_AGENT_SKILLS), DEFAULT_AGENT_SKILLS);
@@ -33,4 +34,18 @@ void test('paid catalogue has unique bounded listings and distinct live tools', 
   }
   assert.deepEqual(new Set(MARKET_SERVICES.filter((service) => service.kind !== 'model').map((service) => service.kind)),
     new Set(['world-audit', 'web-search', 'web-news', 'web-scrape', 'research-brief', 'chain-lens', 'long-form']));
+});
+
+void test('outside model calls use fixed upstream routes and require a selected model', () => {
+  const network = externalMarketService('model-network');
+  const metered = externalMarketService('metered-models');
+  assert.ok(network && metered);
+  assert.throws(() => externalMarketRequest(network, 'Write a report'));
+  assert.throws(() => externalMarketRequest(metered, 'Write a report', 'openai/*'));
+  const first = externalMarketRequest(network, 'Write a report', 'openai/gpt-4o-mini');
+  const second = externalMarketRequest(metered, 'Write a report', 'openai/gpt-4o-mini');
+  assert.equal(new URL(first.url).hostname, 'api.meshgateway.co');
+  assert.equal(new URL(second.url).hostname, 'agent402.tools');
+  assert.equal(JSON.parse(first.body).model, 'openai/gpt-4o-mini');
+  assert.equal(JSON.parse(second.body).messages[0].content, 'Write a report');
 });
