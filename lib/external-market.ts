@@ -8,7 +8,33 @@ export type ExternalMarketService = {
   placeholder: string;
   docs?: string;
   modelPicker?: boolean;
+  fixedModelId?: string;
+  maxOutputTokens?: number;
+  holderOnly?: boolean;
+  replacesCityServiceId?: string;
 };
+
+const RELAY_MODELS: Record<string, { modelId: string; name: string; holderOnly: boolean; maxOutputTokens: number }> = {
+  'openai-luna': { modelId: 'openai/gpt-6-luna', name: 'GPT-6 Luna', holderOnly: false, maxOutputTokens: 800 },
+  'openai-sol': { modelId: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol', holderOnly: true, maxOutputTokens: 1000 },
+  'openai-astra': { modelId: 'openai/gpt-6-astra', name: 'GPT-6 Astra', holderOnly: true, maxOutputTokens: 1100 },
+  'claude-sonnet': { modelId: 'anthropic/claude-sonnet-5.5', name: 'Claude Sonnet 5.5', holderOnly: true, maxOutputTokens: 900 },
+  'claude-opus': { modelId: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5', holderOnly: true, maxOutputTokens: 1000 },
+  'gemini-flash': { modelId: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash', holderOnly: false, maxOutputTokens: 800 },
+  'gemini-pro': { modelId: 'google/gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', holderOnly: true, maxOutputTokens: 900 },
+  grok: { modelId: 'x-ai/grok-4.7', name: 'Grok 4.7', holderOnly: true, maxOutputTokens: 900 },
+  'groq-fast': { modelId: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B', holderOnly: false, maxOutputTokens: 800 },
+  'groq-deep': { modelId: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B', holderOnly: true, maxOutputTokens: 850 },
+  'deepseek-flash': { modelId: 'deepseek/deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', holderOnly: false, maxOutputTokens: 800 },
+  'mistral-small': { modelId: 'mistralai/mistral-small-2603', name: 'Mistral Small', holderOnly: false, maxOutputTokens: 800 },
+  'mistral-large': { modelId: 'mistralai/mistral-large-4-0', name: 'Mistral Large', holderOnly: true, maxOutputTokens: 900 },
+};
+
+export const RELAY_MODEL_SERVICES: ExternalMarketService[] = Object.entries(RELAY_MODELS).map(([cityId, route]) =>
+  ({ id: `relay-${cityId}`, name: route.name, provider: 'relay' as const,
+    category: 'AI Models' as const, description: `Ask ${route.name} one focused question. Live USDG price before payment.`,
+    input: 'prompt' as const, placeholder: 'What should this model do for you?', fixedModelId: route.modelId,
+    maxOutputTokens: route.maxOutputTokens, holderOnly: route.holderOnly, replacesCityServiceId: cityId }));
 
 // Each upstream route is constructed here, never from a caller-supplied URL.
 // A listing is usable only when its live 402 quote offers USDG on Robinhood Chain.
@@ -19,21 +45,26 @@ export const EXTERNAL_MARKET_SERVICES: ExternalMarketService[] = [
   { id: 'metered-models', name: 'Choose an AI model', provider: 'agent402', category: 'AI Models',
     description: 'Choose an AI model and see its live USDG price before paying.', input: 'prompt',
     placeholder: 'Describe a task, article, code question or report.', modelPicker: true },
+  ...RELAY_MODEL_SERVICES,
+  { id: 'relay-long-form', name: 'Longform Desk', provider: 'relay', category: 'AI Models',
+    description: 'Create a long article, report or guide in one model call, up to 6,000 output tokens.', input: 'prompt',
+    placeholder: 'Describe the article, report or guide you need.', fixedModelId: 'openai/gpt-6-luna',
+    maxOutputTokens: 6000, replacesCityServiceId: 'long-form' },
   { id: 'agent402-auto-chat', name: 'Quick AI answer', provider: 'agent402', category: 'AI Models',
     description: 'Ask a question without choosing a model. Pay for one answer.', input: 'prompt',
     placeholder: 'What should this model help you with?', docs: 'https://agent402.tools/tools/category/llm' },
-  { id: 'agent402-search', name: 'Live Web Search', provider: 'agent402', category: 'Search',
-    description: 'Current links and snippets from Agent402.', input: 'query',
-    placeholder: 'What should your agent find?', docs: 'https://agent402.tools/tools/search' },
-  { id: 'agent402-news', name: 'Latest News', provider: 'agent402', category: 'Search',
+  { id: 'agent402-search', name: 'Web Scout', provider: 'agent402', category: 'Search',
+    description: 'Search the live web for current links and snippets.', input: 'query',
+    placeholder: 'What should your agent find?', docs: 'https://agent402.tools/tools/search', replacesCityServiceId: 'web-scout' },
+  { id: 'agent402-news', name: 'News Radar', provider: 'agent402', category: 'Search',
     description: 'Find recent news and source links on a topic.', input: 'query',
-    placeholder: 'Which news topic should we check?', docs: 'https://agent402.tools/tools/category/web' },
+    placeholder: 'Which news topic should we check?', docs: 'https://agent402.tools/tools/category/web', replacesCityServiceId: 'news-radar' },
   { id: 'agent402-answer', name: 'Answer with Sources', provider: 'agent402', category: 'Research',
     description: 'Get a short answer grounded in live web results, with citations.', input: 'query',
     placeholder: 'What question should we research?', docs: 'https://agent402.tools/tools/answer' },
-  { id: 'agent402-extract', name: 'Read a Web Page', provider: 'agent402', category: 'Web & Scraping',
+  { id: 'agent402-extract', name: 'Page Reader', provider: 'agent402', category: 'Web & Scraping',
     description: 'Extract the main article from one public page.', input: 'url',
-    placeholder: 'https://example.com/article', docs: 'https://agent402.tools/tools/extract' },
+    placeholder: 'https://example.com/article', docs: 'https://agent402.tools/tools/extract', replacesCityServiceId: 'page-reader' },
   { id: 'agent402-render', name: 'Read a Dynamic Page', provider: 'agent402', category: 'Web & Scraping',
     description: 'Render a JavaScript page in a browser and return its readable text.', input: 'url',
     placeholder: 'https://example.com/app', docs: 'https://agent402.tools/tools/render' },
@@ -91,9 +122,10 @@ export function externalResourceMatches(serviceId: string, quotedUrl: string, re
 
 export function externalMarketRequest(service: ExternalMarketService, rawInput: string, modelId = '') {
   const input = rawInput.trim();
-  if (input.length > (service.modelPicker ? 4000 : 1000)) throw new Error('Keep this request shorter.');
+  if (input.length > (service.modelPicker || service.fixedModelId ? 4000 : 1000)) throw new Error('Keep this request shorter.');
   if (service.input !== 'none' && !input) throw new Error('Enter a request for this service.');
-  if (service.modelPicker && (!/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:/-]{0,120}$/i.test(modelId) || modelId.includes('*'))) {
+  const selectedModelId = service.fixedModelId || modelId;
+  if ((service.modelPicker || service.fixedModelId) && (!/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:/-]{0,120}$/i.test(selectedModelId) || selectedModelId.includes('*'))) {
     throw new Error('Choose a model from the live catalog.');
   }
   if (service.input === 'symbol' && !/^[A-Za-z][A-Za-z0-9.-]{0,14}$/.test(input)) throw new Error('Enter a stock symbol such as NVDA.');
@@ -109,8 +141,8 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
   }
   if (service.id === 'agent402-auto-chat') return { url: 'https://agent402.tools/v1/auto/chat/completions', method: 'POST' as const,
     body: JSON.stringify({ messages: [{ role: 'user', content: input }], max_tokens: 700, stream: false }) };
-  if (service.id === 'model-network') return { url: 'https://api.meshgateway.co/x/openrouter/v1/chat/completions', method: 'POST' as const,
-    body: JSON.stringify({ model: modelId, messages: [{ role: 'user', content: input }], max_tokens: 2000, stream: false }) };
+  if (service.id === 'model-network' || (service.fixedModelId && service.provider === 'relay')) return { url: 'https://api.meshgateway.co/x/openrouter/v1/chat/completions', method: 'POST' as const,
+    body: JSON.stringify({ model: selectedModelId, messages: [{ role: 'user', content: input }], max_tokens: service.maxOutputTokens || 2000, stream: false }) };
   if (service.id === 'metered-models') return { url: 'https://agent402.tools/v1/metered/chat/completions', method: 'POST' as const,
     body: JSON.stringify({ model: modelId, messages: [{ role: 'user', content: input }], max_tokens: 2000, stream: false }) };
   if (service.id === 'agent402-search') return { url: `https://agent402.tools/api/search?q=${encodeURIComponent(input)}`, method: 'GET' as const, body: undefined };

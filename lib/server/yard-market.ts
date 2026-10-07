@@ -1,5 +1,6 @@
 import 'server-only';
 import { marketService, type MarketService, type YardMarketSuggestion } from '@/lib/market-services';
+import { EXTERNAL_MARKET_SERVICES } from '@/lib/external-market';
 import { marketServiceConfigured } from '@/lib/server/market-catalog';
 import { marketOrderStorageReady } from '@/lib/server/market-orders';
 import { getMarketPaymentServer, marketPaymentsConfigured } from '@/lib/server/market-x402';
@@ -20,23 +21,22 @@ function matchService(text: string): MarketService | undefined {
 
 export async function yardMarketSuggestion(text: string): Promise<YardMarketSuggestion | null> {
   const service = matchService(text);
-  if (!service || !marketPaymentsConfigured() || !marketServiceConfigured(service) || !await marketOrderStorageReady()
+  if (!service) return null;
+  const external = EXTERNAL_MARKET_SERVICES.find((item) => item.replacesCityServiceId === service.id);
+  if (external) return { serviceId: external.id, name: external.name, priceUsd: null, prompt: text.slice(0, 600) };
+  if (!marketPaymentsConfigured() || !marketServiceConfigured(service) || !await marketOrderStorageReady()
     || !await getMarketPaymentServer().then(() => true).catch(() => false)) return null;
   return { serviceId: service.id, name: service.name, priceUsd: service.priceUsd, prompt: text.slice(0, 600) };
 }
 
 export async function yardMarketSuggestions(messages: YardMessage[]) {
   const suggestions: Record<string, YardMarketSuggestion> = {};
-  if (!marketPaymentsConfigured() || !await marketOrderStorageReady()
-    || !await getMarketPaymentServer().then(() => true).catch(() => false)) return suggestions;
   let lastCitizen: YardMessage | undefined;
   for (const message of messages) {
     if (message.role === 'CITIZEN') lastCitizen = message;
     else if (message.role === 'AGENT' && lastCitizen) {
-      const service = matchService(lastCitizen.body);
-      if (service && marketServiceConfigured(service)) suggestions[message.id] = {
-        serviceId: service.id, name: service.name, priceUsd: service.priceUsd, prompt: lastCitizen.body.slice(0, 600),
-      };
+      const suggestion = await yardMarketSuggestion(lastCitizen.body);
+      if (suggestion) suggestions[message.id] = suggestion;
       lastCitizen = undefined;
     } else lastCitizen = undefined;
   }

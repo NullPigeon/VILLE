@@ -154,6 +154,14 @@ export default function AgentMarketPage() {
     prefilled.current = true;
     const query = new URLSearchParams(window.location.search);
     const id = query.get('service');
+    const direct = EXTERNAL_MARKET_SERVICES.find((item) => item.id === id || item.replacesCityServiceId === id);
+    if (direct && direct.id !== 'model-network' && direct.id !== 'metered-models') {
+      const timer = window.setTimeout(() => {
+        setCheckoutId(''); setMerchantId(direct.id); setMerchantInput((query.get('prompt') || '').slice(0, 2000));
+        document.getElementById('merchant-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
     if (id && market.paidServices.some((item) => item.id === id)) {
       const timer = window.setTimeout(() => { setCheckoutId(id); setPrompt((query.get('prompt') || '').slice(0, 2000)); }, 0);
       return () => window.clearTimeout(timer);
@@ -164,14 +172,16 @@ export default function AgentMarketPage() {
   const changed = Boolean(market) && [...selected].sort().join('|') !== [...market!.selected].sort().join('|');
   const activeService = market?.paidServices.find((item) => item.id === checkoutId);
   const services = market?.paidServices || [];
+  const replacedCityIds = new Set(EXTERNAL_MARKET_SERVICES.flatMap((item) => item.replacesCityServiceId ? [item.replacesCityServiceId] : []));
   const searchTerm = merchantSearch.toLowerCase().trim();
-  const shown = services.filter((item) => (serviceAvailability === 'all' || (serviceAvailability === 'ready' ? item.setupReady : !item.setupReady)) &&
+  const shown = services.filter((item) => !replacedCityIds.has(item.id) &&
+    (serviceAvailability === 'all' || (serviceAvailability === 'ready' ? item.setupReady : !item.setupReady)) &&
     (merchantCategory === 'All' || item.category === merchantCategory) &&
     `${item.name} ${item.provider} ${item.description}`.toLowerCase().includes(searchTerm));
   const merchant = EXTERNAL_MARKET_SERVICES.find((item) => item.id === merchantId);
   const activeStall = citizenStalls.find((item) => item.id === stallId);
   const merchantCategories = ['All', ...Array.from(new Set([...EXTERNAL_MARKET_SERVICES.map((item) => item.category), ...services.map((item) => item.category)]))];
-  const shownMerchants = EXTERNAL_MARKET_SERVICES.filter((item) => serviceAvailability !== 'upcoming' && item.id !== 'metered-models' &&
+  const shownMerchants = EXTERNAL_MARKET_SERVICES.filter((item) => serviceAvailability !== 'upcoming' && item.id !== 'model-network' && item.id !== 'metered-models' &&
     (merchantCategory === 'All' || item.category === merchantCategory) &&
     `${item.name} ${item.category} ${item.description}`.toLowerCase().includes(searchTerm));
   const shownMerchantModels = merchantModels.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(merchantModelSearch.toLowerCase().trim())).slice(0, 100);
@@ -290,12 +300,13 @@ export default function AgentMarketPage() {
       </section>
 
       <section className="am-merchants" id="services" aria-labelledby="am-merchants-title">
-        <header className="am-section-head"><div><small>THE MARKET / PAY PER USE</small><h2 id="am-merchants-title">CITY SERVICES.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length - 1 + services.length} TOOLS &amp; SERVICES</span></header>
-        <p className="am-section-intro">Pick a service and describe one job. You will see its price before signing. Available outside tools charge your wallet in USDG; city jobs open as LANDVILLE connects them. Premium models need 1M+ SCRAPY.</p>
+        <header className="am-section-head"><div><small>THE MARKET / PAY PER USE</small><h2 id="am-merchants-title">CITY SERVICES.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length - 2 + services.filter((item) => !replacedCityIds.has(item.id)).length} TOOLS &amp; SERVICES</span></header>
+        <p className="am-section-intro">Pick the model or tool you want, describe one job, and check its live USDG price. Model and web calls go through an x402 operator that covers the provider bill. LANDVILLE&apos;s composed city jobs open after their own checkout is ready.</p>
         <fieldset className="am-availability" aria-label="Service availability"><button type="button" aria-pressed={serviceAvailability === 'ready'} onClick={() => setServiceAvailability('ready')}>CHECK PRICE &amp; BUY</button><button type="button" aria-pressed={serviceAvailability === 'upcoming'} onClick={() => setServiceAvailability('upcoming')}>OPENING LATER</button><button type="button" aria-pressed={serviceAvailability === 'all'} onClick={() => setServiceAvailability('all')}>SHOW ALL</button></fieldset>
         <div className="am-service-controls"><fieldset className="am-service-tabs am-merchant-tabs" aria-label="Service category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset><label className="am-search"><Search aria-hidden="true" /><input aria-label="Search all city services" value={merchantSearch} onChange={(event) => setMerchantSearch(event.target.value)} placeholder="Search all services" /></label></div>
         {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider === 'relay' ? 'MODEL NETWORK' : merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>
           <p>{merchant.description}</p>
+          {merchant.fixedModelId && <p className="am-model-note">Selected model: <strong>{merchant.fixedModelId}</strong>. Price comes from the live x402 quote.</p>}
           {merchant.modelPicker && <div className="am-merchant-models"><label htmlFor="am-model-search">1 / FIND A MODEL</label>
             <input id="am-model-search" className="am-merchant-input" value={merchantModelSearch} onChange={(event) => setMerchantModelSearch(event.target.value)} placeholder="Search OpenAI, Claude, Gemini, DeepSeek…" />
             <select aria-label="Choose a model" className="am-merchant-input" value={merchantModelId ? `${merchantId}:${merchantModelId}` : ''} disabled={!merchantModels.length || merchantBusy} onChange={(event) => { const selectedModel = merchantModels.find((item) => `${item.source}:${item.id}` === event.target.value); if (!selectedModel) return; setMerchantId(selectedModel.source); setMerchantModelId(selectedModel.id); setMerchantQuote(null); setMerchantReceipt(null); }}>
@@ -305,8 +316,8 @@ export default function AgentMarketPage() {
             <small>{merchantModelsError || (merchantModels.length ? `${merchantModels.length} model routes. Advanced models need 1M+ SCRAPY; every request still needs a live USDG quote.` : 'Loading model catalog…')}</small>
           </div>}
           {merchant.input !== 'none' && <><label htmlFor="am-merchant-input">{merchant.input === 'prompt' ? 'WHAT SHOULD THE MODEL DO?' : merchant.input === 'query' ? 'TOPIC OR QUESTION' : merchant.input === 'url' ? 'PUBLIC PAGE URL' : merchant.input === 'symbol' ? 'STOCK SYMBOL' : merchant.input === 'domain' ? 'PUBLIC DOMAIN' : 'PUBLIC WALLET ADDRESS'}</label>
-            {merchant.input === 'prompt' ? <textarea id="am-merchant-input" value={merchantInput} maxLength={merchant.modelPicker ? 4000 : 1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} /> : <input id="am-merchant-input" className="am-merchant-input" value={merchantInput} maxLength={1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} />}</>}
-          <div className="am-checkout-footer"><div>{merchantQuote ? <><strong>{merchantQuote.amountUsd} USDG / CALL</strong><span>Paid to the outside service operator at the quoted address. No LANDVILLE fee. Wallet gas or token approval may apply.</span></> : <><strong>LIVE PRICE BEFORE PAYMENT</strong><span>Checkout opens only when the seller quotes USDG on Robinhood Chain. Model calls have an output limit of 2,000 tokens.</span></>}</div>
+            {merchant.input === 'prompt' ? <textarea id="am-merchant-input" value={merchantInput} maxLength={merchant.modelPicker || merchant.fixedModelId ? 4000 : 1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} /> : <input id="am-merchant-input" className="am-merchant-input" value={merchantInput} maxLength={1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} />}</>}
+          <div className="am-checkout-footer"><div>{merchantQuote ? <><strong>{merchantQuote.amountUsd} USDG / CALL</strong><span>Paid to the outside service operator at the quoted address. No LANDVILLE fee. Wallet gas or token approval may apply.</span></> : <><strong>LIVE PRICE BEFORE PAYMENT</strong><span>Checkout opens only when the operator quotes USDG on Robinhood Chain.{merchant.fixedModelId ? ` This model call allows up to ${merchant.maxOutputTokens?.toLocaleString() || '2,000'} output tokens.` : ''}</span></>}</div>
             {merchantQuote ? <button type="button" disabled={merchantBusy || !wallet.linkedWallet} onClick={() => void payMerchant()}>{merchantBusy ? 'WORKING…' : 'APPROVE & RUN'}</button> : <button type="button" disabled={merchantBusy || (merchant.input !== 'none' && !merchantInput.trim()) || (merchant.modelPicker && !merchantModelId) || !wallet.address} onClick={() => void getMerchantQuote()}>{merchantBusy ? 'CHECKING…' : 'CHECK LIVE PRICE'}</button>}</div>
           {!wallet.address && <p className="am-checkout-hint">Join LANDVILLE to request a quote.</p>}
           {wallet.address && !wallet.linkedWallet && <p className="am-checkout-hint">Link a wallet in <Link href={profile}>your profile <ArrowUpRight /></Link> to pay.</p>}
@@ -314,7 +325,7 @@ export default function AgentMarketPage() {
           {merchantStage && <p className="am-success" aria-live="polite">{merchantStage}</p>}{merchantError && <p className="am-error" role="alert">{merchantError}</p>}
           {merchantReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{merchantReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${merchantReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${merchantReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
         </div>}
-        <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>CHECK LIVE PRICE</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">USDG PRICE SHOWN BEFORE SIGNING</span><em>CHOOSE SERVICE <ArrowUpRight /></em></button>)}
+        <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>CHECK LIVE PRICE</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">{item.holderOnly ? '1M+ SCRAPY · ' : ''}USDG PRICE BEFORE SIGNING</span><em>CHOOSE SERVICE <ArrowUpRight /></em></button>)}
           {shown.map((item) => <button key={item.id} type="button" className={`am-merchant-card${item.setupReady ? '' : ' am-merchant-card-pending'}`} onClick={() => choose(item)}><span className="am-merchant-card-top"><b>LANDVILLE JOB</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">{item.holderOnly ? '1M+ SCRAPY · ' : ''}{item.setupReady ? `${item.priceUsd} USDG / RUN` : directAlternative(item) ? 'CITY SETUP PENDING · DIRECT OPTION AVAILABLE' : 'OPENS AFTER CITY SETUP'}</span><em>{item.setupReady ? 'CHOOSE SERVICE' : 'SEE HOW IT WORKS'} <ArrowUpRight /></em></button>)}
         </div>
         {!shownMerchants.length && !shown.length && <p className="am-note">No services found. Try a different name or category.</p>}

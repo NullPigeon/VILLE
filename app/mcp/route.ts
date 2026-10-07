@@ -60,9 +60,10 @@ const handler = createMcpHandler((server) => {
   }, async ({ query, category }) => {
     const ready = await paymentsReady();
     const term = query?.trim().toLowerCase() || '';
-    const matches = MARKET_SERVICES.filter((service) => (!category || service.category.toLowerCase() === category.toLowerCase())
+    const replaced = new Set(EXTERNAL_MARKET_SERVICES.flatMap((service) => service.replacesCityServiceId ? [service.replacesCityServiceId] : []));
+    const matches = MARKET_SERVICES.filter((service) => !replaced.has(service.id) && (!category || service.category.toLowerCase() === category.toLowerCase())
       && (!term || `${service.name} ${service.category} ${service.description} ${service.provider}`.toLowerCase().includes(term)));
-    const merchants = EXTERNAL_MARKET_SERVICES.filter((service) => (!category || service.category.toLowerCase() === category.toLowerCase())
+    const merchants = EXTERNAL_MARKET_SERVICES.filter((service) => !service.modelPicker && (!category || service.category.toLowerCase() === category.toLowerCase())
       && (!term || `${service.name} ${service.category} ${service.description} ${service.provider}`.toLowerCase().includes(term)));
     const citizens = await citizenServices().catch(() => []);
     return toolResult({ network: MARKET_NETWORK, currency: MARKET_CURRENCY, services: [...matches.map((service) => ({
@@ -70,7 +71,7 @@ const handler = createMcpHandler((server) => {
       provider: service.provider, holderOnly: service.holderOnly,
       status: ready && marketServiceConfigured(service) ? 'configured' : 'preparing',
     })), ...merchants.map((service) => ({ id: service.id, name: service.name, category: service.category,
-      description: service.description, provider: service.provider, holderOnly: false, status: 'live-quote',
+      description: service.description, provider: service.provider, holderOnly: Boolean(service.holderOnly), status: 'live-quote',
       paymentRoute: '/api/agent-market/external' })), ...citizens.filter((service) =>
       (!category || service.category.toLowerCase() === category.toLowerCase()) &&
       (!term || `${service.name} ${service.category} ${service.description} ${service.provider}`.toLowerCase().includes(term)))] });
@@ -94,9 +95,12 @@ const handler = createMcpHandler((server) => {
     if (merchant) return toolResult({ ...merchant, status: 'live-quote', paymentProtocol: 'x402 v2',
       network: MARKET_NETWORK, currency: MARKET_CURRENCY, method: 'POST', endpoint: '/api/agent-market/external',
       quoteBody: { serviceId: merchant.id, input: merchant.placeholder || '', ...(merchant.modelPicker ? { modelId: 'Choose an ID with find_market_models' } : {}) },
-      note: 'Request a live quote first, then pay the selected external merchant from your own wallet. A connected agent sends its profile key in Authorization: Bearer lvag_...; this key cannot spend its owner wallet.' });
+      note: 'Request a live USDG quote first, then pay the outside operator from your own wallet. Advanced models require 1M+ SCRAPY in the owner wallet. A connected agent sends its profile key in Authorization: Bearer lvag_...; this key cannot spend its owner wallet.' });
     const service = marketService(id);
     if (!service) return { ...toolResult({ error: 'Service not found.' }), isError: true };
+    const replacement = EXTERNAL_MARKET_SERVICES.find((item) => item.replacesCityServiceId === id);
+    if (replacement) return toolResult({ id, status: 'replaced', replacementServiceId: replacement.id,
+      note: 'Use the wallet-paid x402 service instead. Its live quote covers the upstream provider bill.' });
     const configured = await paymentsReady() && marketServiceConfigured(service);
     return toolResult({ id: service.id, name: service.name, description: service.description,
       category: service.category, provider: service.provider, model: service.model || null,
