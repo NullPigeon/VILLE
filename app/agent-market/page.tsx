@@ -94,7 +94,7 @@ export default function AgentMarketPage() {
   useEffect(() => {
     if (merchantId !== 'model-network' && merchantId !== 'metered-models') return;
     let active = true;
-    Promise.allSettled((['model-network', 'metered-models'] as const).map(async (source) => {
+    void Promise.allSettled((['model-network', 'metered-models'] as const).map(async (source) => {
       const response = await fetch(`/api/agent-market/external?models=${source}`, { cache: 'no-store' });
       const result = await response.json() as { models?: ExternalModel[]; error?: string };
       if (!response.ok) throw new Error(result.error || 'Model catalog unavailable.');
@@ -292,7 +292,7 @@ export default function AgentMarketPage() {
       <section className="am-merchants" id="services" aria-labelledby="am-merchants-title">
         <header className="am-section-head"><div><small>THE MARKET / PAY PER USE</small><h2 id="am-merchants-title">CITY SERVICES.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length - 1 + services.length} TOOLS &amp; SERVICES</span></header>
         <p className="am-section-intro">Pick a service and describe one job. You will see its price before signing. Available outside tools charge your wallet in USDG; city jobs open as LANDVILLE connects them. Premium models need 1M+ SCRAPY.</p>
-        <div className="am-availability" role="group" aria-label="Service availability"><button type="button" aria-pressed={serviceAvailability === 'ready'} onClick={() => setServiceAvailability('ready')}>CHECK PRICE &amp; BUY</button><button type="button" aria-pressed={serviceAvailability === 'upcoming'} onClick={() => setServiceAvailability('upcoming')}>OPENING LATER</button><button type="button" aria-pressed={serviceAvailability === 'all'} onClick={() => setServiceAvailability('all')}>SHOW ALL</button></div>
+        <fieldset className="am-availability" aria-label="Service availability"><button type="button" aria-pressed={serviceAvailability === 'ready'} onClick={() => setServiceAvailability('ready')}>CHECK PRICE &amp; BUY</button><button type="button" aria-pressed={serviceAvailability === 'upcoming'} onClick={() => setServiceAvailability('upcoming')}>OPENING LATER</button><button type="button" aria-pressed={serviceAvailability === 'all'} onClick={() => setServiceAvailability('all')}>SHOW ALL</button></fieldset>
         <div className="am-service-controls"><fieldset className="am-service-tabs am-merchant-tabs" aria-label="Service category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset><label className="am-search"><Search aria-hidden="true" /><input aria-label="Search all city services" value={merchantSearch} onChange={(event) => setMerchantSearch(event.target.value)} placeholder="Search all services" /></label></div>
         {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider === 'relay' ? 'MODEL NETWORK' : merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>
           <p>{merchant.description}</p>

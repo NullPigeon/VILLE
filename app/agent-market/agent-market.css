@@ -201,7 +201,7 @@ html[data-city-motion=paused] .am-page *,html[data-city-motion=paused] .am-page 
 .am-merchant-tabs{margin:0 0 22px}
 .am-merchant-tabs button[aria-pressed=true]{border-color:#f0c27b;background:#eac17e;color:#2b2b1b}
 .am-merchant-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
-.am-availability{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 18px}
+.am-availability{display:flex;flex-wrap:wrap;gap:9px;min-width:0;margin:0 0 18px;padding:0;border:0}
 .am-availability button{padding:10px 13px;border:1px solid #a8bd77;background:#263325;color:#f1efd7;font:800 12px Arial,Helvetica,sans-serif;letter-spacing:.03em;cursor:pointer}
 .am-availability button[aria-pressed="true"]{background:#d8e986;color:#1e2e1a;box-shadow:3px 3px #11170d}
 .am-availability button:focus-visible{outline:3px solid #f2d385;outline-offset:3px}
