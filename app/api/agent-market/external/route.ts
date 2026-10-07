@@ -105,16 +105,17 @@ export async function POST(request: NextRequest) {
       typeof body.serviceId !== 'string' || typeof body.input !== 'string') throw new ApiError(400, 'Choose one merchant service and enter its input.');
     const service = externalMarketService(body.serviceId);
     if (!service) throw new ApiError(404, 'Merchant service not found.');
-    const modelId = service.modelPicker && typeof body.modelId === 'string' ? body.modelId : '';
+    const modelId = service.fixedModelId || (service.modelPicker && typeof body.modelId === 'string' ? body.modelId : '');
+    if (service.fixedModelId && body.modelId !== undefined) throw new ApiError(400, 'This model is already selected for this service.');
     if (service.modelPicker) {
       if (!body.paymentSignature) {
         const models = await externalModelCatalog(service.id as 'model-network' | 'metered-models');
         if (!models.some((model) => model.id === modelId)) throw new ApiError(400, 'Choose a model from the live catalog.');
       }
-      if (externalModelHolderOnly(modelId) && !await hasMarketHolderAccess(owner).catch(() => false)) {
-        throw new ApiError(403, 'Hold at least 1M SCRAPY in your linked wallet to use this advanced model.');
-      }
-    } else if (body.modelId !== undefined) throw new ApiError(400, 'This service does not accept a model selection.');
+    } else if (!service.fixedModelId && body.modelId !== undefined) throw new ApiError(400, 'This service does not accept a model selection.');
+    if ((service.holderOnly || externalModelHolderOnly(modelId)) && !await hasMarketHolderAccess(owner).catch(() => false)) {
+      throw new ApiError(403, 'Hold at least 1M SCRAPY in your linked wallet to use this advanced model.');
+    }
     let upstream;
     try { upstream = externalMarketRequest(service, body.input, modelId); }
     catch (error) { throw new ApiError(400, error instanceof Error ? error.message : 'Invalid service input.'); }
