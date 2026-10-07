@@ -1570,8 +1570,16 @@ void test('private Market recipe tests require the owner and exact saved revisio
 void test('a connected holder agent gets a 402 quote, never a free paid result', async () => {
   const token = `lvag_${'f'.repeat(64)}`;
   const hash = createHash('sha256').update(token).digest('hex');
-  const f = fixture((call) => call.url.includes('landville_linked_agents?')
-    ? json(call.url.includes(`token_hash=eq.${hash}`) ? [{ owner_wallet: wallet }] : []) : undefined,
+  const agentId = randomUUID();
+  const f = fixture((call) => {
+    if (call.url.includes('landville_linked_agents?')) return json(call.url.includes(`token_hash=eq.${hash}`)
+      ? [{ id: agentId, owner_wallet: wallet }] : []);
+    if (call.url.includes('landville_market_agent_budgets?')) return json([{
+      agent_id: agentId, owner_wallet: wallet, enabled: true, daily_limit_micro: 1_000_000, allow_landville: true,
+    }]);
+    if (call.url.includes('landville_market_agent_spends?')) return json([]);
+    return undefined;
+  },
   {}, {
     '@/lib/server/market-x402': {
       marketPaymentsConfigured: () => true,
