@@ -1,7 +1,8 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
+import { isAddress } from 'viem';
 import { ApiError } from '@/lib/server/api';
-import { database } from '@/lib/server/database';
+import { citizenAccount, database } from '@/lib/server/database';
 
 type MarketOrder = {
   authorization_hash: string;
@@ -27,6 +28,19 @@ export async function marketOrderStorageReady() {
 export async function marketOrder(hash: string) {
   const rows = await database<MarketOrder[]>(`landville_market_orders?select=authorization_hash,service_id,prompt_hash,status,output,transaction_hash,payer&authorization_hash=eq.${hash}&limit=1`);
   return rows[0] || null;
+}
+
+export async function citizenMarketResult(owner: string, transaction: string) {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(transaction)) throw new ApiError(400, 'Choose a completed Market job.');
+  const citizen = await citizenAccount(owner);
+  const payer = citizen?.linked_wallet;
+  if (!payer || !isAddress(payer)) throw new ApiError(404, 'Market result not found for this wallet.');
+  const rows = await database<Array<{ service_id: string; output: string | null }>>(
+    `landville_market_orders?select=service_id,output&status=eq.settled&transaction_hash=ilike.${transaction}&payer=ilike.${payer}&limit=1`,
+  );
+  const order = rows[0];
+  if (!order?.output) throw new ApiError(404, 'Market result not found for this wallet.');
+  return { serviceId: order.service_id, output: order.output.slice(0, 12000) };
 }
 
 export async function claimMarketOrder(hash: string, service: string, promptHash: string) {

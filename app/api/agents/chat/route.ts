@@ -6,6 +6,7 @@ import { readEquippedSkills } from '@/lib/server/agent-market';
 import { existingYardExchange, readPersonalAgent, readYardMessages, yardMessage } from '@/lib/server/personal-agents';
 import { field, requestId } from '@/lib/server/validation';
 import { yardMarketSuggestion, yardMarketSuggestions } from '@/lib/server/yard-market';
+import { citizenMarketResult } from '@/lib/server/market-orders';
 import type { YardMessage } from '@/lib/personal-agent';
 
 export const runtime = 'nodejs';
@@ -25,8 +26,9 @@ export async function POST(request: NextRequest) {
     requireMutation(request);
     const owner = requireWallet(request);
     const body = await jsonBody(request);
-    if (Object.keys(body).some((key) => !['body', 'requestId', 'summonMayor'].includes(key))
-      || (body.summonMayor !== undefined && typeof body.summonMayor !== 'boolean')) {
+    if (Object.keys(body).some((key) => !['body', 'requestId', 'summonMayor', 'marketTransaction'].includes(key))
+      || (body.summonMayor !== undefined && typeof body.summonMayor !== 'boolean')
+      || (body.marketTransaction !== undefined && (typeof body.marketTransaction !== 'string' || body.summonMayor === true))) {
       throw new ApiError(400, 'Invalid yard message.');
     }
     const text = field(body, 'body', 1, 600);
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest) {
         || !existing.some((message) => message.role === (body.summonMayor === true ? 'MAYOR' : 'AGENT'))) {
         throw new ApiError(409, 'This message ID already belongs to another request.');
       }
-      const suggestion = body.summonMayor === true ? null : await yardMarketSuggestion(text);
+      const suggestion = body.summonMayor === true || body.marketTransaction ? null : await yardMarketSuggestion(text);
       return NextResponse.json({ messages: existing, suggestions: Object.fromEntries(existing.filter((message) => message.role === 'AGENT').map((message) => [message.id, suggestion])) }, { headers: { 'Cache-Control': 'private, no-store' } });
     }
     const agent = await readPersonalAgent(owner);
@@ -49,8 +51,9 @@ export async function POST(request: NextRequest) {
       throw new ApiError(429, 'Your yard reached 20 AI messages for this UTC day.');
     }
     const equippedSkills = body.summonMayor === true ? [] : await readEquippedSkills(owner);
-    const suggestion = body.summonMayor === true ? null : await yardMarketSuggestion(text);
-    const reply = await generateYardReply(agent, history, text, body.summonMayor === true, equippedSkills, suggestion);
+    const suggestion = body.summonMayor === true || body.marketTransaction ? null : await yardMarketSuggestion(text);
+    const marketResult = typeof body.marketTransaction === 'string' ? await citizenMarketResult(owner, body.marketTransaction) : null;
+    const reply = await generateYardReply(agent, history, text, body.summonMayor === true, equippedSkills, suggestion, marketResult);
     const rows = await rpc<Array<{ id: string; role: YardMessage['role']; body: string; created_at: string; owner_wallet: string; request_id: string }>>(
       'landville_save_yard_exchange', {
         p_owner: owner, p_request_id: id, p_body: text, p_reply: reply,
