@@ -32,7 +32,10 @@ export async function buyMarketService(service: MarketCheckoutService, prompt: s
   if (!wallet.linkedWallet || !isAddress(wallet.linkedWallet)) throw new Error('Link an EVM wallet to buy city work.');
   if (!prompt.trim() || prompt.length > (recipe ? 600 : 2000)) throw new Error(recipe ? 'Write a test job of 1–600 characters.' : 'Write a request of 1–2000 characters.');
   if (recipe && (!/^[0-9a-f-]{36}$/i.test(recipe.id) || !Number.isFinite(Date.parse(recipe.updatedAt)))) throw new Error('Refresh your saved service recipe.');
-  if (service.endpoint !== `/api/agent-market/call/${service.id}`) throw new Error('Service endpoint mismatch.');
+  if (service.endpoint !== `/api/agent-market/call/${service.id}` &&
+    !(service.endpoint === `/api/agent-market/stalls/${service.id}/buy` && /^[0-9a-f-]{36}$/i.test(service.id))) {
+    throw new Error('Service endpoint mismatch.');
+  }
   const expectedAmount = parseUnits(service.priceUsd, 6).toString();
   if (BigInt(expectedAmount) <= 0n || BigInt(expectedAmount) > 2_000_000n) throw new Error('Service price is outside the city checkout limit.');
   const requestBody = JSON.stringify({ prompt: prompt.trim(), ...(recipe ? { draftId: recipe.id, draftRevision: recipe.updatedAt } : {}) });

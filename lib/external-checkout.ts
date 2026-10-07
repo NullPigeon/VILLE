@@ -36,7 +36,8 @@ export async function quoteExternalService(service: ExternalMarketService, input
     BigInt(offer.amount) <= 0n || BigInt(offer.amount) > 2_000_000n || !isAddress(offer.payTo) ||
     result.payTo.toLowerCase() !== offer.payTo.toLowerCase() ||
     result.amountUsd !== (Number(offer.amount) / 1_000_000).toFixed(6) ||
-    !/^[0-9]{13}\.[0-9a-f]{64}$/.test(result.quoteToken)) {
+    !/^[0-9]{13}\.[0-9]{1,7}\.[0-9a-f]{64}$/.test(result.quoteToken) ||
+    result.quoteToken.split('.')[1] !== offer.amount) {
     throw new Error('Merchant quote differs from the selected service or Robinhood USDG. Nothing was signed.');
   }
   const transfer = offer.extra?.assetTransferMethod;

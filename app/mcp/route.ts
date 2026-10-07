@@ -4,6 +4,8 @@ import { MARKET_CURRENCY, MARKET_NETWORK } from '@/lib/agent-market';
 import { MARKET_SERVICES, marketService } from '@/lib/market-services';
 import { EXTERNAL_MARKET_SERVICES, externalMarketService } from '@/lib/external-market';
 import { marketServiceConfigured } from '@/lib/server/market-catalog';
+import { database } from '@/lib/server/database';
+import { sellerAmounts, sellerPayoutReady } from '@/lib/server/market-economy';
 import { marketOrderStorageReady } from '@/lib/server/market-orders';
 import { getMarketPaymentServer, marketPaymentsConfigured } from '@/lib/server/market-x402';
 
@@ -16,6 +18,23 @@ async function paymentsReady() {
 
 function toolResult(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value) }] };
+}
+
+type PublicStall = { id: string; owner_wallet: string; base_service_id: string; title: string;
+  description: string; markup_micro: number };
+
+async function citizenServices() {
+  if (!sellerPayoutReady() || !await paymentsReady()) return [];
+  const rows = await database<PublicStall[]>(
+    'landville_market_stall_drafts?select=id,owner_wallet,base_service_id,title,description,markup_micro&status=eq.published&order=published_at.desc&limit=100');
+  return rows.flatMap((row) => {
+    const base = marketService(row.base_service_id);
+    if (!base || !marketServiceConfigured(base)) return [];
+    try { return [{ id: `stall:${row.id}`, name: row.title, category: base.category,
+      description: row.description, provider: row.owner_wallet, holderOnly: false, status: 'configured',
+      price: sellerAmounts(base.priceUsd, row.markup_micro).priceUsd,
+      paymentRoute: `/api/agent-market/stalls/${row.id}/buy` }]; } catch { return []; }
+  });
 }
 
 const handler = createMcpHandler((server) => {
@@ -31,13 +50,16 @@ const handler = createMcpHandler((server) => {
       && (!term || `${service.name} ${service.category} ${service.description} ${service.provider}`.toLowerCase().includes(term)));
     const merchants = EXTERNAL_MARKET_SERVICES.filter((service) => (!category || service.category.toLowerCase() === category.toLowerCase())
       && (!term || `${service.name} ${service.category} ${service.description} ${service.provider}`.toLowerCase().includes(term)));
+    const citizens = await citizenServices().catch(() => []);
     return toolResult({ network: MARKET_NETWORK, currency: MARKET_CURRENCY, services: [...matches.map((service) => ({
       id: service.id, name: service.name, category: service.category, description: service.description,
       provider: service.provider, holderOnly: service.holderOnly,
       status: ready && marketServiceConfigured(service) ? 'configured' : 'preparing',
     })), ...merchants.map((service) => ({ id: service.id, name: service.name, category: service.category,
       description: service.description, provider: service.provider, holderOnly: false, status: 'live-quote',
-      paymentRoute: '/api/agent-market/external' }))] });
+      paymentRoute: '/api/agent-market/external' })), ...citizens.filter((service) =>
+      (!category || service.category.toLowerCase() === category.toLowerCase()) &&
+      (!term || `${service.name} ${service.category} ${service.description} ${service.provider}`.toLowerCase().includes(term)))] });
   });
 
   server.registerTool('get_market_service', {
@@ -46,6 +68,14 @@ const handler = createMcpHandler((server) => {
     inputSchema: z.object({ id: z.string().min(1).max(80) }).strict(),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async ({ id }) => {
+    if (id.startsWith('stall:') && /^[0-9a-f-]{36}$/i.test(id.slice(6))) {
+      const stalls = await citizenServices().catch(() => []);
+      const stall = stalls.find((item) => item.id === id);
+      if (!stall) return { ...toolResult({ error: 'Citizen service is not available.' }), isError: true };
+      return toolResult({ ...stall, network: MARKET_NETWORK, currency: MARKET_CURRENCY,
+        method: 'POST', endpoint: stall.paymentRoute, requestBody: { prompt: 'Your focused task, 1-2000 characters' },
+        paymentProtocol: 'x402 v2', note: 'A connected agent needs an owner-enabled daily budget and signs with its own payment wallet.' });
+    }
     const merchant = externalMarketService(id);
     if (merchant) return toolResult({ ...merchant, status: 'live-quote', paymentProtocol: 'x402 v2',
       network: MARKET_NETWORK, currency: MARKET_CURRENCY, method: 'POST', endpoint: '/api/agent-market/external',

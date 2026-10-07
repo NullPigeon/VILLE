@@ -7,7 +7,9 @@ import { performMarketWork, validateMarketPrompt } from '@/lib/server/market-wor
 import { marketServiceConfigured } from '@/lib/server/market-catalog';
 import { hasMarketHolderAccess } from '@/lib/server/agent-market';
 import { readOwnedMarketDraft } from '@/lib/server/market-stalls';
-import { linkedAgentOwner } from '@/lib/server/linked-agents';
+import { linkedAgentCredential } from '@/lib/server/linked-agents';
+import { checkAgentMarketBudget, releaseAgentMarketSpend, reserveAgentMarketSpend, settleAgentMarketSpend } from '@/lib/server/market-agent-budget';
+import { parseUnits } from 'viem';
 
 export const runtime = 'nodejs';
 export const maxDuration = 90;
@@ -19,12 +21,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!marketPaymentsConfigured()) return NextResponse.json({ error: 'City payments are not open yet.' }, { status: 503 });
   try {
     requireMutation(request);
+    const token = request.headers.get('authorization')?.replace(/^Bearer /i, '') || '';
+    const agent = token ? await linkedAgentCredential(token) : null;
     if (!marketServiceConfigured(service)) throw new ApiError(503, 'This service is not open yet.');
     if (service.holderOnly) {
-      const token = request.headers.get('authorization')?.replace(/^Bearer /i, '') || '';
-      const owner = token ? await linkedAgentOwner(token) : requireWallet(request);
+      const owner = agent?.ownerWallet || requireWallet(request);
       if (!await hasMarketHolderAccess(owner)) throw new ApiError(403, 'Hold SCRAPY in your linked wallet to use this model.');
     }
+    if (agent) await checkAgentMarketBudget(agent, 'landville', parseUnits(service.priceUsd, 6));
     const body = await jsonBody(request);
     const recipeTest = body.draftId !== undefined || body.draftRevision !== undefined;
     if (Object.keys(body).some((key) => !['prompt', 'draftId', 'draftRevision'].includes(key))
@@ -75,9 +79,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     if (payment.type !== 'payment-verified') throw new Error('MARKET_PAYMENT_NOT_REQUIRED');
     if (!authorizationHash) throw new Error('MARKET_PAYMENT_SIGNATURE_MISSING');
-    const claimed = await claimMarketOrder(authorizationHash, service.id, promptHash);
-    if (!claimed) {
+    try { await reserveAgentMarketSpend(agent, 'landville', parseUnits(service.priceUsd, 6), authorizationHash); }
+    catch (error) { await payment.cancellationDispatcher.cancel({ reason: 'handler_failed' }).catch(() => undefined); throw error; }
+    let claimed;
+    try { claimed = await claimMarketOrder(authorizationHash, service.id, promptHash); }
+    catch (error) {
+      await releaseAgentMarketSpend(agent, authorizationHash).catch(() => undefined);
       await payment.cancellationDispatcher.cancel({ reason: 'handler_failed' }).catch(() => undefined);
+      throw error;
+    }
+    if (!claimed) {
+      await releaseAgentMarketSpend(agent, authorizationHash).catch(() => undefined);
+      await payment.cancellationDispatcher.cancel({ reason: 'handler_failed' }).catch(() => undefined);
+      await releaseAgentMarketSpend(agent, authorizationHash).catch(() => undefined);
       throw new ApiError(409, 'This payment is already being processed. Check your wallet before retrying.');
     }
     let output: string;
@@ -106,6 +120,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         { status: settled.response.status, headers: { ...settled.response.headers, 'Cache-Control': 'private, no-store' } });
     }
     await finishMarketOrder(authorizationHash, 'settled', { output, transaction: settled.transaction, payer: settled.payer || '' }).catch(() => undefined);
+    await settleAgentMarketSpend(agent, authorizationHash, settled.transaction).catch(() => undefined);
     return NextResponse.json({ service: service.id, output, payment: { transaction: settled.transaction, network: settled.network,
       amount: payment.paymentRequirements.amount, asset: payment.paymentRequirements.asset, payer: settled.payer } },
     { headers: { ...settled.headers, 'Cache-Control': 'private, no-store' } });

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { MarketStallWorkshop, type MarketStallDraft } from '@/components/landville/market-stall-workshop';
+import { MarketAgentBudgets } from '@/components/landville/market-agent-budgets';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, MARKET_CURRENCY, MARKET_NETWORK, type AgentSkillId } from '@/lib/agent-market';
 import { shortWallet } from '@/lib/governance';
@@ -20,6 +21,8 @@ type Service = { id: string; name: string; category: string; provider: string; k
 type MarketState = { selected: AgentSkillId[]; holder: boolean; holderCheckAvailable: boolean; agentExists: boolean; paidServices: Service[] };
 type CitizenAgent = { id: string; ownerWallet: string; name: string; description: string; capabilities: string[]; connectedAt: string };
 type MarketOrder = { serviceId: string; output: string | null; transaction: string | null; createdAt: string };
+type CitizenStall = { id: string; seller: string; title: string; description: string; baseName: string;
+  category: string; priceUsd: string; endpoint: string };
 
 const categoryOrder = ['All', 'AI Models', 'Search', 'Web & Scraping', 'Research', 'Market Data', 'Blockchain', 'City'];
 const providerNames: Record<string, string> = {
@@ -59,6 +62,14 @@ export default function AgentMarketPage() {
   const [merchantError, setMerchantError] = useState('');
   const [merchantStage, setMerchantStage] = useState('');
   const [merchantBusy, setMerchantBusy] = useState(false);
+  const [citizenStalls, setCitizenStalls] = useState<CitizenStall[]>([]);
+  const [stallRevision, setStallRevision] = useState(0);
+  const [stallId, setStallId] = useState('');
+  const [stallPrompt, setStallPrompt] = useState('');
+  const [stallBusy, setStallBusy] = useState(false);
+  const [stallStage, setStallStage] = useState('');
+  const [stallError, setStallError] = useState('');
+  const [stallReceipt, setStallReceipt] = useState<MarketReceipt | null>(null);
   const [orders, setOrders] = useState<MarketOrder[]>([]);
   const [mcpUrl, setMcpUrl] = useState('');
   const [mcpCopied, setMcpCopied] = useState(false);
@@ -88,6 +99,16 @@ export default function AgentMarketPage() {
     }).catch((cause) => { if (active) setDirectoryError(cause instanceof Error ? cause.message : 'Citizen agent directory is unavailable.'); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/agent-market/stalls?public=1', { cache: 'no-store' }).then(async (response) => {
+      if (!response.ok) return;
+      const result = await response.json() as { stalls?: CitizenStall[] };
+      if (active) setCitizenStalls(result.stalls || []);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [stallRevision]);
 
   useEffect(() => {
     if (!wallet.address) { const timer = window.setTimeout(() => setOrders([]), 0); return () => window.clearTimeout(timer); }
@@ -123,6 +144,7 @@ export default function AgentMarketPage() {
   }));
   const openCount = services.filter((item) => item.status === 'open').length;
   const merchant = EXTERNAL_MARKET_SERVICES.find((item) => item.id === merchantId);
+  const activeStall = citizenStalls.find((item) => item.id === stallId);
   const merchantCategories = ['All', ...Array.from(new Set(EXTERNAL_MARKET_SERVICES.map((item) => item.category)))];
   const shownMerchants = EXTERNAL_MARKET_SERVICES.filter((item) => merchantCategory === 'All' || item.category === merchantCategory);
 
@@ -149,6 +171,19 @@ export default function AgentMarketPage() {
       if (response.ok) setOrders((await response.json() as { orders?: MarketOrder[] }).orders || []);
     } catch (cause) { setMerchantStage(''); setMerchantError(cause instanceof Error ? cause.message : 'Merchant call failed. Check your wallet before retrying.'); }
     finally { setMerchantBusy(false); }
+  }
+
+  async function buyCitizenStall() {
+    if (!activeStall || stallBusy) return;
+    setStallBusy(true); setStallError(''); setStallReceipt(null);
+    try {
+      setStallReceipt(await buyMarketService({ id: activeStall.id, name: activeStall.title,
+        endpoint: activeStall.endpoint, priceUsd: activeStall.priceUsd }, stallPrompt, wallet, setStallStage));
+      setStallStage('Delivered. The seller earned their share.');
+      const response = await fetch('/api/agent-market/orders', { cache: 'no-store' });
+      if (response.ok) setOrders((await response.json() as { orders?: MarketOrder[] }).orders || []);
+    } catch (cause) { setStallStage(''); setStallError(cause instanceof Error ? cause.message : 'Citizen service did not complete.'); }
+    finally { setStallBusy(false); }
   }
 
   function choose(service: Service) {
@@ -264,7 +299,20 @@ export default function AgentMarketPage() {
         <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>{item.provider.toUpperCase()}</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><em>CHECK LIVE PRICE <ArrowUpRight /></em></button>)}</div>
       </section>
 
-      <section className="am-skills-section" aria-labelledby="am-skills-title"><header className="am-section-head"><div><small>03 / YOUR AGENT</small><h2 id="am-skills-title">SET ITS STYLE.</h2></div><span>{market?.holder ? 'ALL SKILLS UNLOCKED' : `${selected.length} / ${BASIC_SLOT_LIMIT} EQUIPPED`}</span></header>
+      <section className="am-citizen-market" aria-labelledby="am-citizen-title">
+        <header className="am-section-head"><div><small>03 / CITIZEN SERVICES</small><h2 id="am-citizen-title">THE CITY WORKS FOR YOU.</h2></div><span>{citizenStalls.length} LIVE STALLS</span></header>
+        <p className="am-section-intro">Real citizens teach their agents a specialty and sell a bounded job. The price includes the foundation service and a seller markup. The seller earns 90% of that markup; 10% goes to the city treasury.</p>
+        {activeStall && <div className="am-checkout" id="citizen-checkout"><div className="am-checkout-head"><div><small>{activeStall.baseName} / CITIZEN {shortWallet(activeStall.seller)}</small><h3>{activeStall.title}</h3></div><button type="button" aria-label="Close citizen service" onClick={() => setStallId('')}><X /></button></div><p>{activeStall.description}</p>
+          <label htmlFor="am-stall-job">WHAT JOB SHOULD THIS AGENT DO?</label><textarea id="am-stall-job" value={stallPrompt} maxLength={2000} disabled={stallBusy} onChange={(event) => setStallPrompt(event.target.value)} placeholder="Describe the result you want…" />
+          <div className="am-checkout-footer"><div><strong>{activeStall.priceUsd} USDG / CALL</strong><span>One bounded job. You review the wallet signature before paying.</span></div><button type="button" disabled={stallBusy || !stallPrompt.trim() || !wallet.linkedWallet || activeStall.seller === wallet.address} onClick={() => void buyCitizenStall()}>{stallBusy ? 'WORKING…' : 'APPROVE & RUN'}</button></div>
+          {activeStall.seller === wallet.address && <p className="am-note">Your own stall is available to other citizens. Use its private test to try it yourself.</p>}
+          {stallStage && <p className="am-success" aria-live="polite">{stallStage}</p>}{stallError && <p className="am-error" role="alert">{stallError}</p>}
+          {stallReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{stallReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${stallReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${stallReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
+        </div>}
+        {citizenStalls.length ? <div className="am-citizen-grid">{citizenStalls.map((stall) => <button type="button" key={stall.id} onClick={() => { setStallId(stall.id); setStallPrompt(''); setStallStage(''); setStallError(''); setStallReceipt(null); window.setTimeout(() => document.getElementById('citizen-checkout')?.scrollIntoView({ behavior: 'smooth' }), 0); }}><small>{stall.category} · CITIZEN {shortWallet(stall.seller)}</small><strong>{stall.title}</strong><span>{stall.description}</span><em>{stall.priceUsd} USDG / JOB <ArrowUpRight /></em></button>)}</div> : <div className="am-empty-network"><Bot /><p>The first citizen stalls will appear here after sellers publish their tested services and city payouts open.</p></div>}
+      </section>
+
+      <section className="am-skills-section" aria-labelledby="am-skills-title"><header className="am-section-head"><div><small>04 / YOUR AGENT</small><h2 id="am-skills-title">SET ITS STYLE.</h2></div><span>{market?.holder ? 'ALL SKILLS UNLOCKED' : `${selected.length} / ${BASIC_SLOT_LIMIT} EQUIPPED`}</span></header>
         <p className="am-section-intro">These skills shape how your own agent talks in your yard. They are separate from paid models and tools above.</p>
         {!wallet.address && <div className="am-callout"><Bot /><span>Join LANDVILLE to create an agent and choose its skills.</span><Link href={profile}>JOIN THE CITY <ArrowUpRight /></Link></div>}
         {wallet.address && market && !market.agentExists && <div className="am-callout"><Bot /><span>Create your agent first, then choose its skills.</span><Link href={profile}>CREATE MY AGENT <ArrowUpRight /></Link></div>}
@@ -277,16 +325,17 @@ export default function AgentMarketPage() {
         <div className="am-holder-note"><ShieldCheck /><p><strong>1M SCRAPY holder benefit:</strong> every chat skill and access to advanced model listings. This does not include free provider usage or automatic spending.</p><Link href="/docs/scrapy-token">TOKEN DETAILS <ArrowUpRight /></Link></div>
       </section>
 
-      <section className="am-directory" aria-labelledby="am-directory-title"><header className="am-section-head"><div><small>04 / CITIZEN NETWORK</small><h2 id="am-directory-title">AGENTS IN TOWN.</h2></div><Link href={profile}>CONNECT YOUR AGENT <ArrowUpRight /></Link></header>
+      <section className="am-directory" aria-labelledby="am-directory-title"><header className="am-section-head"><div><small>05 / CITIZEN NETWORK</small><h2 id="am-directory-title">AGENTS IN TOWN.</h2></div><Link href={profile}>CONNECT YOUR AGENT <ArrowUpRight /></Link></header>
         {directoryError ? <p className="am-note">{directoryError}</p> : agents.length ? <div className="am-directory-grid">{agents.map((agent) => <article key={agent.id}><div><Bot aria-hidden="true" /><small>CONNECTED AGENT</small></div><h3>{agent.name}</h3><p>{agent.description}</p><div className="am-directory-tags">{agent.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div><Link href={`/citizens/${agent.ownerWallet}`}>CITIZEN {shortWallet(agent.ownerWallet)} <ArrowUpRight /></Link></article>)}</div> : <div className="am-empty-network"><RadioTower /><p>Connect an external agent to your profile to make it discoverable in town.</p><Link href={profile}>CONNECT AN AGENT <ArrowUpRight /></Link></div>}
         <p className="am-model-note">Connected agents verify profile-key ownership. Their capabilities are self-declared; citizen-to-citizen selling is not open yet.</p>
       </section>
 
-      <MarketStallWorkshop services={services} agentExists={Boolean(market?.agentExists)} holder={Boolean(market?.holder)} onTest={testRecipe} />
+      <MarketStallWorkshop services={services} agentExists={Boolean(market?.agentExists)} holder={Boolean(market?.holder)} onTest={testRecipe} onPublishChange={() => setStallRevision((value) => value + 1)} />
+      <MarketAgentBudgets signedIn={Boolean(wallet.address)} />
 
-      {wallet.address && <section className="am-history" aria-labelledby="am-history-title"><header className="am-section-head"><div><small>06 / YOUR WORK</small><h2 id="am-history-title">RECEIPTS.</h2></div><span>LAST 20 SETTLED JOBS</span></header>{orders.length ? <div className="am-history-list">{orders.map((order) => <details key={order.transaction || order.createdAt}><summary><strong>{services.find((item) => item.id === order.serviceId)?.name || EXTERNAL_MARKET_SERVICES.find((item) => `external:${item.id}` === order.serviceId)?.name || order.serviceId}</strong><span>{new Date(order.createdAt).toLocaleDateString()}</span><span>VIEW RESULT + RECEIPT</span></summary><pre>{order.output}</pre>{order.transaction && <div className="am-history-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${order.transaction}`} target="_blank" rel="noopener noreferrer">ONCHAIN PAYMENT <ArrowUpRight /></a>{market?.agentExists && <Link href={`/yard/${wallet.address}?marketTx=${order.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div>}</details>)}</div> : <p className="am-note">Your completed paid jobs will appear here.</p>}</section>}
+      {wallet.address && <section className="am-history" aria-labelledby="am-history-title"><header className="am-section-head"><div><small>08 / YOUR WORK</small><h2 id="am-history-title">RECEIPTS.</h2></div><span>LAST 20 SETTLED JOBS</span></header>{orders.length ? <div className="am-history-list">{orders.map((order) => <details key={order.transaction || order.createdAt}><summary><strong>{services.find((item) => item.id === order.serviceId)?.name || EXTERNAL_MARKET_SERVICES.find((item) => `external:${item.id}` === order.serviceId)?.name || citizenStalls.find((item) => `stall:${item.id}` === order.serviceId)?.title || order.serviceId}</strong><span>{new Date(order.createdAt).toLocaleDateString()}</span><span>VIEW RESULT + RECEIPT</span></summary><pre>{order.output}</pre>{order.transaction && <div className="am-history-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${order.transaction}`} target="_blank" rel="noopener noreferrer">ONCHAIN PAYMENT <ArrowUpRight /></a>{market?.agentExists && <Link href={`/yard/${wallet.address}?marketTx=${order.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div>}</details>)}</div> : <p className="am-note">Your completed paid jobs will appear here.</p>}</section>}
 
-      <div className="am-footer"><ShoppingBag /><span>LANDVILLE operates listed services. Citizen payouts and autonomous agent purchases will open after payment and budget controls are ready.</span><Link href="/world">BACK TO WORLD <ArrowUpRight /></Link></div>
+      <div className="am-footer"><ShoppingBag /><span>Citizen sales and wallet payouts open when the production treasury is configured. Connected agents can buy within owner-set LANDVILLE limits using their own wallets.</span><Link href="/world">BACK TO WORLD <ArrowUpRight /></Link></div>
     </main>
   </ProductShell>;
 }

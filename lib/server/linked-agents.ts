@@ -26,11 +26,15 @@ export async function readLinkedAgents(owner: string) {
 }
 
 export async function linkedAgentOwner(token: string) {
+  return (await linkedAgentCredential(token)).ownerWallet;
+}
+
+export async function linkedAgentCredential(token: string) {
   if (!/^lvag_[0-9a-f]{64}$/.test(token)) throw new ApiError(401, 'Connect your agent with its profile key.');
   const hash = createHash('sha256').update(token).digest('hex');
-  const rows = await database<Array<{ owner_wallet: string }>>(
-    `landville_linked_agents?select=owner_wallet&token_hash=eq.${hash}&limit=1`,
+  const rows = await database<Array<{ id: string; owner_wallet: string }>>(
+    `landville_linked_agents?select=id,owner_wallet&token_hash=eq.${hash}&limit=1`,
   );
   if (!rows.length) throw new ApiError(401, 'This agent connection was revoked.');
-  return rows[0].owner_wallet;
+  return { id: rows[0].id, ownerWallet: rows[0].owner_wallet };
 }
