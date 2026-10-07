@@ -1,5 +1,5 @@
 export type MarketProvider = 'landville' | 'openai' | 'anthropic' | 'google' | 'xai' | 'groq' | 'deepseek' | 'mistral' | 'brave' | 'firecrawl' | 'robinhood';
-export type YardMarketSuggestion = { serviceId: string; name: string; priceUsd: string; prompt: string };
+export type YardMarketSuggestion = { serviceId: string; name: string; priceUsd: string | null; prompt: string };
 export type MarketServiceKind = 'world-audit' | 'web-search' | 'web-news' | 'web-scrape' | 'research-brief' | 'chain-lens' | 'model' | 'long-form';
 export type MarketService = {
   id: string;

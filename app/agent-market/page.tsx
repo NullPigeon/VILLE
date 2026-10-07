@@ -154,6 +154,14 @@ export default function AgentMarketPage() {
     prefilled.current = true;
     const query = new URLSearchParams(window.location.search);
     const id = query.get('service');
+    const direct = EXTERNAL_MARKET_SERVICES.find((item) => item.id === id || item.replacesCityServiceId === id);
+    if (direct && direct.id !== 'model-network' && direct.id !== 'metered-models') {
+      const timer = window.setTimeout(() => {
+        setCheckoutId(''); setMerchantId(direct.id); setMerchantInput((query.get('prompt') || '').slice(0, 2000));
+        document.getElementById('merchant-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
     if (id && market.paidServices.some((item) => item.id === id)) {
       const timer = window.setTimeout(() => { setCheckoutId(id); setPrompt((query.get('prompt') || '').slice(0, 2000)); }, 0);
       return () => window.clearTimeout(timer);
