@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { parsePaymentPayload } from '@x402/core/schemas';
-import { EXTERNAL_MARKET_SERVICES, externalMarketRequest, externalMarketService, externalModelCatalog, externalResourceMatches } from '@/lib/external-market';
+import { EXTERNAL_MARKET_SERVICES, externalMarketRequest, externalMarketService, externalModelCatalog, externalModelHolderOnly, externalResourceMatches } from '@/lib/external-market';
 import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
 import { claimMarketOrder, finishMarketOrder, marketHash, marketOrder, marketOrderStorageReady } from '@/lib/server/market-orders';
 import { linkedAgentCredential } from '@/lib/server/linked-agents';
+import { hasMarketHolderAccess } from '@/lib/server/agent-market';
 import { checkAgentMarketBudget, releaseAgentMarketSpend, reserveAgentMarketSpend, settleAgentMarketSpend } from '@/lib/server/market-agent-budget';
 
 export const runtime = 'nodejs';
@@ -105,9 +106,14 @@ export async function POST(request: NextRequest) {
     const service = externalMarketService(body.serviceId);
     if (!service) throw new ApiError(404, 'Merchant service not found.');
     const modelId = service.modelPicker && typeof body.modelId === 'string' ? body.modelId : '';
-    if (service.modelPicker && !body.paymentSignature) {
-      const models = await externalModelCatalog(service.id as 'model-network' | 'metered-models');
-      if (!models.some((model) => model.id === modelId)) throw new ApiError(400, 'Choose a model from the live catalog.');
+    if (service.modelPicker) {
+      if (!body.paymentSignature) {
+        const models = await externalModelCatalog(service.id as 'model-network' | 'metered-models');
+        if (!models.some((model) => model.id === modelId)) throw new ApiError(400, 'Choose a model from the live catalog.');
+      }
+      if (externalModelHolderOnly(modelId) && !await hasMarketHolderAccess(owner).catch(() => false)) {
+        throw new ApiError(403, 'Hold at least 1M SCRAPY in your linked wallet to use this advanced model.');
+      }
     } else if (body.modelId !== undefined) throw new ApiError(400, 'This service does not accept a model selection.');
     let upstream;
     try { upstream = externalMarketRequest(service, body.input, modelId); }
