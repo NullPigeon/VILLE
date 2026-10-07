@@ -146,7 +146,11 @@ export type ExternalModel = { id: string; name: string; provider: string; holder
 // The same rule is applied to the model picker and to both checkout requests.
 // A model's live x402 quote still decides whether it can actually be bought.
 export function externalModelHolderOnly(modelId: string) {
-  return /(?:^|[/-])(?:claude[-/]opus|gpt[-/]5|gpt[-/]6|gemini[-/](?:2\.5|3|4)[-/]pro|grok[-/]4)(?:[./:-]|$)/i.test(modelId);
+  const id = modelId.toLowerCase();
+  if (/(?:^|\/)claude-(?:opus|sonnet-[5-9])(?:[.:-]|$)/.test(id)) return true;
+  if (/(?:^|\/)gpt-[56](?:[.:-]|$)/.test(id) && !/(?:nano|mini|luna)(?:[.:-]|$)/.test(id)) return true;
+  if (/(?:^|\/)o[345](?:[.:-]|$)/.test(id) && !/-mini(?:[.:-]|$)/.test(id)) return true;
+  return /(?:^|\/)gemini-(?:2\.5|[3-9](?:\.\d+)?)-pro(?:[.:-]|$)|(?:^|\/)grok-4(?:[.:-]|$)/.test(id);
 }
 
 const catalogCache = new Map<string, { expires: number; models: ExternalModel[] }>();

@@ -54,6 +54,9 @@ void test('advanced direct models require verified SCRAPY holder access', () => 
   assert.equal(externalModelHolderOnly('anthropic/claude-opus-4'), true);
   assert.equal(externalModelHolderOnly('openai/gpt-6-sol'), true);
   assert.equal(externalModelHolderOnly('google/gemini-2.5-pro'), true);
+  assert.equal(externalModelHolderOnly('openai/o3'), true);
+  assert.equal(externalModelHolderOnly('openai/gpt-5-nano'), false);
+  assert.equal(externalModelHolderOnly('openai/gpt-6-luna'), false);
   assert.equal(externalModelHolderOnly('openai/gpt-4o-mini'), false);
   assert.equal(externalModelHolderOnly('anthropic/claude-sonnet-4'), false);
 });
