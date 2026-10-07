@@ -2,6 +2,7 @@ import { createMcpHandler } from 'mcp-handler';
 import { z } from 'zod';
 import { MARKET_CURRENCY, MARKET_NETWORK } from '@/lib/agent-market';
 import { MARKET_SERVICES, marketService } from '@/lib/market-services';
+import { EXTERNAL_MARKET_SERVICES, externalMarketService } from '@/lib/external-market';
 import { marketServiceConfigured } from '@/lib/server/market-catalog';
 import { marketOrderStorageReady } from '@/lib/server/market-orders';
 import { getMarketPaymentServer, marketPaymentsConfigured } from '@/lib/server/market-x402';
@@ -28,11 +29,15 @@ const handler = createMcpHandler((server) => {
     const term = query?.trim().toLowerCase() || '';
     const matches = MARKET_SERVICES.filter((service) => (!category || service.category.toLowerCase() === category.toLowerCase())
       && (!term || `${service.name} ${service.category} ${service.description} ${service.provider}`.toLowerCase().includes(term)));
-    return toolResult({ network: MARKET_NETWORK, currency: MARKET_CURRENCY, services: matches.map((service) => ({
+    const merchants = EXTERNAL_MARKET_SERVICES.filter((service) => (!category || service.category.toLowerCase() === category.toLowerCase())
+      && (!term || `${service.name} ${service.category} ${service.description} ${service.provider}`.toLowerCase().includes(term)));
+    return toolResult({ network: MARKET_NETWORK, currency: MARKET_CURRENCY, services: [...matches.map((service) => ({
       id: service.id, name: service.name, category: service.category, description: service.description,
       provider: service.provider, holderOnly: service.holderOnly,
       status: ready && marketServiceConfigured(service) ? 'configured' : 'preparing',
-    })) });
+    })), ...merchants.map((service) => ({ id: service.id, name: service.name, category: service.category,
+      description: service.description, provider: service.provider, holderOnly: false, status: 'live-quote',
+      paymentRoute: '/api/agent-market/external' }))] });
   });
 
   server.registerTool('get_market_service', {
@@ -41,6 +46,11 @@ const handler = createMcpHandler((server) => {
     inputSchema: z.object({ id: z.string().min(1).max(80) }).strict(),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async ({ id }) => {
+    const merchant = externalMarketService(id);
+    if (merchant) return toolResult({ ...merchant, status: 'live-quote', paymentProtocol: 'x402 v2',
+      network: MARKET_NETWORK, currency: MARKET_CURRENCY, method: 'POST', endpoint: '/api/agent-market/external',
+      quoteBody: { serviceId: merchant.id, input: merchant.placeholder || '' },
+      note: 'Request a live quote first, then pay the selected external merchant from your own wallet. A connected agent sends its profile key in Authorization: Bearer lvag_...; this key cannot spend its owner wallet.' });
     const service = marketService(id);
     if (!service) return { ...toolResult({ error: 'Service not found.' }), isError: true };
     const configured = await paymentsReady() && marketServiceConfigured(service);

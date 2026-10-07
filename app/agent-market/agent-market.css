@@ -193,3 +193,27 @@ html[data-city-motion=paused] .am-page *,html[data-city-motion=paused] .am-page 
 .am-receipt-actions a:last-child,.am-history-actions a:last-child{padding:7px 11px;border:1px solid #c8db80;background:#d6e988;color:#26361e;box-shadow:3px 3px #0e180e}
 .am-receipt-actions svg,.am-history-actions svg{width:14px;height:14px}
 .am-history-actions{padding:0 16px 16px}.am-history-list .am-history-actions a{margin:0}
+
+/* Direct merchants: comic-book service tickets with the live price kept in checkout. */
+.am-merchants{margin-top:52px;padding:26px clamp(16px,2.6vw,32px) 32px;border:2px solid #8a7046;background:repeating-linear-gradient(130deg,#263225 0 110px,#2a3528 111px 113px);box-shadow:6px 7px #0b110b}
+.am-merchants .am-section-head{border-bottom-color:#bd9251}
+.am-merchants .am-section-head small{color:#e8bc7b}
+.am-merchant-tabs{margin:0 0 22px}
+.am-merchant-tabs button[aria-pressed=true]{border-color:#f0c27b;background:#eac17e;color:#2b2b1b}
+.am-merchant-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.am-merchant-card{display:flex;flex-direction:column;align-items:flex-start;min-height:195px;gap:10px;padding:17px;border:2px solid #a38a59;background:radial-gradient(circle at 96% 0,#a9764250,transparent 42%),#253324;color:#f8eed2;text-align:left;box-shadow:4px 5px #11170d;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s}
+.am-merchant-card:hover{transform:translateY(-3px) rotate(-.3deg);border-color:#e7c078;box-shadow:5px 8px #11170d}
+.am-merchant-card:focus-visible{outline:3px solid #f2d385;outline-offset:3px}
+.am-merchant-card-top{display:flex;justify-content:space-between;gap:8px;width:100%;font:900 11px Arial,sans-serif;letter-spacing:.05em}
+.am-merchant-card-top b{padding:5px 7px;background:#d8e986;color:#23341a;box-shadow:2px 2px #11190f}
+.am-merchant-card-top small{align-self:center;color:#dfc899;font-size:11px}
+.am-merchant-card>strong{font:900 29px/1 Impact,Arial,sans-serif;letter-spacing:.01em}
+.am-merchant-card>span:nth-child(3){color:#d5dec4;font-size:14px;line-height:1.4}
+.am-merchant-card em{display:flex;align-items:center;gap:6px;margin-top:auto;color:#e9c78a;font-size:11px;font-weight:900;font-style:normal}
+.am-merchant-card em svg,.am-merchant-docs svg{width:14px;height:14px}
+.am-merchant-checkout{border-color:#edc47d;background:radial-gradient(circle at 95% 0,#aa764c45,transparent 48%),#293725}
+.am-merchant-input{display:block;width:100%;min-height:52px;padding:12px 14px;border:2px solid #a6ac71;border-radius:3px;background:#142016;color:#f3efd9;font:15px Arial,sans-serif}
+.am-merchant-input:focus-visible{outline:3px solid #f1d98e;outline-offset:3px}
+.am-merchant-docs{display:inline-flex;align-items:center;gap:6px;margin:2px 0 16px;color:#e6c889;font-size:11px;font-weight:900}
+@media(max-width:950px){.am-merchant-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.am-merchants{padding:19px 14px}.am-merchant-grid{grid-template-columns:1fr}.am-merchant-card{min-height:165px}}
