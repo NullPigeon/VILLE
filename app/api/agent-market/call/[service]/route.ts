@@ -6,6 +6,8 @@ import { claimMarketOrder, finishMarketOrder, marketHash, marketOrder, marketOrd
 import { performMarketWork, validateMarketPrompt } from '@/lib/server/market-work';
 import { marketServiceConfigured } from '@/lib/server/market-catalog';
 import { hasMarketHolderAccess } from '@/lib/server/agent-market';
+import { readOwnedMarketDraft } from '@/lib/server/market-stalls';
+import { linkedAgentOwner } from '@/lib/server/linked-agents';
 
 export const runtime = 'nodejs';
 export const maxDuration = 90;
@@ -19,19 +21,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     requireMutation(request);
     if (!marketServiceConfigured(service)) throw new ApiError(503, 'This service is not open yet.');
     if (service.holderOnly) {
-      const owner = requireWallet(request);
+      const token = request.headers.get('authorization')?.replace(/^Bearer /i, '') || '';
+      const owner = token ? await linkedAgentOwner(token) : requireWallet(request);
       if (!await hasMarketHolderAccess(owner)) throw new ApiError(403, 'Hold SCRAPY in your linked wallet to use this model.');
     }
     const body = await jsonBody(request);
-    if (Object.keys(body).length !== 1 || typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000) {
+    const recipeTest = body.draftId !== undefined || body.draftRevision !== undefined;
+    if (Object.keys(body).some((key) => !['prompt', 'draftId', 'draftRevision'].includes(key))
+      || typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > (recipeTest ? 600 : 2000)
+      || (recipeTest && (Object.keys(body).length !== 3 || typeof body.draftId !== 'string' || typeof body.draftRevision !== 'string'))
+      || (!recipeTest && Object.keys(body).length !== 1)) {
       throw new ApiError(400, 'Send a prompt of 1–2000 characters.');
     }
     if (!await marketOrderStorageReady()) throw new ApiError(503, 'Market order storage is not ready.');
     const prompt = body.prompt.trim();
     validateMarketPrompt(service, prompt);
+    const draft = recipeTest ? await readOwnedMarketDraft(requireWallet(request), body.draftId as string, body.draftRevision as string) : null;
+    if (draft && (draft.base_service_id !== service.id || !['model', 'long-form', 'research-brief'].includes(service.kind))) {
+      throw new ApiError(400, 'This recipe belongs to another service.');
+    }
     const signature = request.headers.get('payment-signature');
     const authorizationHash = signature ? marketHash(signature) : null;
-    const promptHash = marketHash(prompt);
+    const promptHash = marketHash(draft ? JSON.stringify({ prompt, draftId: draft.id, draftRevision: draft.updated_at }) : prompt);
     if (authorizationHash) {
       const existing = await marketOrder(authorizationHash);
       if (existing) {
@@ -71,7 +82,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     let output: string;
     try {
-      output = await performMarketWork(service, prompt, authorizationHash);
+      const recipePrompt = draft && service.kind !== 'research-brief'
+        ? `Private service recipe: ${draft.instructions}\n\nOwner's test job: ${prompt}` : prompt;
+      output = await performMarketWork(service, recipePrompt, authorizationHash,
+        draft?.base_service_id === 'research-brief' ? draft.instructions : undefined);
+      if (draft) output = `PRIVATE RECIPE TEST: ${draft.title}\n\n${output}`;
     } catch (error) {
       await payment.cancellationDispatcher.cancel({ reason: 'handler_failed' }).catch(() => undefined);
       await finishMarketOrder(authorizationHash, 'failed').catch(() => undefined);

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import ts from 'typescript';
 import { NextRequest } from 'next/server.js';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
@@ -1553,4 +1553,42 @@ void test('below 250K SCRAPY still earns the daily check-in but cannot start the
   assert.equal(response.status, 200);
   assert.equal((await response.json()).minimumNotMet, true);
   assert.equal(f.calls.find((call) => call.url.endsWith('/rpc/landville_city_check_in')).body.p_snapshot, null);
+});
+
+void test('private Market recipe tests require the owner and exact saved revision', async () => {
+  const id = randomUUID();
+  const revision = new Date().toISOString();
+  const row = { id, owner_wallet: wallet, base_service_id: 'long-form', title: 'Pitch Doctor', instructions: 'Make a concise pitch.', updated_at: revision };
+  const f = fixture((call) => call.url.includes('landville_market_stall_drafts?')
+    ? json(call.url.includes(`owner_wallet=eq.${wallet}`) ? [row] : []) : undefined);
+  const { readOwnedMarketDraft } = f.load('@/lib/server/market-stalls');
+  assert.equal((await readOwnedMarketDraft(wallet, id, revision)).title, 'Pitch Doctor');
+  await assert.rejects(readOwnedMarketDraft(wallet, id, new Date(Date.now() + 1000).toISOString()), { status: 409 });
+  await assert.rejects(readOwnedMarketDraft(other, id, revision), { status: 404 });
+});
+
+void test('a connected holder agent gets a 402 quote, never a free paid result', async () => {
+  const token = `lvag_${'f'.repeat(64)}`;
+  const hash = createHash('sha256').update(token).digest('hex');
+  const f = fixture((call) => call.url.includes('landville_linked_agents?')
+    ? json(call.url.includes(`token_hash=eq.${hash}`) ? [{ owner_wallet: wallet }] : []) : undefined,
+  {}, {
+    '@/lib/server/market-x402': {
+      marketPaymentsConfigured: () => true,
+      getMarketPaymentServer: async () => ({ processHTTPRequest: async () => ({
+        type: 'payment-error', response: { status: 402, body: { error: 'Payment required.' }, headers: {} },
+      }) }),
+    },
+    '@/lib/server/market-catalog': { marketServiceConfigured: () => true },
+    '@/lib/server/market-orders': { marketOrderStorageReady: async () => true, marketHash: (text) => createHash('sha256').update(text).digest('hex') },
+    '@/lib/server/agent-market': { hasMarketHolderAccess: async (owner) => owner === wallet },
+  });
+  const route = f.load('app/api/agent-market/call/[service]/route.ts');
+  const params = { params: Promise.resolve({ service: 'openai-sol' }) };
+  const body = { prompt: 'Summarize this idea.' };
+  const quote = await route.POST(f.request('/api/agent-market/call/openai-sol', body, { headers: { Authorization: `Bearer ${token}` } }), params);
+  assert.equal(quote.status, 402);
+  assert.equal((await quote.json()).error, 'Payment required.');
+  const revoked = await route.POST(f.request('/api/agent-market/call/openai-sol', body, { headers: { Authorization: `Bearer lvag_${'0'.repeat(64)}` } }), params);
+  assert.equal(revoked.status, 401);
 });

@@ -5,11 +5,11 @@ import { ArrowRight, ArrowUpRight, Bot, Check, ChevronRight, CircleDollarSign, R
 import { useEffect, useRef, useState } from 'react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
-import { MarketStallWorkshop } from '@/components/landville/market-stall-workshop';
+import { MarketStallWorkshop, type MarketStallDraft } from '@/components/landville/market-stall-workshop';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, MARKET_CURRENCY, MARKET_NETWORK, type AgentSkillId } from '@/lib/agent-market';
 import { shortWallet } from '@/lib/governance';
-import { buyMarketService, type MarketReceipt } from '@/lib/market-checkout';
+import { buyMarketService, type MarketReceipt, type MarketRecipeTest } from '@/lib/market-checkout';
 import { activeRobinhoodChain } from '@/lib/robinhood-chain';
 import './agent-market.css';
 
@@ -43,6 +43,7 @@ export default function AgentMarketPage() {
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [checkoutId, setCheckoutId] = useState('');
+  const [testDraft, setTestDraft] = useState<MarketRecipeTest | null>(null);
   const [prompt, setPrompt] = useState('');
   const [stage, setStage] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
@@ -113,7 +114,13 @@ export default function AgentMarketPage() {
   const openCount = services.filter((item) => item.status === 'open').length;
 
   function choose(service: Service) {
-    setCheckoutId(service.id); setPrompt(''); setCheckoutError(''); setStage(''); setReceipt(null);
+    setCheckoutId(service.id); setTestDraft(null); setPrompt(''); setCheckoutError(''); setStage(''); setReceipt(null);
+    window.setTimeout(() => document.getElementById('market-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  }
+
+  function testRecipe(draft: MarketStallDraft) {
+    setCheckoutId(draft.baseServiceId); setTestDraft({ id: draft.id, title: draft.title, updatedAt: draft.updatedAt });
+    setPrompt(''); setCheckoutError(''); setStage(''); setReceipt(null);
     window.setTimeout(() => document.getElementById('market-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   }
 
@@ -144,7 +151,7 @@ export default function AgentMarketPage() {
     if (!activeService || buying) return;
     setBuying(true); setCheckoutError(''); setReceipt(null);
     try {
-      setReceipt(await buyMarketService(activeService, prompt, wallet, setStage));
+      setReceipt(await buyMarketService(activeService, prompt, wallet, setStage, testDraft || undefined));
       setStage('Work delivered. Payment settled onchain.');
       const response = await fetch('/api/agent-market/orders', { cache: 'no-store' });
       if (response.ok) setOrders((await response.json() as { orders?: MarketOrder[] }).orders || []);
@@ -178,12 +185,13 @@ export default function AgentMarketPage() {
           <label className="am-search"><Search aria-hidden="true" /><input aria-label="Search services" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search models or tools" /></label></div>
         {!market && !error && <p className="am-note">Loading the service board…</p>}
         {error && !market && <p className="am-error" role="alert">{error}</p>}
-        {activeService && <div className="am-checkout" id="market-checkout"><div className="am-checkout-head"><div><small>{providerNames[activeService.provider] || activeService.provider} / {activeService.category}</small><h3>{activeService.name}</h3></div><button type="button" aria-label="Close service" onClick={() => setCheckoutId('')}><X /></button></div>
+        {activeService && <div className="am-checkout" id="market-checkout"><div className="am-checkout-head"><div><small>{providerNames[activeService.provider] || activeService.provider} / {activeService.category}</small><h3>{testDraft ? `TEST ${testDraft.title}` : activeService.name}</h3></div><button type="button" aria-label="Close service" onClick={() => { setCheckoutId(''); setTestDraft(null); }}><X /></button></div>
           <p>{activeService.description}</p>
+          {testDraft && <div className="am-recipe-test-note"><Bot /> Your saved recipe guides this private test. Write a customer job below. Nothing is published for sale.</div>}
           {activeService.status === 'preparing' && <div className="am-setup-message"><ShieldCheck /> This service is listed for preview. LANDVILLE must connect the provider and payment system before checkout opens.</div>}
           {activeService.status === 'holder' && <div className="am-setup-message"><ShieldCheck /> This service requires a verified balance of at least 1M SCRAPY in your linked wallet.</div>}
-          <label htmlFor="am-job-prompt">WHAT DO YOU WANT DONE?</label>
-          <textarea id="am-job-prompt" value={prompt} maxLength={2000} disabled={buying || !activeService.available} onChange={(event) => setPrompt(event.target.value)} placeholder={activeService.id === 'chain-lens' ? 'Paste a 0x wallet address…' : activeService.id === 'page-reader' ? 'Paste one public HTTPS page URL…' : 'Describe a focused task for this service…'} />
+          <label htmlFor="am-job-prompt">{testDraft ? 'GIVE YOUR RECIPE A TEST JOB' : 'WHAT DO YOU WANT DONE?'}</label>
+          <textarea id="am-job-prompt" value={prompt} maxLength={testDraft ? 600 : 2000} disabled={buying || !activeService.available} onChange={(event) => setPrompt(event.target.value)} placeholder={testDraft ? 'For example: Turn this rough idea into a one-page pitch for new citizens…' : activeService.id === 'chain-lens' ? 'Paste a 0x wallet address…' : activeService.id === 'page-reader' ? 'Paste one public HTTPS page URL…' : 'Describe a focused task for this service…'} />
           <div className="am-checkout-footer"><div>{activeService.available ? <><strong>{activeService.priceUsd} USDG / CALL</strong><span>Fixed price for this bounded job. Wallet approval and network gas may be required.</span></> : <strong>{serviceStatus(activeService)}</strong>}</div>
             <button type="button" disabled={buying || !activeService.available || !prompt.trim() || !wallet.linkedWallet} onClick={() => void buy()}>{buying ? 'WORKING…' : activeService.available ? 'APPROVE PAYMENT & RUN' : 'CHECKOUT NOT OPEN'}</button></div>
           {activeService.available && !wallet.linkedWallet && <p className="am-checkout-hint">Connect your wallet in <Link href={profile}>your profile <ArrowUpRight /></Link> to use this service.</p>}
@@ -196,7 +204,7 @@ export default function AgentMarketPage() {
             <span><strong>{item.name}</strong><small>{item.description}</small><em className={`am-status am-status-${item.status}`}>{serviceStatus(item)}</em></span><ChevronRight aria-hidden="true" /></button>)}</div>
         </article>)}</div>
         {market && !shown.length && <p className="am-note">No services match that search. Try another category or keyword.</p>}
-        <div className="am-market-explain"><Bot /><div><strong>EXTERNAL AGENTS CAN DISCOVER THE MARKET</strong><p>Connect an MCP client to our public service board. It can search tools and read exact routes for configured services. To buy work, the agent calls that service&apos;s x402 endpoint using its own approved payment wallet. Connecting a profile agent never gives it permission to spend yours.</p><div className="am-mcp-connect"><code>{mcpUrl || '/mcp'}</code><button type="button" disabled={!mcpUrl} onClick={() => void navigator.clipboard.writeText(mcpUrl).then(() => setMcpCopied(true))}>{mcpCopied ? 'COPIED' : 'COPY MCP URL'}</button></div></div></div>
+        <div className="am-market-explain"><Bot /><div><strong>EXTERNAL AGENTS CAN DISCOVER THE MARKET</strong><p>Connect an MCP client to search tools and read routes. For paid work it calls the x402 endpoint with its own payment wallet. A connected agent of a verified SCRAPY holder can use holder listings with its profile key, but that key never spends the owner&apos;s wallet.</p><div className="am-mcp-connect"><code>{mcpUrl || '/mcp'}</code><button type="button" disabled={!mcpUrl} onClick={() => void navigator.clipboard.writeText(mcpUrl).then(() => setMcpCopied(true))}>{mcpCopied ? 'COPIED' : 'COPY MCP URL'}</button></div></div></div>
       </section>
 
       <section className="am-skills-section" aria-labelledby="am-skills-title"><header className="am-section-head"><div><small>02 / YOUR AGENT</small><h2 id="am-skills-title">SET ITS STYLE.</h2></div><span>{market?.holder ? 'ALL SKILLS UNLOCKED' : `${selected.length} / ${BASIC_SLOT_LIMIT} EQUIPPED`}</span></header>
@@ -217,7 +225,7 @@ export default function AgentMarketPage() {
         <p className="am-model-note">Connected agents verify profile-key ownership. Their capabilities are self-declared; citizen-to-citizen selling is not open yet.</p>
       </section>
 
-      <MarketStallWorkshop services={services} agentExists={Boolean(market?.agentExists)} holder={Boolean(market?.holder)} />
+      <MarketStallWorkshop services={services} agentExists={Boolean(market?.agentExists)} holder={Boolean(market?.holder)} onTest={testRecipe} />
 
       {wallet.address && <section className="am-history" aria-labelledby="am-history-title"><header className="am-section-head"><div><small>05 / YOUR WORK</small><h2 id="am-history-title">RECEIPTS.</h2></div><span>LAST 20 SETTLED JOBS</span></header>{orders.length ? <div className="am-history-list">{orders.map((order) => <details key={order.transaction || order.createdAt}><summary><strong>{services.find((item) => item.id === order.serviceId)?.name || order.serviceId}</strong><span>{new Date(order.createdAt).toLocaleDateString()}</span><span>VIEW RESULT + RECEIPT</span></summary><pre>{order.output}</pre>{order.transaction && <div className="am-history-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${order.transaction}`} target="_blank" rel="noopener noreferrer">ONCHAIN PAYMENT <ArrowUpRight /></a>{market?.agentExists && <Link href={`/yard/${wallet.address}?marketTx=${order.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div>}</details>)}</div> : <p className="am-note">Your completed paid jobs will appear here.</p>}</section>}
 

@@ -50,7 +50,7 @@ const handler = createMcpHandler((server) => {
       ...(configured ? { price: service.priceUsd, currency: MARKET_CURRENCY,
         network: MARKET_NETWORK, method: 'POST', endpoint: `/api/agent-market/call/${service.id}`,
         requestBody: { prompt: 'Your focused task, 1-2000 characters' }, paymentProtocol: 'x402 v2' } : {}),
-      note: service.holderOnly ? 'Holder services also require an authenticated citizen session with verified SCRAPY holdings.' : undefined });
+      note: service.holderOnly ? 'Holder services require verified SCRAPY holdings. A citizen may use a signed-in session; a connected external agent may send its own profile connection key as Authorization: Bearer lvag_... while paying from its own wallet. The key never signs a payment.' : undefined });
   });
 }, { serverInfo: { name: 'LANDVILLE Agent Market', version: '0.1.0' } });
 

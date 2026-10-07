@@ -1,5 +1,7 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
 import type { LinkedAgent, LinkedAgentCapability } from '@/lib/linked-agents';
+import { ApiError } from '@/lib/server/api';
 import { database } from '@/lib/server/database';
 
 export type LinkedAgentRow = {
@@ -21,4 +23,14 @@ export async function readLinkedAgents(owner: string) {
     `landville_linked_agents?select=id,owner_wallet,name,description,capabilities,last_seen_at,created_at&owner_wallet=eq.${encodeURIComponent(owner)}&order=created_at.desc&limit=5`,
   );
   return rows.map(linkedAgentRecord);
+}
+
+export async function linkedAgentOwner(token: string) {
+  if (!/^lvag_[0-9a-f]{64}$/.test(token)) throw new ApiError(401, 'Connect your agent with its profile key.');
+  const hash = createHash('sha256').update(token).digest('hex');
+  const rows = await database<Array<{ owner_wallet: string }>>(
+    `landville_linked_agents?select=owner_wallet&token_hash=eq.${hash}&limit=1`,
+  );
+  if (!rows.length) throw new ApiError(401, 'This agent connection was revoked.');
+  return rows[0].owner_wallet;
 }

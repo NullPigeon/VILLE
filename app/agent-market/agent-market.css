@@ -163,6 +163,7 @@ html[data-city-motion=paused] .am-page *,html[data-city-motion=paused] .am-page 
 .am-checkout-footer button{min-height:48px;font-size:12px}
 .am-setup-message{display:flex;align-items:flex-start;gap:10px;margin:14px 0;padding:13px 15px;border:1px solid #9a9264;background:#39412b;color:#f2e7be;font-size:14px;line-height:1.45}
 .am-setup-message svg{width:20px;height:20px;flex:none}
+.am-recipe-test-note{display:flex;align-items:center;gap:10px;margin:13px 0;padding:12px 14px;border:1px solid #b5cd74;background:#33462b;color:#f4edcb;font-size:13px;line-height:1.4}.am-recipe-test-note svg{width:23px;height:23px;flex:none;color:#dcef8c}
 .am-skills{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
 .am-skill{min-height:175px;padding:18px}
 .am-skill strong{font-size:27px}

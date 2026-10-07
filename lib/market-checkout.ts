@@ -20,6 +20,7 @@ export type MarketCheckoutWallet = {
   signMarketPayment(message: MarketTypedData): Promise<`0x${string}`>;
 };
 export type MarketReceipt = { service: string; output: string; payment: { transaction: string; network: string; payer: string }; replayed?: boolean };
+export type MarketRecipeTest = { id: string; title: string; updatedAt: string };
 
 async function responseError(response: Response, fallback: string) {
   const body = await response.json().catch(() => ({})) as { error?: string };
@@ -27,13 +28,14 @@ async function responseError(response: Response, fallback: string) {
 }
 
 export async function buyMarketService(service: MarketCheckoutService, prompt: string, wallet: MarketCheckoutWallet,
-  onStage: (stage: string) => void): Promise<MarketReceipt> {
+  onStage: (stage: string) => void, recipe?: MarketRecipeTest): Promise<MarketReceipt> {
   if (!wallet.linkedWallet || !isAddress(wallet.linkedWallet)) throw new Error('Link an EVM wallet to buy city work.');
-  if (!prompt.trim() || prompt.length > 2000) throw new Error('Write a request of 1–2000 characters.');
+  if (!prompt.trim() || prompt.length > (recipe ? 600 : 2000)) throw new Error(recipe ? 'Write a test job of 1–600 characters.' : 'Write a request of 1–2000 characters.');
+  if (recipe && (!/^[0-9a-f-]{36}$/i.test(recipe.id) || !Number.isFinite(Date.parse(recipe.updatedAt)))) throw new Error('Refresh your saved service recipe.');
   if (service.endpoint !== `/api/agent-market/call/${service.id}`) throw new Error('Service endpoint mismatch.');
   const expectedAmount = parseUnits(service.priceUsd, 6).toString();
   if (BigInt(expectedAmount) <= 0n || BigInt(expectedAmount) > 2_000_000n) throw new Error('Service price is outside the city checkout limit.');
-  const requestBody = JSON.stringify({ prompt: prompt.trim() });
+  const requestBody = JSON.stringify({ prompt: prompt.trim(), ...(recipe ? { draftId: recipe.id, draftRevision: recipe.updatedAt } : {}) });
   onStage('Checking the exact price…');
   const quoteResponse = await fetch(service.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody, cache: 'no-store' });
   if (quoteResponse.status !== 402) throw await responseError(quoteResponse, 'Could not get a payment quote.');
