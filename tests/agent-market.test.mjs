@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, DEFAULT_AGENT_SKILLS, MARKET_NETWORK, MARKET_HOLDER_MINIMUM, availableAgentSkills, hasMarketHolderBalance, validateAgentSkills } from '../lib/agent-market.ts';
 import { MARKET_SERVICES, marketService } from '../lib/market-services.ts';
-import { externalMarketRequest, externalMarketService, externalModelHolderOnly } from '../lib/external-market.ts';
+import { EXTERNAL_MARKET_SERVICES, RELAY_MODEL_SERVICES, externalMarketRequest, externalMarketService, externalModelHolderOnly } from '../lib/external-market.ts';
 
 void test('nonholders can equip at most three distinct basic skills', () => {
   assert.deepEqual(validateAgentSkills(DEFAULT_AGENT_SKILLS), DEFAULT_AGENT_SKILLS);
@@ -59,4 +59,20 @@ void test('advanced direct models require verified SCRAPY holder access', () => 
   assert.equal(externalModelHolderOnly('openai/gpt-6-luna'), false);
   assert.equal(externalModelHolderOnly('openai/gpt-4o-mini'), false);
   assert.equal(externalModelHolderOnly('anthropic/claude-sonnet-4'), false);
+});
+
+void test('existing model cards resolve to fixed x402 routes without city API keys', () => {
+  assert.equal(RELAY_MODEL_SERVICES.length, MARKET_SERVICES.filter((service) => service.kind === 'model').length);
+  assert.equal(new Set(EXTERNAL_MARKET_SERVICES.map((service) => service.id)).size, EXTERNAL_MARKET_SERVICES.length);
+  for (const service of RELAY_MODEL_SERVICES) {
+    const city = MARKET_SERVICES.find((item) => item.id === service.replacesCityServiceId);
+    assert.ok(city);
+    assert.equal(service.holderOnly, city.holderOnly);
+    const request = externalMarketRequest(service, 'Write a short answer');
+    assert.equal(new URL(request.url).hostname, 'api.meshgateway.co');
+    assert.equal(JSON.parse(request.body).model, service.fixedModelId);
+  }
+  const longform = externalMarketService('relay-long-form');
+  assert.ok(longform);
+  assert.equal(JSON.parse(externalMarketRequest(longform, 'Write a report').body).max_tokens, 6000);
 });

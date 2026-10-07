@@ -23,14 +23,15 @@ async function errorMessage(response: Response, fallback: string) {
 
 export async function quoteExternalService(service: ExternalMarketService, input: string, modelId = ''): Promise<ExternalQuote> {
   const normalized = input.trim();
-  externalMarketRequest(service, normalized, modelId);
+  const selectedModelId = service.fixedModelId || modelId;
+  externalMarketRequest(service, normalized, selectedModelId);
   const response = await fetch('/api/agent-market/external', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ serviceId: service.id, input: normalized, ...(service.modelPicker ? { modelId } : {}) }), cache: 'no-store' });
   if (response.status !== 402) throw await errorMessage(response, 'Could not get a merchant quote.');
   const result = await response.json() as { serviceId: string; modelId: string; quote: Quote; quoteToken: string; amountUsd: string; payTo: string };
   const offer = result.quote?.accepts?.[0];
-  const upstream = externalMarketRequest(service, normalized, modelId);
-  if (result.serviceId !== service.id || result.modelId !== modelId || result.quote?.x402Version !== 2 || result.quote.accepts.length !== 1 ||
+  const upstream = externalMarketRequest(service, normalized, selectedModelId);
+  if (result.serviceId !== service.id || result.modelId !== selectedModelId || result.quote?.x402Version !== 2 || result.quote.accepts.length !== 1 ||
     !externalResourceMatches(service.id, result.quote.resource?.url || '', upstream.url) || !offer || offer.scheme !== 'exact' || offer.network !== NETWORK ||
     offer.asset?.toLowerCase() !== USDG.toLowerCase() || !/^\d+$/.test(offer.amount) ||
     BigInt(offer.amount) <= 0n || BigInt(offer.amount) > 2_000_000n || !isAddress(offer.payTo) ||
