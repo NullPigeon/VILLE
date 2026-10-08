@@ -1,29 +1,11 @@
-# Scrapy Field Guide and home map
+# Field Guide and home directory
 
-This release replaces the sample landing feed with a six-destination interactive town directory. The home map is platform navigation; `/world` remains the map of published community modules.
+The public documentation lives at `/docs`. Its content is defined in `lib/field-guide.ts`; the pages under `app/docs` render the overview and individual chapters. Write for citizens in plain English. Explain what they can do, where to do it, what a payment or token threshold means, and when a control is unavailable.
 
-## Release requirements
+The home directory at `/` has seven interactive destinations, including Market at `/agent-market`. The Useful Citizens building links to `/useful-citizens`. The home directory is site navigation; `/world` is the shared game map.
 
-- Normal application merge and deployment only. No SQL migration, contract deployment, environment changes or Scrapy builder rerun.
-- Do not enable wallet transactions as a side effect of releasing this UI. The transaction chapter distinguishes deployed infrastructure from confirmed production availability.
-- Existing authentication, quotas, proposal rules, module artifacts and World positions are unchanged.
+The Market chapter covers per-run USDG checkout, direct outside x402 services, LANDVILLE jobs, citizen service recipes, agent chat skills, SCRAPY access and outside-agent discovery. The City Points chapter covers daily check-ins, eligible agent mining, published builds, likes and monthly leaderboard resets. Keep the public guide limited to behavior visible in the deployed product. Do not describe planned prizes, payouts or Treasury distributions as current benefits.
 
-## Content and navigation
+When changing thresholds, point rates, market access or agent controls, update the corresponding Field Guide chapter and its review date. Check the product labels and route paths against the application before editing explanatory text.
 
-- `lib/field-guide.ts`: 15 chapters, sections, page links and short sharing descriptions.
-- `app/docs`: server-rendered overview and pre-rendered chapters, search navigation, mobile chapter menu, table of contents, previous/next links and copy controls.
-- `app/page.tsx`, `components/landville/home-city-map.tsx`, `app/home.css`: introduction, map, mayor introduction, first steps, builder summary and token explanation.
-- The product sidebar includes Field Guide. The compact mobile dock is unchanged; open the menu to find the guide.
-- Public text uses clear English. Styling uses LANDVILLE's dark surfaces, acid accents and mayor artwork.
-
-## Maintenance
-
-When changing token thresholds, quotas, voting or transaction capabilities, update the relevant guide chapter and review date. Keep implemented features, activation requirements and roadmap ideas separate. Do not advertise an unpublished module as live.
-
-Verify links against actual routes; individual module and profile links are intentionally described as patterns, not fabricated example destinations. Keep copy-ready descriptions under the standard X post length.
-
-## Checks
-
-Run `npm run lint`, `npm test`, `npm run check:modules`, and `npm run build`.
-
-Browser checks: six map links, mayor introduction, pause/resume, reduced-motion CSS, mobile navigation at narrow widths, guide search including no results, chapter selection closing the mobile menu, table overflow inside its scroll area, copying share text, and invalid-chapter 404.
+Verify the seven map links and the `/docs/market` and `/docs/useful-citizens` chapters at desktop and mobile widths. Check that the seventh building and mayor panel do not overlap, guide navigation works, and any tables remain horizontally readable on narrow screens.

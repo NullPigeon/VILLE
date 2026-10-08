@@ -1,7 +1,7 @@
 import { SCRAPY_TOKEN } from '@/lib/scrapy-token';
 
 export const GUIDE_NAME = 'SCRAPY FIELD GUIDE';
-export const GUIDE_REVIEWED = 'September 23, 2026';
+export const GUIDE_REVIEWED = 'October 8, 2026';
 export type GuideSection = {
   id: string;
   title: string;
@@ -79,6 +79,16 @@ export const townDestinations = [
     district: 'THE TOWN MANUAL',
     guide: 'getting-started',
   },
+  {
+    id: 'market',
+    number: '07',
+    title: 'Market',
+    href: '/agent-market',
+    description:
+      'Buy AI models and tools per use, or publish a service for other citizens and agents.',
+    district: 'MODELS & SERVICES',
+    guide: 'market',
+  },
 ] as const;
 
 export const guideArticles: GuideArticle[] = [
@@ -106,6 +116,8 @@ export const guideArticles: GuideArticle[] = [
         items: [
           'Open World, choose a district and enter a published place or citizen yard.',
           'Open Citizen File to sign in with email or a supported EVM wallet.',
+          'Visit Market to compare AI models and tools. Link a wallet if you want to pay for a run.',
+          'Open Useful Citizens to check in and see how this month’s City Points are earned.',
           'Visit Town Chat. Use SEND to talk to citizens, or ASK SCRAPY for an AI reply.',
           'Describe a useful idea: what it does, how people use it, where it belongs and how it should look.',
           'Review the resulting plan before submitting it to Proposals. A chat message alone does not submit anything.',
@@ -123,7 +135,7 @@ export const guideArticles: GuideArticle[] = [
         id: 'find-your-way',
         title: 'Use the map or the guide',
         paragraphs: [
-          'The home map links to the main destinations. World is the shared city scene containing every published community module, citizen yard and resident. This Field Guide separates implemented capabilities, features awaiting activation, and future ideas. Roadmap entries are not a promise that those features are available today.',
+          'The home map links to the main destinations, including Market. World is the shared city scene containing published community modules, citizen yards and residents. The Market chapter explains paid services and agent access. Roadmap entries are ideas for later, not features available today.',
         ],
       },
     ],
@@ -174,14 +186,14 @@ export const guideArticles: GuideArticle[] = [
         title: 'Your character in the city',
         paragraphs: [
           'A module with character-generation and World-publishing permissions can let you choose a generated avatar and publish it as your World resident. LANDVILLE asks for confirmation before making the selected image and username public.',
-          'Each citizen has one published resident. Publishing a new choice replaces it, and you can remove it through the supported module controls. Residents currently remain on the map until changed or removed: they are not a live online-status indicator, and they do not automatically walk around.',
+          'You control your own hero on World by clicking a destination or using WASD or the arrow keys. Choose a built-in skin in the World wardrobe, or use a character you published from a supported creation module. Publishing a new creation replaces the previous one; you can remove it through the module controls. A published character is not an online-status indicator.',
         ],
       },
       {
         id: 'yards',
         title: 'Citizen yards and personal robots',
         paragraphs: [
-          'Citizens who create a personal robot get a home on the World map. Use the home control to locate your own yard, or search the yard directory below the scene for a house, owner or robot. The owner names the house and chooses one of three designs. These homes are citizen spaces, not community-built modules and not a replacement for the published World resident avatar.',
+          'Citizens who create a personal robot get a home on the World map. Use the home control to locate your own yard, or search the yard directory below the scene for a house, owner or robot. The owner names the house and chooses one of three designs. Your robot can roam according to its World settings; you direct your own hero. These homes are citizen spaces, not community-built modules.',
           'You can see another citizen’s yard, but only its owner can read or write its private conversation. You can create or change your own yard from your Citizen File.',
         ],
       },
@@ -211,6 +223,13 @@ export const guideArticles: GuideArticle[] = [
         ],
       },
       {
+        id: 'world-roaming',
+        title: 'Your robot on World',
+        paragraphs: [
+          'Your robot can roam the World map according to the movement and phrase settings you save for it. It is separate from your hero: you move your hero yourself, while the robot follows its configured behaviour. Open your yard to talk with it privately.',
+        ],
+      },
+      {
         id: 'town-autonomy',
         title: 'Optional Town Chat activity',
         paragraphs: [
@@ -224,6 +243,140 @@ export const guideArticles: GuideArticle[] = [
         paragraphs: [
           'The personal robot is a bounded companion, separate from the reviewed Scrapy module builder. It cannot submit a proposal for you, vote, transact, hold a wallet, access private keys or command other users. It uses original jokes inspired by classic cinema, not copied dialogue or impersonations.',
           'The fenced yard and small World house are account features. They appear after the database migration and application release are deployed. Public robot posts additionally require the AI configuration and scheduler activation.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'market',
+    group: 'Explore the pages',
+    title: 'Market: models, tools and citizen services',
+    summary:
+      'Choose a service, pay for one run, use your agent and publish a service of your own.',
+    destination: '/agent-market',
+    sections: [
+      {
+        id: 'what-is-here',
+        title: 'What is in Market?',
+        paragraphs: [
+          'Market is the place to use AI models, web and research tools, market data and services made by LANDVILLE citizens. Search by name or category. The availability filters separate services you can price and buy now from listings opening later.',
+          'City Services contains two payment routes. For a direct x402 service, you pay the outside operator in USDG from your wallet; that operator handles its own AI or data provider costs. A LANDVILLE job is run by the city using its configured provider account and shows a fixed USDG price when checkout is open. Both appear in one catalogue, with their availability shown on the card.',
+        ],
+      },
+      {
+        id: 'buy',
+        title: 'Buy one run, step by step',
+        paragraphs: [
+          'Create a citizen account, link a compatible wallet in Citizen File, and put enough USDG and network gas in that wallet on Robinhood Mainnet. In Market, choose a named model card or another service and describe one specific task. The task can be about work outside LANDVILLE too, such as an article, coding question or research topic.',
+          'For a direct service, request its live price before signing. For an open LANDVILLE job or citizen service, review the price shown at checkout. Approve the wallet payment and wait for the result on the same page. Each approval pays for one bounded run, not a subscription or unlimited access. The result and transaction link appear in the receipt; your recent completed jobs are also listed in Market.',
+          'A model or tool may have an input or output limit. A listing that cannot provide a supported USDG quote, or is marked as opening later, cannot be bought yet. Read its status before approving a payment.',
+        ],
+      },
+      {
+        id: 'agent',
+        title: 'Where your own agent fits',
+        paragraphs: [
+          'Create your personal agent in Citizen File and talk to it privately in your yard. It can help you choose a useful Market service and discuss a completed result. Open checkout yourself to review and sign a purchase; ordinary yard chat does not spend from your wallet.',
+          'Agent skills are conversation instructions, not paid tools. They affect how your agent explains the city, plans research, drafts copy and handles other requests in yard chat. There are eight skills. A regular citizen equips up to three; a verified holder with at least 1 million SCRAPY has all eight active. Equipping a skill does not make a paid model call.',
+        ],
+      },
+      {
+        id: 'sell',
+        title: 'Publish a service for other people',
+        paragraphs: [
+          'In Build a Service, choose an eligible LANDVILLE foundation model, give your service a clear name and description, and write the instructions your agent should follow. Save the recipe privately and test it with a job. You can set a USDG markup and publish it when citizen checkout is enabled. Other citizens and compatible outside agents can then buy the published service. Buyers receive a result, not your account or an API key.',
+          'A regular citizen can keep three service recipes and use basic foundations. A verified holder with at least 1 million SCRAPY can keep ten and use eligible advanced foundations. Anyone can buy a published citizen service, including one built on a holder-only foundation, while its seller remains eligible.',
+          'The full customer price is the foundation price plus your markup. The workshop shows any recorded seller balance and whether withdrawal is currently available. Paying for a direct outside x402 call does not automatically create a service you can resell.',
+        ],
+      },
+      {
+        id: 'outside-agents',
+        title: 'Connect an agent from outside LANDVILLE',
+        paragraphs: [
+          'You can link an external agent identity to your Citizen File. LANDVILLE gives it a profile key for identification, not access to your wallet. You choose whether it may make paid calls and set a daily budget and the kinds of services it may use. A paid agent still needs its own compatible wallet with USDG.',
+          'An outside agent can use the public /mcp endpoint to find available services. MCP is a discovery interface: it tells the agent what exists. The agent makes a paid request through the listed HTTP x402 endpoint, signs the payment from its own wallet, and receives the result. Linking an identity never gives it your private yard chat or seller payout.',
+        ],
+      },
+      {
+        id: 'holder',
+        title: 'Regular access and SCRAPY holder access',
+        table: {
+          headings: ['Market feature', 'Regular citizen', 'Verified 1M+ SCRAPY holder'],
+          rows: [
+            ['Buy standard models and tools', 'Pay per run', 'Pay per run'],
+            ['Selected advanced models', 'Unavailable', 'Pay per run'],
+            ['Agent conversation skills', 'Choose up to 3 of 8', 'All 8 active'],
+            ['Service recipe slots', '3', '10'],
+            ['Foundation models for your service', 'Eligible basic models', 'Eligible basic and advanced models'],
+          ],
+        },
+        paragraphs: [
+          'The holder check reads the linked wallet balance. SCRAPY unlocks access; it does not pay the USDG price for a model or service.',
+        ],
+      },
+      {
+        id: 'payment-routes',
+        title: 'Where does your payment go?',
+        paragraphs: [
+          'A direct x402 payment goes to the outside service operator at the live quoted address. A LANDVILLE job or citizen service uses the city checkout shown on its card. Review the final USDG amount in your wallet before signing. Network gas and any necessary token approval are separate wallet actions.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'useful-citizens',
+    group: 'Explore the pages',
+    title: 'City Points and Useful Citizens',
+    summary:
+      'How check-ins, your agent, published buildings and likes count toward the monthly board.',
+    destination: '/useful-citizens',
+    sections: [
+      {
+        id: 'season',
+        title: 'What City Points measure',
+        paragraphs: [
+          'City Points show contribution during the current monthly build season. The Useful Citizens page displays the top 50 and your own rank if you are signed in. The season resets at 00:00 UTC on the first day of each month. Only eligible activity after the points system launched is counted.',
+          'Points are leaderboard scores, not SCRAPY tokens, a wallet balance or a claim on a prize. Monthly rewards are planned, but no prize pool or payout rules have been published yet.',
+        ],
+      },
+      {
+        id: 'earn',
+        title: 'How you earn points',
+        table: {
+          headings: ['Activity', 'Points', 'When it counts'],
+          rows: [
+            ['Daily check-in', '+2', 'Once per UTC day after you press check-in'],
+            ['Approved proposal', '+50', 'When your proposal changes to PASSED'],
+            ['Published building', '+250', 'When your new building is published in World'],
+            ['Like on your building', '+3', 'For each eligible like received, up to 20 scoring likes per citizen each month'],
+          ],
+        },
+        paragraphs: [
+          'A proposal is not awarded points merely for being submitted. A build earns its points when the published World record exists. Likes count for the building creator, not the person who clicked Like.',
+        ],
+      },
+      {
+        id: 'miner',
+        title: 'Start the daily agent miner',
+        paragraphs: [
+          'Create your personal agent, link a wallet, and hold at least 250,000 SCRAPY in that wallet. Press check-in on Useful Citizens or in your yard. LANDVILLE checks the on-chain balance and starts that day’s miner if the requirements are met. The ordinary +2 check-in can still count if you do not qualify for mining.',
+          'Mining starts when you check in and stops at midnight UTC. It does not backfill missed hours or days. The verified balance fixes that day’s rate; changing your balance later does not change an already started session. If the chain check fails, the page tells you to try verification again.',
+        ],
+        table: {
+          headings: ['SCRAPY in linked wallet', 'Maximum points per 24 hours'],
+          rows: [
+            ['250,000 to 2,499,999', '1'],
+            ['2,500,000 to 9,999,999', '2'],
+            ['10,000,000 to 19,999,999', '4'],
+            ['20,000,000 or more', '8'],
+          ],
+        },
+      },
+      {
+        id: 'separate',
+        title: 'Different systems, different purposes',
+        paragraphs: [
+          'City Points do not purchase Market services or increase your wallet’s USDG. The 1 million SCRAPY threshold for advanced Market access is separate from the 250,000 SCRAPY starting threshold for the City Points miner. Build voting power and weekly module likes also have their own rules.',
         ],
       },
     ],
@@ -387,6 +540,7 @@ export const guideArticles: GuideArticle[] = [
         title: 'Follow your contributions',
         paragraphs: [
           'Your file links back to proposals and recorded activity. Use it to find the ideas you submitted and, on your own profile, your vote receipts. Follow proposal status in Proposals and actual published experiences in World.',
+          'Useful Citizens shows your current City Points and rank. The Market lets you manage agent skills, service recipes, connected agents and paid-job receipts.',
         ],
       },
     ],
@@ -465,6 +619,10 @@ export const guideArticles: GuideArticle[] = [
             ['Build voting power', '1', '+1 for each full 250,000 SCRAPY'],
             ['Weekly module likes', '5', '+1 for each full 250,000 SCRAPY'],
             ['Daily chat messages', '10', '50 with any positive balance'],
+            ['City Points miner', 'Not available', 'Starts at 250,000 SCRAPY with an agent and daily check-in'],
+            ['Market advanced models', 'Not available', 'Pay per run at 1,000,000+ SCRAPY'],
+            ['Agent chat skills', 'Choose up to 3', 'All 8 active at 1,000,000+ SCRAPY'],
+            ['Citizen service recipes', '3 slots', '10 slots at 1,000,000+ SCRAPY'],
             [
               'Treasury proposals and voting',
               'Under reconstruction',
@@ -698,7 +856,7 @@ export const guideArticles: GuideArticle[] = [
         title: 'Publish only the image you choose',
         paragraphs: [
           'In a module with World-publishing permission, select one returned image and use its publish control. LANDVILLE asks for confirmation. The chosen image and username become public on World.',
-          'The map displays the character at a small size. Publishing does not mint an NFT, create a transferable asset or make a live animated player. The resident persists when you leave; online-only presence and walking animation are future enhancements.',
+          'The published character can be chosen as your World hero skin. Publishing does not mint an NFT or create a transferable asset. Your own hero moves when you click the map or use the keyboard; the published image also remains available to other visitors on the map.',
         ],
       },
       {
@@ -786,14 +944,14 @@ export const guideArticles: GuideArticle[] = [
         title: 'More types of wallet transactions',
         paragraphs: [
           'Staking, minting, NFT and supported RWA purchases, tips, transfers and reward distributions are candidate additions. Each transaction type needs a narrow, reviewed integration with a specific protocol.',
-          'A marketplace might combine listings, purchases and fees; a staking interface might add deposits, withdrawals and reward claims. These are separate operations to implement, rather than one generic permission to move money. Yield and treasury distributions are not current holder entitlements.',
+          'Market already has service listings and per-run purchases. Staking, additional asset purchases and reward claims would each need separate reviewed transaction flows. Yield and treasury distributions are not current holder entitlements.',
         ],
       },
       {
         id: 'city',
         title: 'A more expressive World',
         paragraphs: [
-          'Possible city upgrades include an animated Scrapy mayor, resident movement, online-presence indicators, seasonal decorations and themed districts. A presence system would distinguish a published character from someone actively visiting.',
+          'Possible city upgrades include online-presence indicators, seasonal decorations and themed districts. Players can already move their own heroes on World, and personal robots can roam according to their settings. A presence system would distinguish a published character from someone actively visiting.',
           'Other ideas worth exploring: a town events calendar, a community radio with a supported audio source, collaborative stories, an idea remix board, a creator showcase and a directory of useful modules.',
         ],
       },
@@ -801,7 +959,7 @@ export const guideArticles: GuideArticle[] = [
         id: 'progress',
         title: 'Reputation and cooperative play',
         paragraphs: [
-          'Quests, contribution badges, team challenges and reputation could make participation easier to follow. Competitive scores and valuable rewards would require stronger server-side validation than a browser-submitted score.',
+          'Useful Citizens already tracks server-recorded City Points for check-ins, approved proposals, published buildings, likes received and eligible daily agent mining. Future additions could include quests, team challenges and more kinds of contribution badges. Valuable rewards need published eligibility and payout rules.',
           'Bring a proposal to Town Chat with a small first version. Scrapy can help separate what works with the current capabilities from what needs a platform upgrade.',
         ],
       },

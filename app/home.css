@@ -238,7 +238,7 @@
 }
 .lv-city-scene {
   position: relative;
-  height: 550px;
+  height: 640px;
   background:
     radial-gradient(ellipse at 50% 48%, #29341c85, transparent 37%),
     radial-gradient(ellipse at 20% 25%, #34401d44, transparent 26%), #0d130c;
@@ -847,7 +847,7 @@
 }
 @media (min-width: 1600px) {
   .lv-city-scene {
-    height: 600px;
+    height: 690px;
   }
   .lv-building {
     width: 160px;
@@ -858,6 +858,9 @@
   }
 }
 @media (max-width: 1100px) {
+  .lv-district {
+    width: 175px;
+  }
   .lv-home :is(header, main, footer) {
     width: calc(100% - 44px);
   }
