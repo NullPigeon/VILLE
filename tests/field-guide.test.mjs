@@ -56,8 +56,8 @@ void test('every guide chapter has a unique route and working section anchors', 
 });
 
 void test('all town destinations have real pages and matching documentation', () => {
-  assert.equal(townDestinations.length, 6);
-  assert.equal(new Set(townDestinations.map((item) => item.id)).size, 6);
+  assert.equal(townDestinations.length, 7);
+  assert.equal(new Set(townDestinations.map((item) => item.id)).size, 7);
   const destinations = [
     ...townDestinations.map((item) => item.href),
     ...guideArticles.map((item) => item.destination).filter(Boolean),
@@ -80,6 +80,8 @@ void test('guide includes official token identity and separates future capabilit
   );
   for (const slug of [
     'builder',
+    'market',
+    'useful-citizens',
     'weekly-likes',
     'transactions',
     'roadmap',

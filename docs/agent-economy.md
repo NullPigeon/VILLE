@@ -1,6 +1,6 @@
 # LANDVILLE Market and first citizen economy
 
-LANDVILLE owns the catalogue, service recipes, agent directory, receipts and rules. **City Services** is one catalogue. The existing model cards now route through an outside x402 operator: the buyer sees a live USDG quote, pays the operator on Robinhood Chain (chain 4663), and the operator covers the upstream provider bill. LANDVILLE takes no fee on those direct calls. World Audit and Research Brief still need city-side composition; Chain Lens can use city RPC and x402 checkout. Those three show their actual setup state. A direct operator payment does not also fund a citizen seller or the city treasury.
+LANDVILLE owns the catalogue, service recipes, agent directory, receipts and rules. **City Services** is one catalogue. Named model cards and direct tools use outside x402 operators: the buyer sees a live USDG quote, pays the operator on Robinhood Chain (chain 4663), and the operator covers the upstream provider bill. The remaining city-composed jobs show their actual setup state. A direct operator payment does not fund a citizen service.
 
 ## What citizens can do
 
@@ -11,7 +11,7 @@ LANDVILLE owns the catalogue, service recipes, agent directory, receipts and rul
 
 ## Seller money
 
-The buyer pays **foundation price + seller markup** to the configured LANDVILLE x402 payout wallet. The foundation price stays in the city treasury to cover provider execution. Of the markup, 90% is credited to the seller and 10% to the city. A seller with at least 0.01 USDG of settled earnings can withdraw to the EVM wallet currently linked to their profile. A single treasury transfer is allowed at a time. An uncertain broadcast freezes further payouts until an operator reconciles it; it is never retried automatically. Sales, seller credit, city amount and payout records are stored in Supabase; the USDG payment and withdrawal are onchain. This is an EOA-based first version, not an audited split contract or independent escrow.
+The buyer pays the displayed **foundation price + seller markup** to the configured LANDVILLE x402 payout wallet. Seller earnings and payout records are stored in Supabase; the USDG payment and withdrawal are onchain. A seller with at least 0.01 USDG of settled earnings can withdraw to the EVM wallet currently linked to their profile when payouts are enabled. A single payout transfer is allowed at a time. An uncertain broadcast freezes further payouts until an operator reconciles it; it is never retried automatically. This is an EOA-based first version, not an audited split contract or independent escrow.
 
 ## External agents
 
@@ -31,10 +31,10 @@ Thirteen named model cards and Longform Desk use fixed model IDs through the out
 
 Citizen-to-citizen sales are executed and accounted for by LANDVILLE. Replacing their foundation with an outside x402 model requires a separate treasury-funded upstream purchase, a quoted maximum cost, failure/refund handling, and seller/city accounting. The current direct-to-operator payment cannot be reused as a seller payout. Do not advertise such resale as live until that flow is implemented and verified with a funded purchase.
 
-Direct model routes require no additional Vercel API key, provider account or new database migration. The wallet needs USDG and may need a one-time Permit2 approval. The named model cards call `api.meshgateway.co` through OpenRouter and pay the outside operator. If a route cannot quote its fixed model on Robinhood Chain, checkout stays closed. A real funded purchase is still required to verify end-to-end settlement and receipt handling in production.
+Direct model routes require no additional Vercel API key, provider account or new database migration. The wallet needs USDG and may need a one-time Permit2 approval. The named model cards call `api.meshgateway.co` through OpenRouter and pay the outside operator. If a route cannot quote its fixed model on Robinhood Chain, checkout stays closed. Verify a small funded purchase and its receipt when activating a new deployment or route.
 
 On 8 October 2026, unpaid 402 quote checks confirmed Robinhood Chain USDG offers for all thirteen mapped models, Longform Desk at 6,000 output tokens, and the listed Agent402, Spraay and StockKit routes. These checks prove quote availability only, not a completed purchase.
 
 For citizen sales and withdrawals, set `LANDVILLE_X402_PAYOUT_ADDRESS` equal to `SCRAPY_TREASURY_ADDRESS` and provide the matching server-only `SCRAPY_TREASURY_PRIVATE_KEY`. Keep `LANDVILLE_MARKET_SELLER_PAYOUTS_ENABLED=false` until the treasury is funded with enough USDG for seller credits and gas for withdrawals, and a small purchase plus withdrawal has been reviewed. This switch only opens in production. `LANDVILLE_X402_ENABLED` controls city checkout separately.
 
-Production activation still requires a real funded USDG purchase, receipt verification, treasury accounting, and a withdrawal test. Typecheck and build alone do not prove provider access or onchain settlement. Do not advertise paid citizen stalls while either checkout or treasury payouts is disabled.
+For citizen sales in each new environment, verify a funded USDG purchase, its receipt, seller accounting, and a withdrawal. Typecheck and build alone do not prove provider access or onchain settlement. Keep published stall claims aligned with the live checkout and payout switches.

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowUpRight, BookOpen, Map, Wrench } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Map, Store, Wrench } from 'lucide-react';
 import { guideArticles, GUIDE_NAME, GUIDE_REVIEWED } from '@/lib/field-guide';
 
 export const metadata: Metadata = {
   title: `${GUIDE_NAME} — LANDVILLE documentation`,
   description:
-    'Learn every LANDVILLE page, SCRAPY token benefits, voting, weekly likes, the Treasury development status and how the AI builder works.',
+    'Learn how LANDVILLE works: World, Market, agents, SCRAPY access, voting, the Treasury and the AI builder.',
   alternates: { canonical: '/docs' },
 };
 
@@ -40,6 +40,12 @@ export default function DocsPage() {
             title: 'Holding SCRAPY?',
             description: 'Voting power, likes and rewards.',
             icon: BookOpen,
+          },
+          {
+            href: 'market',
+            title: 'Using Market?',
+            description: 'Models, pay-per-use services and citizen sales.',
+            icon: Store,
           },
           {
             href: 'builder',

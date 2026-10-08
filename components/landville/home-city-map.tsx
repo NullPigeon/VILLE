@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Pause,
   Play,
+  Store,
   UserRound,
   Vote,
 } from 'lucide-react';
@@ -31,27 +32,30 @@ const icons = [
   Trophy,
   UserRound,
   BookOpen,
+  Store,
 ];
 const positions = [
   [23, 23],
   [15, 51],
-  [28, 80],
+  [22, 80],
   [77, 23],
   [85, 51],
-  [72, 80],
+  [78, 80],
+  [50, 83],
 ];
 const routes = [
   'M500 275 L400 275 L400 126 L230 126',
   'M500 275 L150 275',
-  'M500 275 L410 275 L410 440 L280 440',
+  'M500 275 L410 275 L410 440 L220 440',
   'M500 275 L600 275 L600 126 L770 126',
   'M500 275 L850 275',
-  'M500 275 L590 275 L590 440 L720 440',
+  'M500 275 L590 275 L590 440 L780 440',
+  'M500 360 L500 457',
 ];
 
 function DistrictBuilding({ index }: { index: number }) {
   const Icon = icons[index];
-  const roof = index === 0 || index === 3;
+  const roof = index === 0 || index === 3 || index === 6;
   return (
     <svg className="lv-building" viewBox="0 0 180 140" aria-hidden="true">
       <path className="lv-building-shadow" d="M10 115 86 75 172 112 94 139Z" />
