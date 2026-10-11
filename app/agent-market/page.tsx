@@ -84,6 +84,7 @@ export default function AgentMarketPage() {
   const [orders, setOrders] = useState<MarketOrder[]>([]);
   const [mcpUrl, setMcpUrl] = useState('');
   const [mcpCopied, setMcpCopied] = useState(false);
+  const [returnJob, setReturnJob] = useState<{ id: string; offerId: string } | null>(null);
   const prefilled = useRef(false);
 
   useEffect(() => {
@@ -167,6 +168,23 @@ export default function AgentMarketPage() {
       return () => window.clearTimeout(timer);
     }
   }, [market]);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const id = query.get('service') || '';
+    if (!id.startsWith('stall:')) return;
+    const stall = citizenStalls.find((item) => item.id === id.slice(6));
+    if (!stall) return;
+    const timer = window.setTimeout(() => {
+      setStallId(stall.id);
+      setStallPrompt((query.get('prompt') || '').slice(0, 2000));
+      const job = query.get('job');
+      const offer = query.get('offer');
+      if (job && offer) setReturnJob({ id: job, offerId: offer });
+      document.getElementById('citizen-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [citizenStalls]);
 
   const profile = wallet.address ? `/citizens/${wallet.address}` : '/citizens';
   const changed = Boolean(market) && [...selected].sort().join('|') !== [...market!.selected].sort().join('|');
@@ -288,7 +306,7 @@ export default function AgentMarketPage() {
         <div className="am-hero-copy"><span className="am-kicker"><RadioTower /> SCRAPY SERVICE DOCK</span>
           <h1 id="market-title">GIVE YOUR AGENT <em>MORE TO DO.</em></h1>
           <p>Find a model or tool, describe the job, and get the result here. Pay per use: one price for each run, with no subscription.</p>
-          <div className="am-hero-actions"><a href="#services">EXPLORE SERVICES <ArrowRight /></a><Link href={profile}>MY AGENT <ArrowUpRight /></Link></div>
+          <div className="am-hero-actions"><a href="#services">EXPLORE SERVICES <ArrowRight /></a><Link href="/world/jobs">WORLD JOB BOARD <ArrowUpRight /></Link><Link href={profile}>MY AGENT <ArrowUpRight /></Link></div>
           <div className="am-hero-tags"><span><Wallet /> {MARKET_NETWORK}</span><span><CircleDollarSign /> {MARKET_CURRENCY} · LIVE X402 QUOTES</span><span>PAY PER USE · NO PLAN</span></div>
         </div><div className="am-hero-art"><span>SCRAPY&apos;S SERVICE BOARD</span><ScrapyBot portrait /><b>WHAT&apos;S THE JOB?</b></div>
       </section>
@@ -354,13 +372,14 @@ export default function AgentMarketPage() {
         <header className="am-section-head"><div><small>03 / CITIZEN SERVICES</small><h2 id="am-citizen-title">THE CITY WORKS FOR YOU.</h2></div><span>{citizenStalls.length} LIVE STALLS</span></header>
         <p className="am-section-intro">Anyone can buy a published citizen job, even when its seller uses a holder-only foundation model. The seller must keep their SCRAPY eligibility. The price includes the foundation service and a seller markup; 90% of that markup goes to the seller and 10% to the city treasury.</p>
         {activeStall && <div className="am-checkout" id="citizen-checkout"><div className="am-checkout-head"><div><small>{activeStall.baseName} / CITIZEN {shortWallet(activeStall.seller)}</small><h3>{activeStall.title}</h3></div><button type="button" aria-label="Close citizen service" onClick={() => setStallId('')}><X /></button></div><p>{activeStall.description}</p>
-          <label htmlFor="am-stall-job">WHAT JOB SHOULD THIS AGENT DO?</label><textarea id="am-stall-job" value={stallPrompt} maxLength={2000} disabled={stallBusy} onChange={(event) => setStallPrompt(event.target.value)} placeholder="Describe the result you want…" />
+          <label htmlFor="am-stall-job">WHAT JOB SHOULD THIS AGENT DO?</label><textarea id="am-stall-job" value={stallPrompt} maxLength={2000} disabled={stallBusy || Boolean(returnJob)} onChange={(event) => setStallPrompt(event.target.value)} placeholder="Describe the result you want…" />
+          {returnJob && <p className="am-note">This is the exact World Job Board brief. Its paid receipt can close that job only when the text matches.</p>}
           <div className="am-checkout-footer"><div><strong>{activeStall.priceUsd} USDG / CALL</strong><span>One bounded job. You review the wallet signature before paying.</span></div><button type="button" disabled={stallBusy || !stallPrompt.trim() || !wallet.linkedWallet || activeStall.seller === wallet.address} onClick={() => void buyCitizenStall()}>{stallBusy ? 'WORKING…' : 'APPROVE & RUN'}</button></div>
           {activeStall.seller === wallet.address && <p className="am-note">Your own stall is available to other citizens. Use its private test to try it yourself.</p>}
           {stallStage && <p className="am-success" aria-live="polite">{stallStage}</p>}{stallError && <p className="am-error" role="alert">{stallError}</p>}
-          {stallReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{stallReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${stallReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${stallReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
+          {stallReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{stallReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${stallReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{returnJob && <Link href={`/world/jobs?job=${returnJob.id}&offer=${returnJob.offerId}&tx=${stallReceipt.payment.transaction}`}>FINISH WORLD JOB <ArrowUpRight /></Link>}{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${stallReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
         </div>}
-        {citizenStalls.length ? <div className="am-citizen-grid">{citizenStalls.map((stall) => <button type="button" key={stall.id} onClick={() => { setStallId(stall.id); setStallPrompt(''); setStallStage(''); setStallError(''); setStallReceipt(null); window.setTimeout(() => document.getElementById('citizen-checkout')?.scrollIntoView({ behavior: 'smooth' }), 0); }}><small>{stall.category} · CITIZEN {shortWallet(stall.seller)}</small><strong>{stall.title}</strong><span>{stall.description}</span><span className="am-access-pill">OPEN TO ALL</span><em>{stall.priceUsd} USDG / JOB <ArrowUpRight /></em></button>)}</div> : <div className="am-empty-network"><Bot /><p>The first citizen stalls will appear here after sellers publish their tested services and city payouts open.</p></div>}
+        {citizenStalls.length ? <div className="am-citizen-grid">{citizenStalls.map((stall) => <button type="button" key={stall.id} onClick={() => { setStallId(stall.id); setReturnJob(null); setStallPrompt(''); setStallStage(''); setStallError(''); setStallReceipt(null); window.setTimeout(() => document.getElementById('citizen-checkout')?.scrollIntoView({ behavior: 'smooth' }), 0); }}><small>{stall.category} · CITIZEN {shortWallet(stall.seller)}</small><strong>{stall.title}</strong><span>{stall.description}</span><span className="am-access-pill">OPEN TO ALL</span><em>{stall.priceUsd} USDG / JOB <ArrowUpRight /></em></button>)}</div> : <div className="am-empty-network"><Bot /><p>The first citizen stalls will appear here after sellers publish their tested services and city payouts open.</p></div>}
       </section>
 
       <section className="am-skills-section" aria-labelledby="am-skills-title"><header className="am-section-head"><div><small>04 / YOUR AGENT</small><h2 id="am-skills-title">SET ITS STYLE.</h2></div><span>{market?.agentExists ? market.holder ? 'ALL SKILLS UNLOCKED' : `${selected.length} / ${BASIC_SLOT_LIMIT} EQUIPPED` : 'CREATE AN AGENT TO EQUIP SKILLS'}</span></header>

@@ -43,10 +43,11 @@ export async function citizenMarketResult(owner: string, transaction: string) {
   return { serviceId: order.service_id, output: order.output.slice(0, 12000) };
 }
 
-export async function claimMarketOrder(hash: string, service: string, promptHash: string) {
+export async function claimMarketOrder(hash: string, service: string, promptHash: string, modelId?: string) {
   const inserted = await database<MarketOrder[]>('landville_market_orders?on_conflict=authorization_hash', {
     method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
-    body: JSON.stringify({ authorization_hash: hash, service_id: service, prompt_hash: promptHash, status: 'processing' }),
+    body: JSON.stringify({ authorization_hash: hash, service_id: service, prompt_hash: promptHash, status: 'processing',
+      ...(modelId ? { model_id: modelId } : {}) }),
   });
   if (inserted.length) return true;
   const existing = await marketOrder(hash);
