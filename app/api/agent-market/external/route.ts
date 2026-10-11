@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       }
       await reserveAgentMarketSpend(agent, 'merchants', amount, authorizationHash!);
       try {
-        if (!await claimMarketOrder(authorizationHash!, `external:${service.id}`, requestHash)) throw new ApiError(409, 'This payment is already being processed.');
+        if (!await claimMarketOrder(authorizationHash!, `external:${service.id}`, requestHash, modelId)) throw new ApiError(409, 'This payment is already being processed.');
       } catch (error) { await releaseAgentMarketSpend(agent, authorizationHash!).catch(() => undefined); throw error; }
     }
     let response: Response;

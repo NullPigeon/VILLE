@@ -1575,7 +1575,8 @@ void test('a connected holder agent gets a 402 quote, never a free paid result',
     if (call.url.includes('landville_linked_agents?')) return json(call.url.includes(`token_hash=eq.${hash}`)
       ? [{ id: agentId, owner_wallet: wallet }] : []);
     if (call.url.includes('landville_market_agent_budgets?')) return json([{
-      agent_id: agentId, owner_wallet: wallet, enabled: true, daily_limit_micro: 1_000_000, allow_landville: true,
+      agent_id: agentId, owner_wallet: wallet, enabled: true, daily_limit_micro: 1_000_000,
+      per_call_limit_micro: 100_000, allow_landville: true,
     }]);
     if (call.url.includes('landville_market_agent_spends?')) return json([]);
     return undefined;
@@ -1597,6 +1598,9 @@ void test('a connected holder agent gets a 402 quote, never a free paid result',
   const quote = await route.POST(f.request('/api/agent-market/call/openai-sol', body, { headers: { Authorization: `Bearer ${token}` } }), params);
   assert.equal(quote.status, 402);
   assert.equal((await quote.json()).error, 'Payment required.');
+  const expensive = await route.POST(f.request('/api/agent-market/call/openai-astra', body, { headers: { Authorization: `Bearer ${token}` } }),
+    { params: Promise.resolve({ service: 'openai-astra' }) });
+  assert.equal(expensive.status, 403);
   const revoked = await route.POST(f.request('/api/agent-market/call/openai-sol', body, { headers: { Authorization: `Bearer lvag_${'0'.repeat(64)}` } }), params);
   assert.equal(revoked.status, 401);
 });

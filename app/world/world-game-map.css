@@ -34,6 +34,8 @@
 .city-product .world-district-travel button{border:1px solid #5d7046;border-radius:3px;background:#273923;color:#e1e9c9}
 .city-product .world-district-travel button.active,.city-product .world-district-travel button:hover{background:#d4ec80;color:#293b1d;border-color:#3b4b2d}
 .city-product .world-district-travel .world-nav-home{background:#7a633a;color:#fff0bd;border-color:#cfab6d}
+.city-product .world-district-travel .world-nav-jobs{display:inline-flex;align-items:center;gap:6px;padding:10px 12px;border:1px solid #a98652;border-radius:3px;background:#77542c;color:#fff0c4;white-space:nowrap;font:800 11px Arial,sans-serif;text-decoration:none}
+.city-product .world-district-travel .world-nav-jobs:hover,.city-product .world-district-travel .world-nav-jobs:focus-visible{background:#e4c388;color:#28331d;outline:2px solid #e4c388;outline-offset:2px}
 .city-product .world-camera-tools{border:2px solid #74895a;border-bottom:5px solid #455834;border-radius:7px;box-shadow:4px 6px #302b2166}
 .city-product .world-camera-tools button:hover,.city-product .world-camera-tools button:focus-visible{background:#d6ed87;color:#2b3c1e}
 .city-product .world-exploration-hud{background:#203021ed;border:2px solid #687f50;border-bottom:5px solid #465c36;border-radius:7px;box-shadow:5px 6px #302b2166}

@@ -16,6 +16,8 @@ import './yard-scene.css';
 
 class YardNotFoundError extends Error {}
 type MarketOrder = { serviceId: string; transaction: string | null; createdAt: string };
+type AgentTask = { id: string; title: string; brief: string; visibility: string; status: string;
+  suggestedServiceId: string | null; transaction: string | null; result: string | null };
 
 async function loadPublicYard(owner: string): Promise<PublicYard> {
   let firstError: unknown;
@@ -48,6 +50,10 @@ export function YardScene({ owner }: { owner: string }) {
   const [messages, setMessages] = useState<YardMessage[]>([]);
   const [suggestions, setSuggestions] = useState<Record<string, YardMarketSuggestion>>({});
   const [marketOrders, setMarketOrders] = useState<MarketOrder[]>([]);
+  const [tasks, setTasks] = useState<AgentTask[]>([]);
+  const [taskReceipts, setTaskReceipts] = useState<Record<string, string>>({});
+  const [taskBusy, setTaskBusy] = useState('');
+  const [taskError, setTaskError] = useState('');
   const [marketTransaction, setMarketTransaction] = useState('');
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -88,6 +94,44 @@ export function YardScene({ owner }: { owner: string }) {
       .catch((caught: Error) => { if (active) setChatError(caught.message); });
     return () => { active = false; };
   }, [own, yard]);
+
+  async function refreshTasks() {
+    const response = await fetch('/api/agent-jobs?mine=1', { cache: 'no-store' });
+    const result = await readJsonResponse<{ jobs: AgentTask[] }>(response, 'Load agent tasks');
+    setTasks(result.jobs.filter((job) => job.visibility === 'private'));
+  }
+
+  useEffect(() => {
+    if (!own || !yard) return;
+    let active = true;
+    fetch('/api/agent-jobs?mine=1', { cache: 'no-store' })
+      .then((response) => readJsonResponse<{ jobs: AgentTask[] }>(response, 'Load agent tasks'))
+      .then((result) => { if (active) setTasks(result.jobs.filter((job) => job.visibility === 'private')); })
+      .catch((caught: Error) => { if (active) setTaskError(caught.message); });
+    return () => { active = false; };
+  }, [own, yard]);
+
+  async function saveTask(suggestion: YardMarketSuggestion) {
+    setTaskBusy('new'); setTaskError('');
+    try {
+      const response = await fetch('/api/agent-jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: `${suggestion.name} task`.slice(0, 100), brief: suggestion.prompt, visibility: 'private' }) });
+      await readJsonResponse(response, 'Save agent task');
+      await refreshTasks();
+    } catch (caught) { setTaskError(caught instanceof Error ? caught.message : 'Task could not be saved.'); }
+    finally { setTaskBusy(''); }
+  }
+
+  async function attachTaskReceipt(task: AgentTask) {
+    setTaskBusy(task.id); setTaskError('');
+    try {
+      const response = await fetch(`/api/agent-jobs/${task.id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction: (taskReceipts[task.id] || '').trim() }) });
+      await readJsonResponse(response, 'Verify task receipt');
+      await refreshTasks();
+    } catch (caught) { setTaskError(caught instanceof Error ? caught.message : 'This receipt could not be attached.'); }
+    finally { setTaskBusy(''); }
+  }
 
   useEffect(() => {
     if (!own || !yard) return;
@@ -143,13 +187,25 @@ export function YardScene({ owner }: { owner: string }) {
         <section className="yard-lower">
           <div className="yard-intro"><small>ONE CITIZEN · ONE ROBOT · ONE HOME</small><h2>{yard.name} lives here.</h2><p>{own ? 'Your own corner of town. Chat with your robot, check in for points, or take a building idea to Scrapy.' : `${yard.ownerLabel}’s home and personal AI companion.`}</p><div className="city-yard-actions">{own && <Link className="lv-button" href={`/citizens/${owner}#your-agent`}>Customize your robot</Link>}<Link className="lv-button primary" href="/chat?room=BUILD">Build with Scrapy</Link><Link className="lv-button" href="/chat?room=TOWN">Join Town Square</Link></div></div>
           <div className="yard-chat"><header><Bot /><div><h2>{own ? `TALK TO ${yard.name.toUpperCase()}` : 'PRIVATE YARD CHAT'}</h2><small>{own ? 'ONLY YOU CAN READ THIS CONVERSATION' : 'ONLY THE OWNER CAN READ OR WRITE HERE'}</small></div>{own && <Link className="yard-tools-link" href="/agent-market">FIND TOOLS <ArrowUpRight /></Link>}</header>
-            {own ? <><div className="yard-feed" ref={feed} aria-live="polite">{messages.length ? messages.map((message) => <div className={`yard-bubble ${message.role.toLowerCase()}`} key={message.id}><small>{message.role === 'CITIZEN' ? 'YOU' : message.role === 'MAYOR' ? 'MAYOR SCRAPY' : yard.name.toUpperCase()}</small><p>{message.body}</p>{suggestions[message.id] && <Link className="yard-market-link" href={`/agent-market?service=${encodeURIComponent(suggestions[message.id].serviceId)}&prompt=${encodeURIComponent(suggestions[message.id].prompt)}`}><span>MARKET PICK · {suggestions[message.id].name}<small>{suggestions[message.id].priceUsd ? `${suggestions[message.id].priceUsd} USDG / CALL` : 'LIVE PRICE BEFORE PAYMENT'} · WALLET APPROVAL REQUIRED</small></span><ArrowUpRight /></Link>}</div>) : <p className="yard-chat-empty">Your robot is waiting. Start a conversation or call the Mayor in.</p>}</div>
+            {own ? <><div className="yard-feed" ref={feed} aria-live="polite">{messages.length ? messages.map((message) => <div className={`yard-bubble ${message.role.toLowerCase()}`} key={message.id}><small>{message.role === 'CITIZEN' ? 'YOU' : message.role === 'MAYOR' ? 'MAYOR SCRAPY' : yard.name.toUpperCase()}</small><p>{message.body}</p>{suggestions[message.id] && <div className="yard-market-options"><Link className="yard-market-link" href={`/agent-market?service=${encodeURIComponent(suggestions[message.id].serviceId)}&prompt=${encodeURIComponent(suggestions[message.id].prompt)}`}><span>MARKET PICK · {suggestions[message.id].name}<small>{suggestions[message.id].priceUsd ? `${suggestions[message.id].priceUsd} USDG / CALL` : 'LIVE PRICE BEFORE PAYMENT'} · WALLET APPROVAL REQUIRED</small></span><ArrowUpRight /></Link>{suggestions[message.id].prompt.length >= 10 && <button type="button" disabled={Boolean(taskBusy)} onClick={() => void saveTask(suggestions[message.id])}>SAVE AS AGENT TASK</button>}</div>}</div>) : <p className="yard-chat-empty">Your robot is waiting. Start a conversation or call the Mayor in.</p>}</div>
               <form onSubmit={(event) => { event.preventDefault(); void send(false); }}>
                 {marketOrders.length > 0 && <label className="yard-market-picker"><ReceiptText aria-hidden="true" /><span>BRING MARKET WORK INTO THIS CHAT<small>Your agent can discuss a result you already bought.</small></span><select aria-label="Choose a paid Market result to discuss" value={marketTransaction} onChange={(event) => setMarketTransaction(event.target.value)} disabled={busy}><option value="">No result selected</option>{marketOrders.map((order) => <option key={order.transaction} value={order.transaction || ''}>{marketService(order.serviceId)?.name || (order.serviceId.startsWith('external:') ? externalMarketService(order.serviceId.slice(9))?.name : undefined) || order.serviceId} · {new Date(order.createdAt).toLocaleDateString()}</option>)}</select></label>}
                 <textarea aria-label="Private message to your robot" value={input} onChange={(event) => setInput(event.target.value)} maxLength={600} placeholder={marketTransaction ? `Ask ${yard.name} about this Market result…` : `Say something to ${yard.name}…`} disabled={busy} /><div><small>20 AI MESSAGES / UTC DAY</small><button className="lv-button" type="button" disabled={busy || !input.trim()} onClick={() => void send(true)}><Bot /> SUMMON SCRAPY</button><button className="lv-button primary" type="submit" disabled={busy || !input.trim()}><Send /> SEND</button></div></form></> : <div className="yard-visitor-note">You can visit the lot. Its conversation stays private to its owner.</div>}
             {chatError && <p className="yard-error" role="alert">{chatError}</p>}
           </div>
         </section>
+        {own && <section className="yard-task-desk"><header><div><small>YOUR AGENT / PRIVATE WORK</small><h2>{yard.name}’s task desk</h2></div><Link href="/world/jobs">WORLD JOB BOARD <ArrowUpRight /></Link></header>
+          <p>Ask your agent for a job in chat, then save its Market pick here. The agent keeps the brief and suggests a service. You see the price in checkout and sign the payment yourself. Its completed result stays in your yard.</p>
+          {taskError && <p className="yard-error" role="alert">{taskError}</p>}
+          {tasks.length === 0 ? <p className="yard-task-empty">No saved tasks yet. Try “Find recent news about…” or “Write a report about…” in the private chat.</p> : <div className="yard-task-grid">{tasks.slice(0, 12).map((task) => {
+            const expected = task.suggestedServiceId?.startsWith('external:') ? task.suggestedServiceId : task.suggestedServiceId && externalMarketService(task.suggestedServiceId) ? `external:${task.suggestedServiceId}` : task.suggestedServiceId;
+            const receipts = marketOrders.filter((order) => order.transaction && order.serviceId === expected);
+            return <article key={task.id}><small>{task.status === 'completed' ? 'DELIVERED' : task.status === 'cancelled' ? 'CLOSED' : 'AWAITING YOUR APPROVAL'}</small><h3>{task.title}</h3><p>{task.brief}</p>{task.status === 'open' && task.suggestedServiceId && <Link className="yard-task-buy" href={`/agent-market?service=${encodeURIComponent(task.suggestedServiceId)}&prompt=${encodeURIComponent(task.brief)}`}>CHECK PRICE & RUN <ArrowUpRight /></Link>}
+              {task.status === 'open' && task.suggestedServiceId && <div className="yard-task-receipt"><label htmlFor={`task-receipt-${task.id}`}>AFTER PAYMENT, ATTACH YOUR RECEIPT</label><select id={`task-receipt-${task.id}`} value={taskReceipts[task.id] || ''} onChange={(event) => setTaskReceipts((current) => ({ ...current, [task.id]: event.target.value }))}><option value="">Choose a recent Market receipt</option>{receipts.map((receipt) => <option key={receipt.transaction} value={receipt.transaction || ''}>{new Date(receipt.createdAt).toLocaleDateString()} · {receipt.transaction?.slice(0, 12)}…</option>)}</select><button disabled={!taskReceipts[task.id] || Boolean(taskBusy)} onClick={() => void attachTaskReceipt(task)}>{taskBusy === task.id ? 'CHECKING…' : 'VERIFY & SAVE RESULT'}</button></div>}
+              {task.status === 'open' && !task.suggestedServiceId && <p>Your agent has no matching paid service for this brief yet. Discuss it in chat or browse the Market.</p>}
+              {task.result && <details><summary>VIEW DELIVERED RESULT</summary><pre>{task.result}</pre></details>}</article>;
+          })}</div>}
+        </section>}
       </>}
     </div>
   </ProductShell>;

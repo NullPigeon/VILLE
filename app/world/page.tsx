@@ -18,6 +18,7 @@ import {
   Bot,
   Building2,
   CalendarDays,
+  ClipboardList,
   Heart,
   User,
   Vote,
@@ -667,6 +668,7 @@ export default function WorldPage() {
             setActiveDistrict('');
           }} aria-label="Go to my yard"><Home /> MY YARD</button>}
           {wallet.address && <button onClick={() => moveCamera(heroPosition.x, heroPosition.y, .95)} aria-label="Find my character"><User /> MY HERO</button>}
+          <Link className="world-nav-jobs" href="/world/jobs"><ClipboardList /> JOB BOARD</Link>
           {WORLD_DISTRICTS.map((item) => (
             <button
               key={item.id}

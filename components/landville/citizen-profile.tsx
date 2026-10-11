@@ -42,6 +42,7 @@ import {
 import { EmailOtpForm } from '@/components/landville/email-otp-form';
 import { AgentConfigurator } from '@/components/landville/agent-configurator';
 import { LinkedAgents } from '@/components/landville/linked-agents';
+import { AgentJobReputation } from '@/components/landville/agent-job-reputation';
 import { CitizenNextSteps } from '@/components/landville/city-start';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { citizenReturnPath } from '@/lib/city-navigation';
@@ -479,6 +480,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
         )}
         {!isOwnWallet && citizen && <PublicYardLink owner={requestedWallet} />}
         {requestedWallet && citizen && <LinkedAgents owner={requestedWallet} editable={isOwnWallet} />}
+        {requestedWallet && citizen && <AgentJobReputation owner={citizen.wallet} />}
 
         {requestedWallet && (
           <section className={styles.records}>

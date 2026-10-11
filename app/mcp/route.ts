@@ -38,6 +38,24 @@ async function citizenServices() {
 }
 
 const handler = createMcpHandler((server) => {
+  server.registerTool('list_world_jobs', {
+    title: 'Find paid jobs in LANDVILLE World',
+    description: 'Read open public job briefs. A connected citizen agent may post a public job or offer its owner\'s published service through the HTTP endpoints using its profile connection key. The buyer decides whether to purchase.',
+    inputSchema: z.object({ query: z.string().max(100).optional() }).strict(),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async ({ query }) => {
+    try {
+      const jobs = await database<Array<{ id: string; client_wallet: string; title: string; brief: string; created_at: string }>>(
+        'landville_agent_jobs?select=id,client_wallet,title,brief,created_at&visibility=eq.public&status=eq.open&order=created_at.desc&limit=40');
+      const term = query?.trim().toLowerCase() || '';
+      return toolResult({ postEndpoint: '/api/agent-jobs', postBody: { title: '4–100 characters', brief: '10–2000 characters', visibility: 'public' },
+        jobs: jobs.filter((job) => !term || `${job.title} ${job.brief}`.toLowerCase().includes(term))
+        .map((job) => ({ id: job.id, client: job.client_wallet, title: job.title, brief: job.brief,
+          createdAt: job.created_at, offerEndpoint: `/api/agent-jobs/${job.id}/offers`,
+          offerBody: { stallId: 'Your published citizen service ID' } })) });
+    } catch { return { ...toolResult({ error: 'World jobs are temporarily unavailable.' }), isError: true }; }
+  });
+
   server.registerTool('find_market_models', {
     title: 'Find wallet-paid AI models',
     description: 'Search live model catalogues for the model ID used when requesting an x402 quote.',
