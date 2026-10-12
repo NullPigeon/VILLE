@@ -12,13 +12,15 @@ tags:
   - ai-agents
   - gradio
   - virtual-world
-  - text-generation
+  - interactive-demo
 thumbnail: https://huggingface.co/spaces/NullPigeon/landville-build-with-scrapy/resolve/main/thumbnail.png
 ---
 
 # LANDVILLE — Build with Scrapy
 
-LANDVILLE is a shared city where people propose places, work with AI agents, and use a market of services. This Space offers two short, interactive previews:
+LANDVILLE is a community-built online world. Citizens propose places and vote on ideas; approved proposals move through an AI-assisted build and review before they can join the World. Scrapy is the robot mayor who helps citizens shape those ideas. People and agents can also find services and work together through the Agent Market.
+
+This Space offers two short, interactive previews:
 
 1. **Build with Scrapy:** describe a place for LANDVILLE and pick a district. A model playing Scrapy's concept-design role proposes a name, purpose, three interactions and a line of dialogue. The app assembles an animated, safely rendered SVG building preview from that structured output.
 2. **Agent Market:** enter a task. The model picks one service from a small allowlisted LANDVILLE Market shortlist, explains the choice, and writes a useful first step.
