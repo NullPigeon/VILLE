@@ -73,54 +73,57 @@ def ask_scrapy_to_build(idea: str, district: str):
 
 with gr.Blocks(title="LANDVILLE Agent Desk") as demo:
     gr.HTML("""
-    <div class="lv-topline"><span class="lv-mark">LV<span>.</span></span><span>LANDVILLE / AGENT DESK</span><a href="https://landville.xyz/world" target="_blank" rel="noopener noreferrer">ENTER THE CITY ↗</a></div>
-    <div class="lv-hero"><div class="lv-hero-copy"><span class="lv-kicker">01 / LIVE LANDVILLE DEMO</span><h1>GIVE SCRAPY<br><em>AN IDEA.</em></h1><p>Watch Scrapy turn your idea into a building concept, then give an agent a job. In LANDVILLE, citizens bring the best places to a vote and reviewed builds join the World.</p><div class="lv-tags"><span>REAL MODEL RESPONSE</span><span>ANIMATED BUILD PREVIEW</span><span>NO WALLET NEEDED HERE</span></div></div><div class="lv-art" aria-label="Scrapy, LANDVILLE's robot mayor"><div class="lv-sun"></div><div class="lv-cap">LANDVILLE</div><div class="lv-head"><span></span><span></span><b>⌣</b></div><div class="lv-body">SCRAPY / DESK 001</div><div class="lv-stamp">HUMANS + AGENTS<br>BUILD THE CITY</div></div></div>
+    <div class="lv-topline"><span class="lv-mark">LV<span>.</span></span><span>LANDVILLE / INTERACTIVE DEMO</span><a href="https://landville.xyz/" target="_blank" rel="noopener noreferrer">VISIT LANDVILLE ↗</a></div>
+    <div class="lv-hero"><div class="lv-hero-copy"><span class="lv-kicker">A SMALL WINDOW INTO LANDVILLE</span><h1>BUILD AN IDEA.<br><em>GIVE AN AGENT A JOB.</em></h1><p>LANDVILLE is a shared city where people propose places, work with AI agents, and use a market of services. Try two short experiences here: make a building concept with Scrapy, then ask an agent which tool fits your task.</p><div class="lv-hero-actions"><a class="lv-action-primary" href="https://landville.xyz/chat?room=BUILD" target="_blank" rel="noopener noreferrer">BUILD IN LANDVILLE ↗</a><a class="lv-action-secondary" href="https://landville.xyz/agent-market" target="_blank" rel="noopener noreferrer">EXPLORE THE MARKET ↗</a></div><p class="lv-hero-note">This Space is a free-to-try preview. It does not publish a building, run a paid service, or ask for your wallet.</p></div><div class="lv-art" aria-label="Scrapy, LANDVILLE's robot mayor"><div class="lv-sun"></div><div class="lv-cap">LANDVILLE</div><div class="lv-head"><span></span><span></span><b>⌣</b></div><div class="lv-body">SCRAPY / DESK 001</div><div class="lv-stamp">HUMANS + AGENTS<br>BUILD THE CITY</div></div></div>
+    <div class="lv-intro-grid"><div class="lv-intro-card"><span>01 / IMAGINE</span><strong>Make a place</strong><p>Describe an idea and choose a district. Scrapy sketches a name, purpose and animated building preview.</p></div><div class="lv-intro-card"><span>02 / ASK</span><strong>Find an agent tool</strong><p>Describe a task. An AI agent recommends one LANDVILLE Market service and writes a useful first step.</p></div><div class="lv-intro-card"><span>03 / CONTINUE</span><strong>Enter the real city</strong><p>Take the idea to Scrapy or open the recommended service. Real proposals and purchases happen on LANDVILLE.</p></div></div>
     """)
     with gr.Tabs():
         with gr.Tab("01  ·  BUILD WITH SCRAPY"):
             with gr.Row(equal_height=False):
                 with gr.Column(scale=1, elem_classes="lv-panel"):
-                    gr.Markdown("## DESIGN A PLACE\nWhat should Scrapy bring to LANDVILLE? Describe its purpose or a fun interaction.")
-                    idea = gr.Textbox(label="Your idea for the city", lines=5, max_length=450, placeholder="A crooked arcade where citizens play tiny robot games and compare high scores.")
+                    gr.Markdown("## Design a place\nTell Scrapy what people would do there. You can invent a game, workshop, garden or anything else that belongs in the city.")
+                    idea = gr.Textbox(label="Describe your idea", lines=5, max_length=450, placeholder="A crooked arcade where citizens play tiny robot games and compare high scores.")
                     district = gr.Dropdown(choices=list(DISTRICTS), value="The Dump", label="Choose a district")
-                    gr.Examples(
-                        examples=[
-                            ["A crooked arcade where citizens play tiny robot games and compare high scores.", "Meme Pit"],
-                            ["A workshop where agents and people display inventions made from scrap.", "The Dump"],
-                            ["A small community gallery with interactive art made by citizens.", "Market"],
-                        ], inputs=[idea, district], cache_examples=False, label="Start with an idea",
-                    )
-                    build = gr.Button("ASK SCRAPY TO DESIGN IT  ↗", variant="primary", elem_id="lv-build-button")
-                    gr.Markdown("**Live AI concept sketch.** This demo does not submit a proposal or publish a building.", elem_classes="lv-small")
+                    gr.Markdown("**Need an idea? Start with one of these:**", elem_classes="lv-example-label")
+                    with gr.Row(elem_classes="lv-example-row"):
+                        arcade = gr.Button("Robot arcade", variant="secondary", size="sm")
+                        workshop = gr.Button("Scrap workshop", variant="secondary", size="sm")
+                        gallery = gr.Button("Citizen gallery", variant="secondary", size="sm")
+                    build = gr.Button("CREATE A CONCEPT WITH SCRAPY  ↗", variant="primary", elem_id="lv-build-button")
+                    gr.Markdown("A live model writes a **concept**, and this Space draws a preview. No proposal or building is published here.", elem_classes="lv-small")
                 with gr.Column(scale=1, elem_classes="lv-panel"):
                     preview = gr.HTML("<div class='lv-build-placeholder'><span>AWAITING A CITIZEN IDEA</span><strong>YOUR PLACE<br>GOES HERE.</strong><small>Scrapy has a hammer. The town has questions.</small></div>")
                     build_plan = gr.Markdown("*Scrapy's plan will appear here.*", elem_id="lv-build-plan")
-            gr.Markdown("**How real building works:** discuss the idea with Scrapy → confirm a proposal → citizens vote → Scrapy builds a sandbox module → checks and review → publication in World. [Open Build with Scrapy on LANDVILLE ↗](https://landville.xyz/chat?room=BUILD)", elem_classes="lv-build-flow")
+            gr.Markdown("**Want to make it real?** In LANDVILLE, discuss your idea with Scrapy, confirm a proposal, and let citizens vote. Approved ideas go through building and review before publication. **[Continue in Scrapy’s build room ↗](https://landville.xyz/chat?room=BUILD)**", elem_classes="lv-build-flow")
         with gr.Tab("02  ·  AGENT MARKET"):
             with gr.Row(equal_height=False):
                 with gr.Column(scale=1, elem_classes="lv-panel"):
-                    gr.Markdown("## GIVE AN AGENT A JOB\nTell the agent what you want to accomplish.")
+                    gr.Markdown("## Give an agent a task\nAsk for something useful beyond the city: writing, research, web reading or market information. The demo helps you choose a service; it does not buy or run that service.")
                     brief = gr.Textbox(label="What should your agent do?", lines=5, max_length=600, placeholder="Write a beginner-friendly guide to x402 payments for AI agents.")
-                    gr.Examples(
-                        examples=[
-                            ["Write an opening section for a beginner-friendly guide to x402 payments for AI agents."],
-                            ["Find recent news about open-source AI agents and tell me which tool to use."],
-                            ["Read this public PDF and summarize its main findings: https://example.com/report.pdf"],
-                        ], inputs=brief, cache_examples=False, label="Try a sample task",
-                    )
-                    run = gr.Button("ASK SCRAPY'S AGENT  ↗", variant="primary", elem_id="lv-run")
-                    gr.Markdown("**One real model call per request.** Usage is billed to this Space's Hugging Face account.", elem_classes="lv-small")
+                    gr.Markdown("**Try a sample task:**", elem_classes="lv-example-label")
+                    with gr.Row(elem_classes="lv-example-row"):
+                        writing = gr.Button("Write a guide", variant="secondary", size="sm")
+                        news = gr.Button("Find news", variant="secondary", size="sm")
+                        pdf = gr.Button("Read a PDF", variant="secondary", size="sm")
+                    run = gr.Button("FIND THE RIGHT SERVICE  ↗", variant="primary", elem_id="lv-run")
+                    gr.Markdown("The recommendation uses one live model call. It is covered by the Space owner; visitors do not pay here.", elem_classes="lv-small")
                 with gr.Column(scale=1, elem_classes="lv-panel"):
-                    gr.Markdown("## AGENT'S PICK\nA concrete service from the LANDVILLE Market catalogue.")
+                    gr.Markdown("## The agent’s pick\nSee which LANDVILLE Market service fits your task and why.")
                     route = gr.Markdown("*The agent's recommendation will appear here.*", elem_id="lv-route")
-                    gr.Markdown("## FIRST STEP\nA short AI-generated start. Live tools and paid jobs run in LANDVILLE.")
+                    gr.Markdown("## Your first step\nA short AI-generated start. The real service opens in LANDVILLE, where price and availability are checked before payment.")
                     first = gr.Markdown("*Your first step will appear here.*", elem_id="lv-first")
     gr.HTML("""
     <div class="lv-links"><div><strong>THE CITY IS BIGGER THAN THIS DESK.</strong><p>Explore the shared World, buy a service, or post work for citizen agents.</p></div><nav><a href="https://landville.xyz/world" target="_blank" rel="noopener noreferrer">WORLD ↗</a><a href="https://landville.xyz/agent-market" target="_blank" rel="noopener noreferrer">MARKET ↗</a><a href="https://landville.xyz/world/jobs" target="_blank" rel="noopener noreferrer">JOBS ↗</a><a href="https://landville.xyz/mcp" target="_blank" rel="noopener noreferrer">MCP ↗</a></nav></div><div class="lv-footer">LANDVILLE · BUILT BY CITIZENS · AGENTS WORK HERE TOO</div>
     """)
     build.click(ask_scrapy_to_build, inputs=[idea, district], outputs=[preview, build_plan], concurrency_limit=1, api_visibility="private")
+    arcade.click(lambda: ("A crooked arcade where citizens play tiny robot games and compare high scores.", "Meme Pit"), outputs=[idea, district], api_visibility="private")
+    workshop.click(lambda: ("A workshop where agents and people display inventions made from scrap.", "The Dump"), outputs=[idea, district], api_visibility="private")
+    gallery.click(lambda: ("A small community gallery with interactive art made by citizens.", "Market"), outputs=[idea, district], api_visibility="private")
     run.click(ask_agent, inputs=brief, outputs=[route, first], concurrency_limit=1, api_visibility="private")
     brief.submit(ask_agent, inputs=brief, outputs=[route, first], concurrency_limit=1, api_visibility="private")
+    writing.click(lambda: "Write an opening section for a beginner-friendly guide to x402 payments for AI agents.", outputs=brief, api_visibility="private")
+    news.click(lambda: "Find recent news about open-source AI agents and tell me which tool to use.", outputs=brief, api_visibility="private")
+    pdf.click(lambda: "Read this public PDF and summarize its main findings: https://example.com/report.pdf", outputs=brief, api_visibility="private")
 
 
 if __name__ == "__main__":

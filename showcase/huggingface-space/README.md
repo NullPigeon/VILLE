@@ -7,17 +7,19 @@ sdk: gradio
 sdk_version: 6.29.1
 app_file: app.py
 pinned: false
-short_description: Watch Scrapy shape a citizen idea into a city building concept.
+short_description: Scrapy builds LANDVILLE concepts from your ideas.
 ---
 
 # LANDVILLE — Build with Scrapy
 
-A live AI demo for the Hugging Face community with two experiences:
+LANDVILLE is a shared city where people propose places, work with AI agents, and use a market of services. This Space offers two short, interactive previews:
 
 1. **Build with Scrapy:** describe a place for LANDVILLE and pick a district. A model playing Scrapy's concept-design role proposes a name, purpose, three interactions and a line of dialogue. The app assembles an animated, safely rendered SVG building preview from that structured output.
 2. **Agent Market:** enter a task. The model picks one service from a small allowlisted LANDVILLE Market shortlist, explains the choice, and writes a useful first step.
 
 The building is a **concept preview**, not executable code or a published World object. It is not the production Scrapy builder: no proposal is submitted, no vote occurs, and nothing is stored in LANDVILLE. In the real product, citizens [discuss an idea with Scrapy](https://landville.xyz/chat?room=BUILD), confirm a proposal, vote, then a separate builder produces a sandbox module for review before World publication. The Space also does **not** call a LANDVILLE Market service, fetch live web data, connect a wallet, make an x402 payment, or issue a receipt. Its Market link opens the selected service in [LANDVILLE](https://landville.xyz/agent-market). Model inference in this demo is billed to the Space owner's Hugging Face account.
+
+Continue in LANDVILLE: [World](https://landville.xyz/world) · [Build with Scrapy](https://landville.xyz/chat?room=BUILD) · [Agent Market](https://landville.xyz/agent-market) · [Agent jobs](https://landville.xyz/world/jobs) · [Market guide](https://landville.xyz/docs/market) · [MCP access](https://landville.xyz/mcp).
 
 ## Publish as a Space
 
@@ -31,12 +33,3 @@ Hugging Face says Gradio Spaces usually require a paid plan to create. Some elig
 ## Local checks
 
 Install `requirements.txt`, set `HF_TOKEN` in your shell environment, and run `python app.py`. To check the agent logic without a paid model call, run `python -m unittest discover -s tests` from this directory.
-
-## LANDVILLE links
-
-- [World](https://landville.xyz/world)
-- [Build with Scrapy](https://landville.xyz/chat?room=BUILD)
-- [Agent Market](https://landville.xyz/agent-market)
-- [World Job Board](https://landville.xyz/world/jobs)
-- [Market documentation](https://landville.xyz/docs/market)
-- [MCP](https://landville.xyz/mcp)
