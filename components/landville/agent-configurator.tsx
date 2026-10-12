@@ -6,13 +6,13 @@ import { ArrowUpRight, Bot, Wrench } from 'lucide-react';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
 import { PersonalRobot } from '@/components/landville/personal-robot';
 import { readJsonResponse } from '@/lib/http-response';
-import { AGENT_HOUSES, AGENT_INTERVALS, AGENT_PERSONALITIES, AGENT_PRESENTATIONS, AGENT_TOWN_MODES, AGENT_WORLD_ROAM_MODES, HOUSE_LABELS, PERSONALITY_LABELS, type PersonalAgent } from '@/lib/personal-agent';
+import { AGENT_HOUSES, AGENT_INTERVALS, AGENT_PERSONALITIES, AGENT_PRESENTATIONS, AGENT_TOWN_MODES, AGENT_WORLD_ROAM_MODES, CITY_PROFESSIONS, HOUSE_LABELS, PERSONALITY_LABELS, YARD_FEATURES, YARD_FEATURE_LABELS, type PersonalAgent } from '@/lib/personal-agent';
 import styles from './agent-configurator.module.css';
 
-type Form = Pick<PersonalAgent, 'name' | 'presentation' | 'personality' | 'houseStyle' | 'houseName' | 'townMode' | 'intervalMinutes' | 'worldRoamMode' | 'worldSpeechEnabled' | 'worldPhrases'>;
+type Form = Pick<PersonalAgent, 'name' | 'presentation' | 'personality' | 'houseStyle' | 'houseName' | 'yardFeature' | 'profession' | 'townMode' | 'intervalMinutes' | 'worldRoamMode' | 'worldSpeechEnabled' | 'worldPhrases'>;
 const defaults: Form = {
   name: 'Bolt', presentation: 'MASCULINE', personality: 'CHEEKY',
-  houseStyle: 'SCRAP_SHACK', houseName: 'The Rust Nest', townMode: 'OFF', intervalMinutes: 120,
+  houseStyle: 'SCRAP_SHACK', houseName: 'The Rust Nest', yardFeature: 'NONE', profession: 'BUILDER', townMode: 'OFF', intervalMinutes: 120,
   worldRoamMode: 'CITY', worldSpeechEnabled: true, worldPhrases: [],
 };
 
@@ -33,7 +33,7 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
         setAutonomyAvailable(available);
         if (agent) {
           setForm({ name: agent.name, presentation: agent.presentation, personality: agent.personality,
-            houseStyle: agent.houseStyle, houseName: agent.houseName, townMode: agent.townMode,
+            houseStyle: agent.houseStyle, houseName: agent.houseName, yardFeature: agent.yardFeature, profession: agent.profession, townMode: agent.townMode,
             intervalMinutes: agent.intervalMinutes, worldRoamMode: agent.worldRoamMode,
             worldSpeechEnabled: agent.worldSpeechEnabled, worldPhrases: agent.worldPhrases });
           setCreated(true);
@@ -74,6 +74,14 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
           <label key={value}><input type="radio" name="personality" checked={form.personality === value} onChange={() => setForm({ ...form, personality: value })} /><span>{PERSONALITY_LABELS[value]}</span></label>)}</div></fieldset>
         <fieldset><legend>CHOOSE ONE HOUSE</legend><div className={styles.houseOptions}>{AGENT_HOUSES.map((value) =>
           <label key={value}><input type="radio" name="houseStyle" checked={form.houseStyle === value} onChange={() => setForm({ ...form, houseStyle: value })} /><AgentHouseArt style={value} /><span>{HOUSE_LABELS[value]}</span></label>)}</div></fieldset>
+        <fieldset><legend>ADD SOMETHING TO YOUR YARD</legend><p>Choose one visible feature. It is decorative for now and costs nothing.</p>
+          <label className={styles.selectLabel}>YARD FEATURE<select value={form.yardFeature} onChange={(event) => setForm({ ...form, yardFeature: event.target.value as Form['yardFeature'] })}>
+            {YARD_FEATURES.map((value) => <option key={value} value={value}>{YARD_FEATURE_LABELS[value]}</option>)}
+          </select></label></fieldset>
+        <fieldset><legend>CHOOSE A CITY ROLE</legend><p>This tells other citizens what your agent is interested in. It does not assign jobs or start paid work.</p>
+          <label className={styles.selectLabel}>PROFESSION<select value={form.profession} onChange={(event) => setForm({ ...form, profession: event.target.value as Form['profession'] })}>
+            {CITY_PROFESSIONS.map((value) => <option key={value.id} value={value.id}>{value.name}</option>)}
+          </select></label><p>{CITY_PROFESSIONS.find((value) => value.id === form.profession)?.description}</p></fieldset>
         <fieldset><legend>WORLD / HOW YOUR AGENT LIVES</legend>
           <p>Your robot walks on the shared map by itself. Choose how far it explores. Short lines appear above its head from time to time.</p>
           <label className={styles.selectLabel}>ROAMING<select value={form.worldRoamMode} onChange={(event) => setForm({ ...form, worldRoamMode: event.target.value as Form['worldRoamMode'] })}>
@@ -100,7 +108,7 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
         {notice && <output>{notice}</output>}
       </form>
       <aside className={styles.preview}><div className={styles.previewSky}><span>LOT 01 / PRIVATE PROPERTY</span><AgentHouseArt style={form.houseStyle} /><PersonalRobot presentation={form.presentation} /></div>
-        <b>{form.houseName || 'YOUR HOUSE'}</b><small>{form.name || 'YOUR ROBOT'} · {PERSONALITY_LABELS[form.personality]} · {form.townMode === 'OFF' ? 'PRIVATE' : 'TOWN MODE ARMED'}</small></aside>
+        <b>{form.houseName || 'YOUR HOUSE'}</b><small>{form.name || 'YOUR ROBOT'} · {CITY_PROFESSIONS.find((value) => value.id === form.profession)?.name} · {YARD_FEATURE_LABELS[form.yardFeature]}</small></aside>
     </div>}
   </section>;
 }

@@ -1,6 +1,7 @@
 export const MARKET_NETWORK = 'eip155:4663';
 export const MARKET_CURRENCY = 'USDG';
 export const BASIC_SLOT_LIMIT = 3;
+export const HOLDER_SLOT_LIMIT = 6;
 export const MARKET_HOLDER_MINIMUM = 1_000_000n * 10n ** 18n;
 
 export function hasMarketHolderBalance(rawBalance: bigint | string) {
@@ -72,6 +73,70 @@ export const AGENT_SKILLS = [
     description: 'Shape an article, campaign, or visual brief before production.',
     instruction: 'Develop a clear brief or outline. Do not claim that a long article, image, or audio file was generated if it was not.',
   },
+  {
+    id: 'neighborhood-host',
+    name: 'Neighborhood Host',
+    type: 'BASIC',
+    category: 'Community',
+    description: 'Welcome new citizens and explain how to take part.',
+    instruction: 'Explain the next concrete step for a newcomer, including where to find their yard, the World and open jobs. Never claim to register or vote for them.',
+  },
+  {
+    id: 'maintenance-planner',
+    name: 'Maintenance Planner',
+    type: 'BASIC',
+    category: 'City',
+    description: 'Turn reports of a broken place into a practical repair plan.',
+    instruction: 'When a citizen describes a problem with a place, list the symptoms, likely causes, needed people or resources and a safe first repair step. Do not claim to change the World.',
+  },
+  {
+    id: 'event-steward',
+    name: 'Event Steward',
+    type: 'BASIC',
+    category: 'Community',
+    description: 'Plan a small town event with a schedule and responsibilities.',
+    instruction: 'Create a concise event plan with audience, location, schedule, accessibility and roles. Do not claim to book venues or notify citizens.',
+  },
+  {
+    id: 'market-clerk',
+    name: 'Market Clerk',
+    type: 'BASIC',
+    category: 'Market',
+    description: 'Help phrase a service request and compare its likely outputs.',
+    instruction: 'Help the citizen formulate one bounded job and explain that Market prices and availability must be checked live before any wallet signature. Never claim to purchase.',
+  },
+  {
+    id: 'city-architect',
+    name: 'City Architect',
+    type: 'HOLDER',
+    category: 'Build',
+    description: 'Develop a richer place brief with layout, interaction and upkeep.',
+    instruction: 'For a proposed place, outline its users, spatial zones, useful interaction, accessibility and maintenance needs. Do not claim that the module was submitted or built.',
+  },
+  {
+    id: 'service-designer',
+    name: 'Service Designer',
+    type: 'HOLDER',
+    category: 'Market',
+    description: 'Shape a clear, bounded service that an agent can sell.',
+    instruction: 'Help define a service input, expected output, limits, quality checks and suitable foundation tool. Do not promise earnings or publish a stall.',
+  },
+  {
+    id: 'systems-planner',
+    name: 'Systems Planner',
+    type: 'HOLDER',
+    category: 'Infrastructure',
+    description: 'Plan city needs such as power, water and maintenance.',
+    instruction: 'When discussing infrastructure, identify demand, dependencies, failure modes and what would need measuring. Present resources as planning concepts, not live balances.',
+  },
+  {
+    id: 'quest-writer',
+    name: 'Quest Writer',
+    type: 'HOLDER',
+    category: 'Stories',
+    description: 'Write optional city mission concepts for a future game layer.',
+    instruction: 'Draft a mission concept with objective, steps and a fair non-financial completion check. State clearly that missions and rewards are not live.',
+  },
 ] as const;
 
 export const FUTURE_STALLS = [
@@ -87,15 +152,16 @@ export function isAgentSkillId(value: string): value is AgentSkillId {
   return AGENT_SKILLS.some((skill) => skill.id === value);
 }
 
-export function validateAgentSkills(value: unknown): AgentSkillId[] {
-  if (!Array.isArray(value) || value.length > BASIC_SLOT_LIMIT
-    || value.some((item) => typeof item !== 'string' || !isAgentSkillId(item))
+export function validateAgentSkills(value: unknown, holder = false): AgentSkillId[] {
+  if (!Array.isArray(value) || value.length > (holder ? HOLDER_SLOT_LIMIT : BASIC_SLOT_LIMIT)
+    || value.some((item) => typeof item !== 'string' || !isAgentSkillId(item)
+      || (!holder && AGENT_SKILLS.find((skill) => skill.id === item)?.type === 'HOLDER'))
     || new Set(value).size !== value.length) {
-    throw new Error('Choose up to three different basic agent skills.');
+    throw new Error(holder ? 'Choose up to six different agent skills.' : 'Choose up to three basic agent skills.');
   }
   return value as AgentSkillId[];
 }
 
 export function availableAgentSkills(holder: boolean, selected: readonly AgentSkillId[]) {
-  return holder ? AGENT_SKILLS.map((skill) => skill.id) : [...selected];
+  return selected.filter((id) => holder || AGENT_SKILLS.find((skill) => skill.id === id)?.type === 'BASIC');
 }

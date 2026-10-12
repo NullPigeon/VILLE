@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AGENT_HOUSES, AGENT_INTERVALS, AGENT_PERSONALITIES, AGENT_PRESENTATIONS, AGENT_TOWN_MODES, AGENT_WORLD_ROAM_MODES } from '@/lib/personal-agent';
+import { AGENT_HOUSES, AGENT_INTERVALS, AGENT_PERSONALITIES, AGENT_PRESENTATIONS, AGENT_TOWN_MODES, AGENT_WORLD_ROAM_MODES, CITY_PROFESSIONS, YARD_FEATURES } from '@/lib/personal-agent';
 import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
 import { assertCitizen, enforceRate, rpc } from '@/lib/server/database';
 import { agentRecord, readPersonalAgent, type AgentRow } from '@/lib/server/personal-agents';
@@ -19,7 +19,7 @@ export async function PUT(request: NextRequest) {
     requireMutation(request);
     const owner = requireWallet(request);
     const body = await jsonBody(request);
-    const keys = ['name', 'presentation', 'personality', 'houseStyle', 'houseName', 'townMode', 'intervalMinutes', 'worldRoamMode', 'worldSpeechEnabled', 'worldPhrases'];
+    const keys = ['name', 'presentation', 'personality', 'houseStyle', 'houseName', 'yardFeature', 'profession', 'townMode', 'intervalMinutes', 'worldRoamMode', 'worldSpeechEnabled', 'worldPhrases'];
     if (Object.keys(body).some((key) => !keys.includes(key))) throw new ApiError(400, 'Unsupported robot setting.');
     const name = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
     const houseName = typeof body.houseName === 'string' ? body.houseName.trim().replace(/\s+/g, ' ') : '';
@@ -30,6 +30,8 @@ export async function PUT(request: NextRequest) {
     if (!AGENT_PRESENTATIONS.includes(body.presentation as typeof AGENT_PRESENTATIONS[number])
       || !AGENT_PERSONALITIES.includes(body.personality as typeof AGENT_PERSONALITIES[number])
       || !AGENT_HOUSES.includes(body.houseStyle as typeof AGENT_HOUSES[number])
+      || !YARD_FEATURES.includes(body.yardFeature as typeof YARD_FEATURES[number])
+      || !CITY_PROFESSIONS.some((profession) => profession.id === body.profession)
       || !AGENT_TOWN_MODES.includes(body.townMode as typeof AGENT_TOWN_MODES[number])
       || !AGENT_INTERVALS.includes(body.intervalMinutes as typeof AGENT_INTERVALS[number])
       || !AGENT_WORLD_ROAM_MODES.includes(body.worldRoamMode as typeof AGENT_WORLD_ROAM_MODES[number])
@@ -43,10 +45,12 @@ export async function PUT(request: NextRequest) {
     const worldPhrases = (body.worldPhrases as string[]).map((phrase) => phrase.trim().replace(/\s+/g, ' '));
     await assertCitizen(owner);
     await enforceRate(owner, 'personal-agent-settings', 5);
-    const row = await rpc<AgentRow>('landville_upsert_personal_agent_world', {
+    const row = await rpc<AgentRow>('landville_upsert_personal_agent_home', {
       p_owner: owner, p_name: name, p_presentation: body.presentation,
       p_personality: body.personality, p_house_style: body.houseStyle,
       p_house_name: houseName, p_town_mode: body.townMode,
+      p_yard_feature: body.yardFeature,
+      p_profession: body.profession,
       p_interval_minutes: body.intervalMinutes,
       p_world_roam_mode: body.worldRoamMode,
       p_world_speech_enabled: body.worldSpeechEnabled,

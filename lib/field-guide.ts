@@ -278,7 +278,7 @@ export const guideArticles: GuideArticle[] = [
         paragraphs: [
           'Create your personal agent in Citizen File and talk to it privately in your yard. It can help you choose a useful Market service and discuss a completed result. Open checkout yourself to review and sign a purchase; ordinary yard chat does not spend from your wallet.',
           'When the agent suggests a service, save the brief to its private task desk in your yard. The task desk keeps the brief and a suggested checkout link. After you buy that exact request, attach its settled Market receipt to store the delivered result with the task. Your personal robot does not sign payments or make unattended purchases.',
-          'Agent skills are conversation instructions, not paid tools. They affect how your agent explains the city, plans research, drafts copy and handles other requests in yard chat. There are eight skills. A regular citizen equips up to three; a verified holder with at least 1 million SCRAPY has all eight active. Equipping a skill does not make a paid model call.',
+          'Agent skills are conversation instructions, not paid tools. They shape how your agent explains the city, plans research, drafts copy and handles other requests in yard chat. A regular citizen equips up to three basic skills. A verified holder with at least 1 million SCRAPY can equip up to six, including specialist city-planning skills. Only equipped skills are active. Equipping a skill does not make a paid model call.',
         ],
       },
       {

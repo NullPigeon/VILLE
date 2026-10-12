@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       }
     } else if (!service.fixedModelId && body.modelId !== undefined) throw new ApiError(400, 'This service does not accept a model selection.');
     if ((service.holderOnly || externalModelHolderOnly(modelId)) && !await hasMarketHolderAccess(owner).catch(() => false)) {
-      throw new ApiError(403, 'Hold at least 1M SCRAPY in your linked wallet to use this advanced model.');
+      throw new ApiError(403, 'Hold at least 1M SCRAPY in your linked wallet to use this advanced service.');
     }
     let upstream;
     try { upstream = externalMarketRequest(service, body.input, modelId); }

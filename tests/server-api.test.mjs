@@ -1402,18 +1402,20 @@ const robotRow = {
 };
 
 void test('personal robot settings use the signed citizen and reject impersonation or owner overrides', async () => {
-  const f = fixture((call) => call.url.endsWith('/rpc/landville_upsert_personal_agent_world') ? json(robotRow) : undefined);
+  const f = fixture((call) => call.url.endsWith('/rpc/landville_upsert_personal_agent_home') ? json(robotRow) : undefined);
   const route = f.load('app/api/agents/me/route.ts');
-  const payload = { name: 'Bolt', presentation: 'MASCULINE', personality: 'CHEEKY', houseStyle: 'SCRAP_SHACK', houseName: 'Rust Nest', townMode: 'OFF', intervalMinutes: 120, worldRoamMode: 'CITY', worldSpeechEnabled: true, worldPhrases: ['Found a shortcut.'] };
+  const payload = { name: 'Bolt', presentation: 'MASCULINE', personality: 'CHEEKY', houseStyle: 'SCRAP_SHACK', houseName: 'Rust Nest', yardFeature: 'WORKBENCH', profession: 'BUILDER', townMode: 'OFF', intervalMinutes: 120, worldRoamMode: 'CITY', worldSpeechEnabled: true, worldPhrases: ['Found a shortcut.'] };
   assert.equal((await route.PUT(f.request('/api/agents/me', payload))).status, 401);
   assert.equal((await route.PUT(f.request('/api/agents/me', { ...payload, ownerWallet: other }, { signed: true, method: 'PUT' }))).status, 400);
   assert.equal((await route.PUT(f.request('/api/agents/me', { ...payload, name: 'Scrapy Mayor' }, { signed: true, method: 'PUT' }))).status, 400);
   const response = await route.PUT(f.request('/api/agents/me', payload, { signed: true, method: 'PUT' }));
   assert.equal(response.status, 200);
-  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_upsert_personal_agent_world'));
+  const call = f.calls.find((entry) => entry.url.endsWith('/rpc/landville_upsert_personal_agent_home'));
   assert.equal(call.body.p_owner, wallet);
   assert.equal(call.body.p_town_mode, 'OFF');
   assert.equal(call.body.p_world_roam_mode, 'CITY');
+  assert.equal(call.body.p_yard_feature, 'WORKBENCH');
+  assert.equal(call.body.p_profession, 'BUILDER');
   assert.deepEqual(call.body.p_world_phrases, ['Found a shortcut.']);
 });
 

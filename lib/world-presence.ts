@@ -2,7 +2,7 @@ export const HERO_SKINS = ['SCAVENGER', 'ROADRUNNER', 'SIGNAL'] as const;
 export type HeroSkin = (typeof HERO_SKINS)[number];
 export type WorldHeroSkin = HeroSkin | 'MODULE';
 
-export const ROBOT_SKINS = ['RUST', 'MINT', 'EMBER'] as const;
+export const ROBOT_SKINS = ['RUST', 'MINT', 'EMBER', 'COBALT', 'VIOLET', 'COPPER'] as const;
 export type RobotSkin = (typeof ROBOT_SKINS)[number];
 
 export type WorldResident = {

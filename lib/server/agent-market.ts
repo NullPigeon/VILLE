@@ -1,5 +1,5 @@
 import 'server-only';
-import { AGENT_SKILLS, DEFAULT_AGENT_SKILLS, availableAgentSkills, hasMarketHolderBalance, isAgentSkillId, type AgentSkillId } from '@/lib/agent-market';
+import { AGENT_SKILLS, DEFAULT_AGENT_SKILLS, HOLDER_SLOT_LIMIT, availableAgentSkills, hasMarketHolderBalance, isAgentSkillId, type AgentSkillId } from '@/lib/agent-market';
 import { ApiError } from '@/lib/server/api';
 import { database } from '@/lib/server/database';
 import { readVotingSnapshot } from '@/lib/server/voting';
@@ -12,7 +12,7 @@ export async function readAgentMarketSkills(owner: string): Promise<AgentSkillId
   );
   if (!rows.length) throw new ApiError(404, 'Build your robot first.');
   const skills = rows[0].market_skills;
-  return Array.isArray(skills) ? skills.filter(isAgentSkillId).slice(0, 3) : DEFAULT_AGENT_SKILLS;
+  return Array.isArray(skills) ? skills.filter(isAgentSkillId).slice(0, HOLDER_SLOT_LIMIT) : DEFAULT_AGENT_SKILLS;
 }
 
 export async function hasMarketHolderAccess(owner: string) {

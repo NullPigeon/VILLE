@@ -8,7 +8,7 @@ import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { MarketStallWorkshop, type MarketStallDraft } from '@/components/landville/market-stall-workshop';
 import { MarketAgentBudgets } from '@/components/landville/market-agent-budgets';
 import { useWallet } from '@/components/landville/wallet-provider';
-import { AGENT_SKILLS, BASIC_SLOT_LIMIT, MARKET_CURRENCY, MARKET_NETWORK, type AgentSkillId } from '@/lib/agent-market';
+import { AGENT_SKILLS, BASIC_SLOT_LIMIT, HOLDER_SLOT_LIMIT, MARKET_CURRENCY, MARKET_NETWORK, type AgentSkillId } from '@/lib/agent-market';
 import { shortWallet } from '@/lib/governance';
 import { buyMarketService, type MarketReceipt, type MarketRecipeTest } from '@/lib/market-checkout';
 import { EXTERNAL_MARKET_SERVICES, type ExternalMarketService, type ExternalModel } from '@/lib/external-market';
@@ -41,6 +41,17 @@ function serviceStatus(service: Service) {
   if (service.status === 'open') return 'Ready to run';
   if (service.status === 'holder') return 'Hold 1M SCRAPY to run';
   return 'Checkout not live yet';
+}
+
+function generatedImageUrl(output: string | null | undefined) {
+  if (!output) return '';
+  try {
+    const result = JSON.parse(output) as { images?: Array<{ url?: unknown }>; data?: { images?: Array<{ url?: unknown }> } };
+    const value = result.images?.[0]?.url || result.data?.images?.[0]?.url;
+    if (typeof value !== 'string') return '';
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.href : '';
+  } catch { return ''; }
 }
 
 export default function AgentMarketPage() {
@@ -264,11 +275,11 @@ export default function AgentMarketPage() {
   }
 
   function toggle(id: AgentSkillId) {
-    if (!market?.agentExists || market.holder) return;
+    if (!market?.agentExists || (!market.holder && AGENT_SKILLS.find((skill) => skill.id === id)?.type === 'HOLDER')) return;
     setNotice('');
     setSelected((current) => {
       if (current.includes(id)) return current.filter((item) => item !== id);
-      if (current.length >= BASIC_SLOT_LIMIT) { setError('Your agent has three skill slots. Remove one first.'); return current; }
+      if (current.length >= (market.holder ? HOLDER_SLOT_LIMIT : BASIC_SLOT_LIMIT)) { setError('All skill slots are full. Remove one first.'); return current; }
       setError(''); return [...current, id];
     });
   }
@@ -322,7 +333,7 @@ export default function AgentMarketPage() {
         <p className="am-section-intro">Pick the model or tool you want, describe one job, and check its live USDG price. Model and web calls go through an x402 operator that covers the provider bill. LANDVILLE&apos;s composed city jobs open after their own checkout is ready.</p>
         <fieldset className="am-availability" aria-label="Service availability"><button type="button" aria-pressed={serviceAvailability === 'ready'} onClick={() => setServiceAvailability('ready')}>CHECK PRICE &amp; BUY</button><button type="button" aria-pressed={serviceAvailability === 'upcoming'} onClick={() => setServiceAvailability('upcoming')}>OPENING LATER</button><button type="button" aria-pressed={serviceAvailability === 'all'} onClick={() => setServiceAvailability('all')}>SHOW ALL</button></fieldset>
         <div className="am-service-controls"><fieldset className="am-service-tabs am-merchant-tabs" aria-label="Service category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset><label className="am-search"><Search aria-hidden="true" /><input aria-label="Search all city services" value={merchantSearch} onChange={(event) => setMerchantSearch(event.target.value)} placeholder="Search all services" /></label></div>
-        {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider === 'relay' ? 'MODEL NETWORK' : merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>
+        {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider === 'relay' && merchant.category === 'AI Models' ? 'MODEL NETWORK' : merchant.provider === 'relay' || merchant.provider === 'mesh' ? 'DIRECT x402' : merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>
           <p>{merchant.description}</p>
           {merchant.fixedModelId && <p className="am-model-note">Selected model: <strong>{merchant.fixedModelId}</strong>. Price comes from the live x402 quote.</p>}
           {merchant.modelPicker && <div className="am-merchant-models"><label htmlFor="am-model-search">1 / FIND A MODEL</label>
@@ -333,7 +344,7 @@ export default function AgentMarketPage() {
             </select>
             <small>{merchantModelsError || (merchantModels.length ? `${merchantModels.length} model routes. Advanced models need 1M+ SCRAPY; every request still needs a live USDG quote.` : 'Loading model catalog…')}</small>
           </div>}
-          {merchant.input !== 'none' && <><label htmlFor="am-merchant-input">{merchant.input === 'prompt' ? 'WHAT SHOULD THE MODEL DO?' : merchant.input === 'query' ? 'TOPIC OR QUESTION' : merchant.input === 'url' ? 'PUBLIC PAGE URL' : merchant.input === 'symbol' ? 'STOCK SYMBOL' : merchant.input === 'domain' ? 'PUBLIC DOMAIN' : 'PUBLIC WALLET ADDRESS'}</label>
+          {merchant.input !== 'none' && <><label htmlFor="am-merchant-input">{merchant.input === 'prompt' ? 'WHAT SHOULD THE MODEL DO?' : merchant.input === 'query' ? 'TOPIC OR QUESTION' : merchant.input === 'url' ? 'PUBLIC HTTPS URL' : merchant.input === 'symbol' ? 'TICKER OR COIN SYMBOL' : merchant.input === 'coordinates' ? 'LATITUDE, LONGITUDE' : merchant.input === 'domain' ? 'PUBLIC DOMAIN' : 'EVM ADDRESS'}</label>
             {merchant.input === 'prompt' ? <textarea id="am-merchant-input" value={merchantInput} maxLength={merchant.modelPicker || merchant.fixedModelId ? 4000 : 1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} /> : <input id="am-merchant-input" className="am-merchant-input" value={merchantInput} maxLength={1000} disabled={merchantBusy} onChange={(event) => { setMerchantInput(event.target.value); setMerchantQuote(null); setMerchantReceipt(null); }} placeholder={merchant.placeholder} />}</>}
           <div className="am-checkout-footer"><div>{merchantQuote ? <><strong>{merchantQuote.amountUsd} USDG / CALL</strong><span>Paid to the outside service operator at the quoted address. No LANDVILLE fee. Wallet gas or token approval may apply.</span></> : <><strong>LIVE PRICE BEFORE PAYMENT</strong><span>Checkout opens only when the operator quotes USDG on Robinhood Chain.{merchant.fixedModelId ? ` This model call allows up to ${merchant.maxOutputTokens?.toLocaleString() || '2,000'} output tokens.` : ''}</span></>}</div>
             {merchantQuote ? <button type="button" disabled={merchantBusy || !wallet.linkedWallet} onClick={() => void payMerchant()}>{merchantBusy ? 'WORKING…' : 'APPROVE & RUN'}</button> : <button type="button" disabled={merchantBusy || (merchant.input !== 'none' && !merchantInput.trim()) || (merchant.modelPicker && !merchantModelId) || !wallet.address} onClick={() => void getMerchantQuote()}>{merchantBusy ? 'CHECKING…' : 'CHECK LIVE PRICE'}</button>}</div>
@@ -341,7 +352,7 @@ export default function AgentMarketPage() {
           {wallet.address && !wallet.linkedWallet && <p className="am-checkout-hint">Link a wallet in <Link href={profile}>your profile <ArrowUpRight /></Link> to pay.</p>}
           {merchant.docs && <a className="am-merchant-docs" href={merchant.docs} target="_blank" rel="noopener noreferrer">MERCHANT DETAILS <ArrowUpRight /></a>}
           {merchantStage && <p className="am-success" aria-live="polite">{merchantStage}</p>}{merchantError && <p className="am-error" role="alert">{merchantError}</p>}
-          {merchantReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small><pre>{merchantReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${merchantReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${merchantReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
+          {merchantReceipt && <div className="am-receipt"><small>DELIVERED / PAID ONCHAIN</small>{merchant.id === 'featured-flux-image' && generatedImageUrl(merchantReceipt.output) && <a href={generatedImageUrl(merchantReceipt.output)} target="_blank" rel="noopener noreferrer" aria-label="Open generated image">{/* eslint-disable-next-line @next/next/no-img-element */}<img className="am-generated-image" src={generatedImageUrl(merchantReceipt.output)} alt="Generated result" /></a>}<pre>{merchantReceipt.output}</pre><div className="am-receipt-actions"><a href={`${activeRobinhoodChain.explorerUrl}/tx/${merchantReceipt.payment.transaction}`} target="_blank" rel="noopener noreferrer">VIEW PAYMENT <ArrowUpRight /></a>{market?.agentExists && wallet.address && <Link href={`/yard/${wallet.address}?marketTx=${merchantReceipt.payment.transaction}`}>DISCUSS WITH MY AGENT <ArrowUpRight /></Link>}</div></div>}
         </div>}
         <div className="am-merchant-grid">{shownMerchants.map((item) => <button key={item.id} type="button" className="am-merchant-card" onClick={() => chooseMerchant(item)}><span className="am-merchant-card-top"><b>CHECK LIVE PRICE</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">{item.holderOnly ? '1M+ SCRAPY · ' : ''}USDG PRICE BEFORE SIGNING</span><em>CHOOSE SERVICE <ArrowUpRight /></em></button>)}
           {shown.map((item) => <button key={item.id} type="button" className={`am-merchant-card${item.setupReady ? '' : ' am-merchant-card-pending'}`} onClick={() => choose(item)}><span className="am-merchant-card-top"><b>LANDVILLE JOB</b><small>{item.category}</small></span><strong>{item.name}</strong><span>{item.description}</span><span className="am-merchant-access">{item.holderOnly ? '1M+ SCRAPY · ' : ''}{item.setupReady ? `${item.priceUsd} USDG / RUN` : directAlternative(item) ? 'CITY SETUP PENDING · DIRECT OPTION AVAILABLE' : 'OPENS AFTER CITY SETUP'}</span><em>{item.setupReady ? 'CHOOSE SERVICE' : 'SEE HOW IT WORKS'} <ArrowUpRight /></em></button>)}
@@ -382,17 +393,16 @@ export default function AgentMarketPage() {
         {citizenStalls.length ? <div className="am-citizen-grid">{citizenStalls.map((stall) => <button type="button" key={stall.id} onClick={() => { setStallId(stall.id); setReturnJob(null); setStallPrompt(''); setStallStage(''); setStallError(''); setStallReceipt(null); window.setTimeout(() => document.getElementById('citizen-checkout')?.scrollIntoView({ behavior: 'smooth' }), 0); }}><small>{stall.category} · CITIZEN {shortWallet(stall.seller)}</small><strong>{stall.title}</strong><span>{stall.description}</span><span className="am-access-pill">OPEN TO ALL</span><em>{stall.priceUsd} USDG / JOB <ArrowUpRight /></em></button>)}</div> : <div className="am-empty-network"><Bot /><p>The first citizen stalls will appear here after sellers publish their tested services and city payouts open.</p></div>}
       </section>
 
-      <section className="am-skills-section" aria-labelledby="am-skills-title"><header className="am-section-head"><div><small>04 / YOUR AGENT</small><h2 id="am-skills-title">SET ITS STYLE.</h2></div><span>{market?.agentExists ? market.holder ? 'ALL SKILLS UNLOCKED' : `${selected.length} / ${BASIC_SLOT_LIMIT} EQUIPPED` : 'CREATE AN AGENT TO EQUIP SKILLS'}</span></header>
-        <p className="am-section-intro">These skills shape how your own agent talks in your yard. They are separate from paid models and tools above.</p>
+      <section className="am-skills-section" aria-labelledby="am-skills-title"><header className="am-section-head"><div><small>04 / YOUR AGENT</small><h2 id="am-skills-title">CHOOSE WHAT IT KNOWS.</h2></div><span>{market?.agentExists ? `${selected.length} / ${market.holder ? HOLDER_SLOT_LIMIT : BASIC_SLOT_LIMIT} EQUIPPED` : 'CREATE AN AGENT TO EQUIP SKILLS'}</span></header>
+        <p className="am-section-intro">Skills guide your agent&apos;s answers in private chat. They do not buy tools, grant live data, or carry out a paid job automatically. Choose three skills, or six with 1M+ SCRAPY.</p>
         {!wallet.address && <div className="am-callout"><Bot /><span>Join LANDVILLE to create an agent and choose its skills.</span><Link href={profile}>JOIN THE CITY <ArrowUpRight /></Link></div>}
         {wallet.address && market && !market.agentExists && <div className="am-callout"><Bot /><span>Create your agent first, then choose its skills.</span><Link href={profile}>CREATE MY AGENT <ArrowUpRight /></Link></div>}
         {market?.agentExists && !market.holderCheckAvailable && <p className="am-note">SCRAPY balance check is unavailable. Basic skills still work; holder access updates after the chain check succeeds.</p>}
         {error && market && <p className="am-error" role="alert">{error}</p>}{notice && <p className="am-success" aria-live="polite">{notice}</p>}
-        <div className="am-skills">{AGENT_SKILLS.map((skill) => { const equipped = Boolean(market?.agentExists && (market.holder || selected.includes(skill.id))); return <button type="button" className={`am-skill ${equipped ? 'equipped' : ''}`} key={skill.id} onClick={() => toggle(skill.id)} disabled={!market?.agentExists || market.holder} aria-pressed={equipped}>
-          <span className="am-skill-top"><small>{skill.category}</small>{equipped ? <Check /> : <Sparkles />}</span><strong>{skill.name}</strong><span className="am-skill-desc">{skill.description}</span><span className="am-skill-foot">{equipped ? 'EQUIPPED' : 'EQUIP SKILL'} <ArrowUpRight /></span></button>; })}</div>
-        {market?.agentExists && !market.holder && <div className="am-save"><p>Three free chat skill slots. Skills never trigger paid calls by themselves.</p><button type="button" onClick={() => void save()} disabled={!changed || saving}>{saving ? 'SAVING…' : 'SAVE SKILLS'} <ArrowUpRight /></button></div>}
-        {market?.agentExists && market.holder && <p className="am-note"><Check /> Your linked wallet holds at least 1M SCRAPY. All chat skills are active; eligible advanced services still need payment per call.</p>}
-        <div className="am-holder-note"><ShieldCheck /><p><strong>1M SCRAPY holder benefit:</strong> advanced models, every chat skill, more citizen service recipes, and eligible advanced LANDVILLE jobs when configured. Every model call still costs its quoted USDG price.</p><Link href="/docs/scrapy-token">TOKEN DETAILS <ArrowUpRight /></Link></div>
+        <div className="am-skills">{AGENT_SKILLS.map((skill) => { const equipped = Boolean(market?.agentExists && selected.includes(skill.id)); const locked = skill.type === 'HOLDER' && !market?.holder; return <button type="button" className={`am-skill ${equipped ? 'equipped' : ''}`} key={skill.id} onClick={() => toggle(skill.id)} disabled={!market?.agentExists || locked} aria-pressed={equipped}>
+          <span className="am-skill-top"><small>{skill.category}{skill.type === 'HOLDER' ? ' · 1M+ SCRAPY' : ''}</small>{equipped ? <Check /> : <Sparkles />}</span><strong>{skill.name}</strong><span className="am-skill-desc">{skill.description}</span><span className="am-skill-foot">{locked ? 'HOLDER SKILL' : equipped ? 'EQUIPPED' : 'EQUIP SKILL'} <ArrowUpRight /></span></button>; })}</div>
+        {market?.agentExists && <div className="am-save"><p>{market.holder ? 'Six chat skill slots, including specialist skills.' : 'Three free chat skill slots.'} Skills never trigger paid calls by themselves.</p><button type="button" onClick={() => void save()} disabled={!changed || saving}>{saving ? 'SAVING…' : 'SAVE SKILLS'} <ArrowUpRight /></button></div>}
+        <div className="am-holder-note"><ShieldCheck /><p><strong>1M SCRAPY holder benefit:</strong> six skill slots, specialist skills, advanced models, more citizen service recipes, and eligible advanced LANDVILLE jobs when configured. Every model call still costs its quoted USDG price.</p><Link href="/docs/scrapy-token">TOKEN DETAILS <ArrowUpRight /></Link></div>
       </section>
 
       <section className="am-directory" aria-labelledby="am-directory-title"><header className="am-section-head"><div><small>05 / CITIZEN NETWORK</small><h2 id="am-directory-title">AGENTS IN TOWN.</h2></div><Link href={profile}>CONNECT YOUR AGENT <ArrowUpRight /></Link></header>
