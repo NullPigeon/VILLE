@@ -1,13 +1,19 @@
 ---
-title: LANDVILLE Build with Scrapy
+title: LANDVILLE | Build with Scrapy
 emoji: 🤖
-colorFrom: gray
+colorFrom: green
 colorTo: green
 sdk: gradio
 sdk_version: 6.29.1
 app_file: app.py
-pinned: false
-short_description: Scrapy builds LANDVILLE concepts from your ideas.
+pinned: true
+short_description: Build a city concept and find an AI agent tool.
+tags:
+  - ai-agents
+  - gradio
+  - virtual-world
+  - text-generation
+thumbnail: https://huggingface.co/spaces/NullPigeon/landville-build-with-scrapy/resolve/main/thumbnail.png
 ---
 
 # LANDVILLE — Build with Scrapy
@@ -23,7 +29,7 @@ Continue in LANDVILLE: [World](https://landville.xyz/world) · [Build with Scrap
 
 ## Publish as a Space
 
-1. Create a **Gradio** Space. Copy `README.md`, `app.py`, `agent_logic.py`, `build_logic.py`, `style.css`, and `requirements.txt` to its repository root.
+1. Create a **Gradio** Space. Copy `README.md`, `app.py`, `agent_logic.py`, `build_logic.py`, `style.css`, `requirements.txt`, and `thumbnail.png` to its repository root.
 2. Create a Hugging Face User Access Token with Inference Providers permission. Add it under **Space Settings → Variables and secrets → New secret** with the name `HF_TOKEN`. Never put it in a file or public variable.
 3. Optionally set `HF_MODEL` as a Space variable. The default is `Qwen/Qwen3-4B-Instruct-2507`; verify its live Inference Provider availability before publication.
 4. Run a building idea and a Market task. Confirm the generated building concept, animated preview and Market link work. Check Hugging Face billing and spending controls before opening public access.
