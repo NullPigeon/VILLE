@@ -15,6 +15,7 @@ import type { PublicYard, YardMessage } from '@/lib/personal-agent';
 import { marketService, type YardMarketSuggestion } from '@/lib/market-services';
 import { externalMarketService } from '@/lib/external-market';
 import './yard-scene.css';
+import './yard-ink.css';
 
 class YardNotFoundError extends Error {}
 type MarketOrder = { serviceId: string; transaction: string | null; createdAt: string };

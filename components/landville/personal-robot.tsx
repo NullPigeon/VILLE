@@ -39,6 +39,8 @@ export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', class
       <path d="M40 48L141 44L153 142L135 166L47 169L28 146L40 48Z"
         fill={shell} stroke="#211f19" strokeWidth="7" strokeLinejoin="round" />
       <path d="M42 51 139 47 147 139 133 159 48 163 33 143Z" stroke="#D5B881" strokeWidth="2" />
+      <path d="m37 99 13 7m-11 2 12 6m-9 4 9 5m-8 3 12 7m85-35-11 8m13 2-13 9m12 1-11 9m9 1-12 10" stroke="#131b15" strokeWidth="2" strokeLinecap="round" opacity=".6" />
+      <path d="m54 151 11-2m51-4 12-6m-50 14 9-1" stroke="#f2d49a" strokeWidth="1.5" opacity=".7" />
       <path d="M39 61L140 57L145 91L34 96L39 61Z" fill="#111A14" stroke="#A38653" strokeWidth="4" />
       <path d="M47 72H66L75 82L65 87H45M133 70H113L104 81L115 86H135"
         fill={presentation === 'FEMININE' ? '#FFCF7D' : glow} className="personal-robot-eyes" />

@@ -9,9 +9,13 @@ export function WorldFrontierArt({ height }: { height: number }) {
     <g className="frontier-cliffs" stroke="#57402b" strokeWidth="3" strokeLinejoin="round">
       <path d="M0 0H369L312 26 286 54 182 46 117 84 39 64 0 92Z" fill="#b78048" />
       <path d="M0 0H369L310 13 276 32 178 27 110 59 44 42 0 64Z" fill="#e6b56b" />
+      <path d="M0 64 39 64 117 84 182 46 286 54 312 26 369 0h-69l-47 38-72-10-77 39-63-21L0 75Z" fill="url(#frontier-hatch)" stroke="none" />
       <path d="M39 64 44 42M117 84 110 59M182 46 178 27M286 54 276 32" />
+      <path d="m6 70 28 5m42-4 30 13m51-35 26-8m81 4 19 2m-126-3 8 14m-72 7 4 13" fill="none" stroke="#30291f" strokeWidth="2" strokeLinecap="round" />
       <path d={`M1600 ${height}H1284L1325 ${height-30} 1341 ${height-61} 1440 ${height-42} 1485 ${height-91} 1570 ${height-112} 1600 ${height-68}Z`} fill="#8d573a" />
       <path d={`M1600 ${height-68} 1570 ${height-112} 1485 ${height-91} 1440 ${height-42} 1464 ${height-24} 1506 ${height-65} 1561 ${height-75} 1600 ${height-31}Z`} fill="#d89b56" />
+      <path d={`M1284 ${height} 1325 ${height-30} 1341 ${height-61} 1440 ${height-42} 1485 ${height-91} 1570 ${height-112} 1600 ${height-68}V${height}Z`} fill="url(#frontier-hatch)" stroke="none" />
+      <path d={`m1320 ${height-23} 26-13m69-14 18 8m47-23 23-12m37-1 21 10m-135-22 9 15`} fill="none" stroke="#3d2d24" strokeWidth="2" strokeLinecap="round" />
     </g>
     <g transform="translate(727 73)" stroke="#302d20" strokeWidth="4" strokeLinejoin="round">
       <path d="M-8 42 2 99H22L20 44M139 36 144 94H163L160 34" fill="#756749" />
@@ -28,6 +32,7 @@ export function WorldFrontierArt({ height }: { height: number }) {
       <path d="m-43 46 105 17 24-19-74-39Z" fill="#45351f" opacity=".3" stroke="none" />
       <path d="m-26-56-15 111M26-56l15 111M-36 35h72M-32 6h64M-27-32l60 67M27-32-60 67" fill="none" />
       <path d="M-40-115v60q40 27 80 0v-60" fill="#b76837" />
+      <path d="M-40-92q40 23 80 0v38q-39 26-80 0Z" fill="url(#frontier-hatch)" stroke="none" />
       <path d="M-40-88q40 23 80 0v18q-40 23-80 0Z" fill="#ddac5d" />
       <ellipse cy="-115" rx="40" ry="16" fill="#edc983" />
       <path d="M-28-120q25-11 50-2M-27-101v15M-27-64v10" stroke="#f0c57a" strokeWidth="3" fill="none" />
@@ -53,6 +58,10 @@ export function WorldFrontierArt({ height }: { height: number }) {
     </g>
     <g stroke="#5b432b" strokeWidth="2" fill="none" opacity=".55">
       <path d={`M342 ${height*.43}l21 4-9 12 17 9m-29-21-12 10M1094 ${height*.61}l-17 9 7 18-24 4M1299 ${height*.42}l19-6 13 9-2 12M315 ${height*.7}l13-18 24 5 12-10`} />
+    </g>
+    <g className="frontier-ink-flecks" stroke="#33291f" strokeLinecap="round" fill="none" opacity=".55">
+      <path d={`m114 ${height*.29} 24-8m-17 15 14-5m46-12 9-3m286 ${height*.19} 22-6m-12 11 14-4m595 ${height*.22} 30-6m-16 13 19-4m345 ${height*.64} 19-5m-10 12 12-3`} strokeWidth="2.5" />
+      <path d={`m223 ${height*.82} 12-3m45 9 9-2m389 ${height*.51} 16-2m49 7 8-3m497 ${height*.46} 17-5`} strokeWidth="1.4" />
     </g>
     {[[559,.1],[1298,.82],[249,.57],[1062,.94]].map(([x,y],index)=><g key={index} transform={`translate(${x} ${height*y})`} stroke="#453724" strokeWidth="2.5" strokeLinejoin="round">
       <path d="m-23 7 15-22 29 3 17 21-12 16-34-1Z" fill="#b8814c" /><path d="m-23 7 15-22 29 3-9 16Z" fill="#e7b86c" /><path d="m12 4 26 5-12 16-19-7Z" fill="#79553a" /><path d="m-8-15 20 19-5 14" fill="none" />

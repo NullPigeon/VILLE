@@ -30,6 +30,11 @@ export function WorldCityScenery({ height }: { height: number }) {
           />
           <circle cx="31" cy="16" r=".8" fill="#503820" opacity=".25" />
         </pattern>
+        <pattern id="city-desert-ink" width="51" height="43" patternUnits="userSpaceOnUse">
+          <path d="m3 9 12-3m-9 7 7-2m22 19 11-4m-9 8 5-1M26 4l4 1M17 35l7-2" fill="none" stroke="#352719" strokeWidth="1.8" strokeLinecap="round" opacity=".37" />
+          <path d="m28 11 8-2m-29 16 13-3m22-4 6-2" fill="none" stroke="#f1d292" strokeWidth="1.3" opacity=".43" />
+          <circle cx="36" cy="4" r="1.5" fill="#392d20" opacity=".36" />
+        </pattern>
         <pattern
           id="city-paving"
           width="24"
@@ -136,6 +141,17 @@ export function WorldCityScenery({ height }: { height: number }) {
             <path d="M 5 3 L 23 1 L 13 12 L -7 14 Z" fill="#7c613f" />
           </g>
         ))}
+      </g>
+
+      <g className="city-ink-terrain" fill="url(#city-desert-ink)" stroke="none" pointerEvents="none">
+        <path d="M0 0h466c-119 46-195 90-306 124L0 145Z" />
+        <path d="M1600 0h-326c57 69 186 74 211 157 16 52 81 73 115 92Z" />
+        <path d={`M0 ${height}v-180c112 4 190-38 270 56 91 103 262 31 356 124Z`} />
+        <path d={`M1600 ${height}v-192c-95-79-124 22-216 39-73 13-123 65-178 153Z`} />
+      </g>
+      <g className="city-ink-cracks" fill="none" stroke="#39291d" strokeLinecap="round" strokeLinejoin="round">
+        <path d={`M171 ${height*.18}l32-11 18 7 22-14m-22 14-3 17M1320 ${height*.21}l-24 12-13-5-19 19m19-19 5 17M324 ${height*.78}l37-8 18 14 16-6m-16 6-7 18M1286 ${height*.76}l-31 12-14-7-25 18`} strokeWidth="3.5" opacity=".56" />
+        <path d={`M100 ${height*.26}l13-3m24 12 9-4M1390 ${height*.12}l19 4m-16 6 9 2M475 ${height*.92}l17-4m865-33 12-7`} strokeWidth="1.5" opacity=".43" />
       </g>
 
       <path

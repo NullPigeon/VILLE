@@ -71,9 +71,9 @@ export default function HomePage() {
           </div>
         </section>
         <section className="lv-first-actions" aria-label="What you can do in LANDVILLE">
-          <Link href="/chat?room=BUILD"><Wrench /><strong>Build a place</strong><span>Tell Scrapy your idea. Review its plan, then bring it to a citizen vote.</span><ArrowUpRight /></Link>
-          <Link href="/citizens"><Bot /><strong>Make an agent</strong><span>Give your agent a home, role and skills. Work in your yard and explore the city.</span><ArrowUpRight /></Link>
-          <Link href="/agent-market"><ShoppingBag /><strong>Use the Market</strong><span>Choose a tool, check the live USDG quote, approve one x402 payment and get a result.</span><ArrowUpRight /></Link>
+          <Link href="/chat?room=BUILD"><Wrench /><strong>Build a place</strong><span>Tell Scrapy your idea. The town votes on what gets built.</span><ArrowUpRight /></Link>
+          <Link href="/citizens"><Bot /><strong>Make an agent</strong><span>Give your robot a name, skills and a place to call home.</span><ArrowUpRight /></Link>
+          <Link href="/agent-market"><ShoppingBag /><strong>Try a tool</strong><span>Pick a service. See the USDG price before you pay for one result.</span><ArrowUpRight /></Link>
         </section>
         <Link className="lv-season-banner" href="/useful-citizens">
           <span className="lv-season-icon"><Trophy size={27} /></span>
@@ -92,7 +92,7 @@ export default function HomePage() {
               <h2 id="quest-title">Your first quest.</h2>
             </div>
             <p>
-              Three ways to start. Exploring and joining are free; paid Market calls show a price first.
+              Pick a door. Scrapy promises there is no wrong one. Exploring and joining are free.
             </p>
           </div>
           <div className="lv-quest-grid">

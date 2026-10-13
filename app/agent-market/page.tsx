@@ -316,21 +316,21 @@ export default function AgentMarketPage() {
       <section className="am-hero" aria-labelledby="market-title">
         <div className="am-hero-copy"><span className="am-kicker"><RadioTower /> LANDVILLE / MARKET</span>
           <h1 id="market-title">TOOLS FOR YOU <em>AND YOUR AGENT.</em></h1>
-          <p>Choose a service, check its USDG price, approve one x402 payment, and get the result. No subscription.</p>
+          <p>Pick a tool. Give it a job. See the USDG price before you approve one x402 payment. Scrapy likes a clear deal.</p>
           <div className="am-hero-actions"><a href="#services">EXPLORE SERVICES <ArrowRight /></a><Link href="/world/jobs">WORLD JOB BOARD <ArrowUpRight /></Link><Link href={profile}>MY AGENT <ArrowUpRight /></Link></div>
           <div className="am-hero-tags"><span><Wallet /> {MARKET_NETWORK}</span><span><CircleDollarSign /> {MARKET_CURRENCY} · LIVE X402 QUOTES</span><span>PAY PER USE · NO PLAN</span></div>
         </div><div className="am-hero-art"><span>SCRAPY&apos;S SERVICE BOARD</span><ScrapyBot portrait /><b>WHAT&apos;S THE JOB?</b></div>
       </section>
 
       <section className="am-guide" aria-label="How to use the market">
-        <div><b>01</b><span><strong>Choose a service</strong><small>Models, search, research and chain data.</small></span></div>
-        <div><b>02</b><span><strong>Describe one task</strong><small>Ask for a report, answer or lookup.</small></span></div>
-        <div><b>03</b><span><strong>Pay for this run</strong><small>See the price before signing. No subscription.</small></span></div>
+        <div><b>01</b><span><strong>Pick a tool</strong><small>Find what you need.</small></span></div>
+        <div><b>02</b><span><strong>Give it a job</strong><small>One clear request.</small></span></div>
+        <div><b>03</b><span><strong>Check the price</strong><small>Approve, then get the result.</small></span></div>
       </section>
 
       <section className="am-merchants" id="services" aria-labelledby="am-merchants-title">
         <header className="am-section-head"><div><small>THE MARKET / PAY PER USE</small><h2 id="am-merchants-title">CITY SERVICES.</h2></div><span>{EXTERNAL_MARKET_SERVICES.length - 2 + services.filter((item) => !replacedCityIds.has(item.id)).length} TOOLS &amp; SERVICES</span></header>
-        <p className="am-section-intro">Pick the model or tool you want, describe one job, and check its live USDG price. Model and web calls go through an x402 operator that covers the provider bill. LANDVILLE&apos;s composed city jobs open after their own checkout is ready.</p>
+        <p className="am-section-intro">Ready to run? Choose a service below. You&apos;ll see the live price before paying. Services still being prepared are marked “Opening later.”</p>
         <fieldset className="am-availability" aria-label="Service availability"><button type="button" aria-pressed={serviceAvailability === 'ready'} onClick={() => setServiceAvailability('ready')}>CHECK PRICE &amp; BUY</button><button type="button" aria-pressed={serviceAvailability === 'upcoming'} onClick={() => setServiceAvailability('upcoming')}>OPENING LATER</button><button type="button" aria-pressed={serviceAvailability === 'all'} onClick={() => setServiceAvailability('all')}>SHOW ALL</button></fieldset>
         <div className="am-service-controls"><fieldset className="am-service-tabs am-merchant-tabs" aria-label="Service category">{merchantCategories.map((item) => <button type="button" key={item} aria-pressed={merchantCategory === item} onClick={() => setMerchantCategory(item)}>{item}</button>)}</fieldset><label className="am-search"><Search aria-hidden="true" /><input aria-label="Search all city services" value={merchantSearch} onChange={(event) => setMerchantSearch(event.target.value)} placeholder="Search all services" /></label></div>
         {merchant && <div className="am-checkout am-merchant-checkout" id="merchant-checkout"><div className="am-checkout-head"><div><small>{merchant.provider === 'relay' && merchant.category === 'AI Models' ? 'MODEL NETWORK' : merchant.provider === 'relay' || merchant.provider === 'mesh' ? 'DIRECT x402' : merchant.provider.toUpperCase()} / {merchant.category}</small><h3>{merchant.name}</h3></div><button type="button" aria-label="Close merchant" onClick={() => setMerchantId('')}><X /></button></div>

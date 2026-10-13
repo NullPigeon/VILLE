@@ -141,7 +141,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
             <p>
               {requestedWallet
                 ? 'Your robot, your builds, your place in the city.'
-                : 'Join with email or a wallet. No tokens needed.'}
+                : 'Join with email or a wallet. No tokens needed. Scrapy saved you a spot.'}
             </p>
             <div className={styles.mastLinks}>
               <Link href="/world">
@@ -230,10 +230,10 @@ export function CitizenProfile({ identity }: { identity?: string }) {
                 )}
               </h2>
               <p>
-                Create your robot. Bring an idea. Help build the town.
+                Join the city. Make a robot. See where the day takes you.
               </p>
               <p className={styles.scrapyNote}>
-                “Bring an email. Bring a wallet if you want power.”{' '}
+                “Bring an idea. I have spare bolts.”{' '}
                 <span>— SCRAPY</span>
               </p>
             </div>
