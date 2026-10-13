@@ -144,12 +144,8 @@ export function CitizenProfile({ identity }: { identity?: string }) {
                 : 'Join with email or a wallet. No tokens needed. Scrapy saved you a spot.'}
             </p>
             <div className={styles.mastLinks}>
-              <Link href="/world">
-                <Map /> EXPLORE THE CITY <ArrowRight />
-              </Link>
-              <Link href="/world#yards">
-                CITIZEN YARDS <ArrowUpRight />
-              </Link>
+              {!requestedWallet && <a href="#join-city"><ArrowRight /> JOIN FREE</a>}
+              <Link href="/world"><Map /> EXPLORE THE CITY <ArrowUpRight /></Link>
             </div>
           </div>
           <div className={styles.mastGraphic} aria-hidden="true">
@@ -238,7 +234,7 @@ export function CitizenProfile({ identity }: { identity?: string }) {
               </p>
             </div>
           )}
-          <div className={styles.passport}>
+          <div className={styles.passport} id={!requestedWallet ? 'join-city' : undefined}>
             <span className={styles.label}>
               <ShieldCheck />{' '}
               {isOwnWallet

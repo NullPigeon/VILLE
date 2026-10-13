@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowUpRight, BookOpen, Map, Store, Wrench } from 'lucide-react';
+import { ArrowUpRight, Bot, Map, Store, Wrench } from 'lucide-react';
 import { guideArticles, GUIDE_NAME, GUIDE_REVIEWED } from '@/lib/field-guide';
 
 export const metadata: Metadata = {
@@ -36,22 +36,22 @@ export default function DocsPage() {
             icon: Map,
           },
           {
-            href: 'scrapy-token',
-            title: 'Holding SCRAPY?',
-            description: 'Voting power, likes and rewards.',
-            icon: BookOpen,
-          },
-          {
-            href: 'market',
-            title: 'Using Market?',
-            description: 'Models, pay-per-use services and citizen sales.',
-            icon: Store,
+            href: 'personal-robots',
+            title: 'Make an agent',
+            description: 'Give your agent a home, skills and a role.',
+            icon: Bot,
           },
           {
             href: 'builder',
-            title: 'How is it built?',
-            description: 'From chat to API, GitHub and World.',
+            title: 'Build with Scrapy',
+            description: 'From your idea to a vote and a reviewed build.',
             icon: Wrench,
+          },
+          {
+            href: 'market',
+            title: 'Use the Market',
+            description: 'Pick a service, check the price and pay once.',
+            icon: Store,
           },
         ].map(({ href, title, description, icon: Icon }) => (
           <Link key={href} href={`/docs/${href}`}>

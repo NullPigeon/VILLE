@@ -3,7 +3,7 @@ import { CitizenProfile } from '@/components/landville/citizen-profile';
 
 export const metadata: Metadata = {
   title: 'Your Citizen File — LANDVILLE',
-  description: 'Bring a wallet. Become a citizen. Give the town something worth building.',
+  description: 'Join LANDVILLE with email or a wallet, create your agent and make a home in the city.',
 };
 
 export default function CitizensPage() {

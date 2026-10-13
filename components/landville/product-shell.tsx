@@ -42,7 +42,7 @@ export function ProductShell({ title, eyebrow, actions, children, immersive = fa
   const wallet = useWallet();
   const town = useLandville();
   const [open, setOpen] = useState(false);
-  const profileHref = wallet.address ? `/citizens/${wallet.address}` : '/citizens';
+  const profileHref = wallet.address ? `/citizens/${wallet.address}` : '/citizens#join-city';
   const mobileNav = nav.filter((item) => ['/world', '/agent-market', '/world/jobs', '/chat', '/citizens'].includes(item.href));
   const current = [...nav].sort((a, b) => b.href.length - a.href.length).find((item) => pathname.startsWith(item.href));
   return <div className={`product-root city-product${pathname.startsWith('/docs') ? '' : ' scrapy-frontier'}${immersive ? ' city-immersive' : ''}`}>

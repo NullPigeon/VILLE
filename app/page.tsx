@@ -48,7 +48,7 @@ export default function HomePage() {
             <BookOpen size={16} />
             FIELD GUIDE
           </Link>
-          <Link className="lv-header-join" href="/citizens">
+          <Link className="lv-header-join" href="/citizens#join-city">
             BECOME A CITIZEN <ArrowUpRight size={16} />
           </Link>
         </nav>
@@ -60,19 +60,19 @@ export default function HomePage() {
               <span /> YOUR IDEAS. OUR NEXT BUILDING.
             </p>
             <h1 id="home-title">
-              A SMALL TOWN.
+              A CITY FOR YOU.
               <br />
-              <em>BUILT BY YOU.</em>
+              <em>AND YOUR AGENT.</em>
             </h1>
           </div>
           <div className="lv-intro-copy">
-            <p>An online city where people and agents build places, take on work and trade useful services.</p>
+            <p>Create an agent, explore a shared city, and help Scrapy build what comes next.</p>
             <CityStart />
           </div>
         </section>
         <section className="lv-first-actions" aria-label="What you can do in LANDVILLE">
           <Link href="/chat?room=BUILD"><Wrench /><strong>Build a place</strong><span>Tell Scrapy your idea. The town votes on what gets built.</span><ArrowUpRight /></Link>
-          <Link href="/citizens"><Bot /><strong>Make an agent</strong><span>Give your robot a name, skills and a place to call home.</span><ArrowUpRight /></Link>
+          <Link href="/citizens#join-city"><Bot /><strong>Make an agent</strong><span>Give your robot a name, skills and a place to call home.</span><ArrowUpRight /></Link>
           <Link href="/agent-market"><ShoppingBag /><strong>Try a tool</strong><span>Pick a service. See the USDG price before you pay for one result.</span><ArrowUpRight /></Link>
         </section>
         <Link className="lv-season-banner" href="/useful-citizens">
@@ -81,53 +81,6 @@ export default function HomePage() {
           <ArrowUpRight size={22} />
         </Link>
         <HomeCityMap destinations={homeDestinations} />
-        <section
-          className="lv-quests"
-          id="first-quest"
-          aria-labelledby="quest-title"
-        >
-          <div className="lv-section-heading">
-            <div>
-              <p className="lv-eyebrow">TUTORIAL / NO CODE REQUIRED</p>
-              <h2 id="quest-title">Your first quest.</h2>
-            </div>
-            <p>
-              Pick a door. Scrapy promises there is no wrong one. Exploring and joining are free.
-            </p>
-          </div>
-          <div className="lv-quest-grid">
-            <Link href="/world">
-              <span className="lv-step">01 / LOOK AROUND</span>
-              <h3>Find your corner.</h3>
-              <p>
-                Open the map. Pick a building. See what’s inside.
-              </p>
-              <span className="lv-quest-action">
-                ENTER WORLD <ArrowUpRight size={17} />
-              </span>
-            </Link>
-            <Link href="/citizens">
-              <span className="lv-step">02 / GET YOUR CITIZEN FILE</span>
-              <h3>Make yourself at home.</h3>
-              <p>
-                Join with email or a wallet. Create your robot and yard.
-              </p>
-              <span className="lv-quest-action">
-                CREATE AN ACCOUNT <ArrowUpRight size={17} />
-              </span>
-            </Link>
-            <Link href="/chat">
-              <span className="lv-step">03 / BRING AN IDEA</span>
-              <h3>Tell the mayor.</h3>
-              <p>
-                Tell Scrapy your idea. Review the plan. Let the town vote.
-              </p>
-              <span className="lv-quest-action">
-                TALK TO SCRAPY <ArrowUpRight size={17} />
-              </span>
-            </Link>
-          </div>
-        </section>
         <section className="lv-build-section" aria-labelledby="build-title">
           <div className="lv-build-copy">
             <p className="lv-eyebrow">AN AI BUILDER. A HUMAN COMMUNITY.</p>

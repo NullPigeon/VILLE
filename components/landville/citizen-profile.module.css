@@ -217,6 +217,7 @@
 .passport {
   height: 100%;
   min-width: 0;
+  scroll-margin-top: 24px;
   padding: 28px;
   border: 1px solid #4b6447;
   background: #111b14;

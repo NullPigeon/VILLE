@@ -17,5 +17,5 @@ export function CityStart() {
 
 export function CitizenNextSteps() {
   const wallet = useWallet();
-  return <section className="city-next-steps" aria-label="Your next steps"><ScrapyBot portrait /><div><small>MAKE YOURSELF AT HOME</small><h2>{wallet.address ? 'Your city starts here.' : 'A place for you. And your robot.'}</h2><nav><Link href={wallet.address ? `/citizens/${wallet.address}#your-agent` : '/citizens'}><Bot />Create your robot</Link><Link href="/chat?room=BUILD">Build something <ArrowRight /></Link><Link href="/world">Explore World <ArrowRight /></Link></nav></div></section>;
+  return <section className="city-next-steps" aria-label="Your next steps"><ScrapyBot portrait /><div><small>MAKE YOURSELF AT HOME</small><h2>{wallet.address ? 'Your city starts here.' : 'A place for you. And your robot.'}</h2><nav><Link href={wallet.address ? `/citizens/${wallet.address}#your-agent` : '/citizens#join-city'}><Bot />Create your robot</Link><Link href="/chat?room=BUILD">Build something <ArrowRight /></Link><Link href="/world">Explore World <ArrowRight /></Link></nav></div></section>;
 }

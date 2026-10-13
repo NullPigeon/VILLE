@@ -34,3 +34,4 @@
 .city-product .city-world-welcome h1{font:900 42px/1.01 Arial,sans-serif;letter-spacing:-.05em}.city-product .city-welcome-actions button{border:3px solid #172010;border-radius:2px;box-shadow:4px 5px 0 #15200f}
 @media(max-width:760px){.city-product .world-city-status>b{font-size:14px}.city-product .city-world-welcome h1{font-size:32px}.city-product .world-district-travel{box-shadow:3px 4px 0 #0e180c}.city-product .world-explorer:after{background:radial-gradient(ellipse at center,transparent 45%,#17191135 100%)}}
 @media(prefers-reduced-motion:reduce){.city-product .world-map-scene .world-object-card,.city-product .world-map-scene .world-district-tag{transition:none}}
+.city-product .city-welcome-actions>a{border:3px solid #172010;border-radius:2px;box-shadow:4px 5px 0 #15200f}
