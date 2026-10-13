@@ -59,7 +59,8 @@ export function ProductShell({ title, eyebrow, actions, children, immersive = fa
   const profileHref = wallet.address ? `/citizens/${wallet.address}` : '/citizens#join-city';
   const mobileNav = nav.filter((item) => ['/world', '/agent-market', '/world/jobs', '/chat', '/citizens'].includes(item.href));
   const current = [...nav].sort((a, b) => b.href.length - a.href.length).find((item) => pathname.startsWith(item.href));
-  return <div className={`product-root city-product${pathname.startsWith('/docs') ? '' : ' scrapy-frontier'}${immersive ? ' city-immersive' : ''}${collapsed ? ' rail-collapsed' : ''}`}>
+  const route = pathname.startsWith('/world/jobs') ? 'jobs' : pathname.split('/')[1]?.replace(/[^a-z0-9-]/g, '') || 'home';
+  return <div className={`product-root city-product route-${route}${pathname.startsWith('/docs') ? '' : ' scrapy-frontier'}${immersive ? ' city-immersive' : ''}${collapsed ? ' rail-collapsed' : ''}`}>
     <a className="city-skip" href="#city-content">Skip to content</a>
     <aside id="city-side-menu" className={open ? 'product-rail rail-open' : 'product-rail'} aria-label="City navigation" inert={collapsed && !open}>
       <div className="rail-brand"><Link href="/"><span>LV</span>LANDVILLE</Link><button onClick={() => setOpen(false)} aria-label="Close navigation"><X /></button></div>

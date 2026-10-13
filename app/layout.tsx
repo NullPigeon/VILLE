@@ -8,6 +8,7 @@ import './landing-chaos.css';
 import './world-constructor.css';
 import './city-experience.css';
 import './scrapy-frontier.css';
+import './city-comic-finish.css';
 import { LandvilleProvider } from '@/components/landville/provider';
 import { WalletProvider } from '@/components/landville/wallet-provider';
 import { MayorPresence } from '@/components/landville/mayor-presence';
@@ -21,13 +22,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'LANDVILLE — A City for People and AI Agents',
     description: 'Build places with Scrapy, create an agent, and trade useful services in a living online city.',
-    images: ['/landville-reference.png'],
+    images: ['/landville-city-panorama.png'],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'LANDVILLE — A City for People and AI Agents',
     description: 'Build places with Scrapy, create an agent, and trade useful services in a living online city.',
-    images: ['/landville-reference.png'],
+    images: ['/landville-city-panorama.png'],
   },
 };
 

@@ -1,4 +1,5 @@
 import type { HeroSkin } from '@/lib/world-presence';
+import { useId } from 'react';
 export { HERO_SKINS } from '@/lib/world-presence';
 export type { HeroSkin } from '@/lib/world-presence';
 
@@ -17,7 +18,13 @@ const palettes = {
 export function GameHero({ skin = 'SCAVENGER', className = '' }: { skin?: HeroSkin; className?: string }) {
   const ink = '#21251b';
   const p = palettes[skin];
+  const hatch = `hero-hatch-${useId().replace(/:/g, '')}`;
   return <svg className={`game-hero ${className}`} viewBox="0 0 92 136" fill="none" aria-label={`${HERO_SKIN_LABELS[skin]} city hero`}>
+    <defs>
+      <pattern id={hatch} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
+        <path d="M0 0h3M0 3h1" stroke="#10160f" strokeWidth="1" opacity=".54" />
+      </pattern>
+    </defs>
     <ellipse cx="46" cy="128" rx="30" ry="6" fill="#292d1c" opacity=".32" />
     <g className="game-hero-legs">
       <path d="M31 91 29 119 39 121 46 101 52 121 62 119 60 90Z" fill={p.shade} stroke={ink} strokeWidth="4" strokeLinejoin="round" />
@@ -26,6 +33,7 @@ export function GameHero({ skin = 'SCAVENGER', className = '' }: { skin?: HeroSk
     </g>
     <g className="game-hero-body">
       <path d="m28 51-11 9 5 34 12 4 12-9 13 9 12-5 5-32-13-10Z" fill={p.coat} stroke={ink} strokeWidth="4" strokeLinejoin="round" />
+      <path d="m28 51-11 9 5 34 12 4 12-9 13 9 12-5 5-32-13-10Z" fill={`url(#${hatch})`} opacity=".5" />
       <path d="m26 56 20 13 20-13-7 30-13 11-13-11Z" fill={p.shade} stroke={ink} strokeWidth="3" />
       <path d="m25 65 8 5m-7 3 10 6m-9 3 7 4m31-24-8 8m12-2-9 10m8 1-6 6" stroke={ink} strokeWidth="1.8" strokeLinecap="round" opacity=".72" />
       <path d="m34 58 7 4m12-1 8-5m-37 27 3 5m41-10-4 7" stroke={p.trim} strokeWidth="1.6" opacity=".8" />
@@ -38,6 +46,7 @@ export function GameHero({ skin = 'SCAVENGER', className = '' }: { skin?: HeroSk
     </g>
     <g className="game-hero-head">
       <path d="M25 32q-2-21 20-25 24 0 25 23l-6 22-18 10-18-10Z" fill={p.hood} stroke={ink} strokeWidth="4" strokeLinejoin="round" />
+      <path d="M25 32q-2-21 20-25 24 0 25 23l-6 22-18 10-18-10Z" fill={`url(#${hatch})`} opacity=".5" />
       <path d="M30 33q3-13 16-14 14 0 18 14l-2 16-17 7-15-7Z" fill="#a77955" stroke={ink} strokeWidth="3" />
       <path d="M29 31 22 27l8-13 13-7 22 6 7 16-10 2-4-9-16-3-10 6Z" fill={p.hood} stroke={ink} strokeWidth="3" />
       <path d="m27 23 12-6m-8 11 15-8m10-7 9 6m-6-2 8 7" stroke={ink} strokeWidth="1.5" strokeLinecap="round" opacity=".65" />
@@ -46,6 +55,8 @@ export function GameHero({ skin = 'SCAVENGER', className = '' }: { skin?: HeroSk
       <path d="m36 50 9 6 12-6" stroke={ink} strokeWidth="3" strokeLinecap="round" />
       <path d="M24 30 15 36l5 10 9-3M68 29l9 6-5 11-8-3" fill={p.trim} stroke={ink} strokeWidth="3" />
       <path d="m32 13 10-5 20 4" stroke={p.glow} strokeWidth="3" strokeLinecap="round" />
+      <path d="m30 19 7-4m-9 19 3-5m34 1 3-6M28 55l10 7m20-1 7-6" stroke="#f5dfaa" strokeWidth="1.8" strokeLinecap="round" opacity=".8" />
+      <circle cx="27" cy="42" r="1.5" fill="#11190f" /><circle cx="66" cy="42" r="1.5" fill="#11190f" />
     </g>
     {skin === 'SCAVENGER' && <g><path d="m68 56 13-10 6 22-13 7" fill="#81704f" stroke={ink} strokeWidth="3" /><path d="m75 52 7 11" stroke={p.glow} strokeWidth="3" /></g>}
     {skin === 'ROADRUNNER' && <g><path d="m24 17-10-8 8 18m45-10 11-8-7 20" fill={p.trim} stroke={ink} strokeWidth="3" /><path d="m7 69 8-4m-9 13 7-2" stroke={p.glow} strokeWidth="3" /></g>}

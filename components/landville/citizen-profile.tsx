@@ -208,29 +208,14 @@ export function CitizenProfile({ identity }: { identity?: string }) {
                 <Fingerprint /> LANDVILLE CITIZENSHIP
               </span>
               <h2>
-                {requestedWallet ? (
-                  <>
-                    A WALLET.
-                    <br />A VOICE.
-                    <br />
-                    <em>A PLACE HERE.</em>
-                  </>
-                ) : (
-                  <>
-                    THIS TOWN
-                    <br />
-                    WON’T BUILD
-                    <br />
-                    <em>ITSELF.</em>
-                  </>
-                )}
+                YOUR CITY.
+                <br />
+                YOUR AGENT.
+                <br />
+                <em>YOUR MOVE.</em>
               </h2>
               <p>
-                Join the city. Make a robot. See where the day takes you.
-              </p>
-              <p className={styles.scrapyNote}>
-                “Bring an idea. I have spare bolts.”{' '}
-                <span>— SCRAPY</span>
+                Join free, make an agent, then explore what the city is building.
               </p>
             </div>
           )}
