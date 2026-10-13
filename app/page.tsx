@@ -71,7 +71,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="lv-intro-art">
-            <Image src="/landville-city-panorama.png" alt="An illustrated LANDVILLE city square, where people and robots gather around Scrapy's workshop" fill priority sizes="(max-width: 760px) 100vw, 55vw" />
+            <Image src="/landville-citizens-workshop.png" alt="LANDVILLE citizens and their agents planning a new district together" fill priority sizes="(max-width: 760px) 100vw, 55vw" />
             <span className="lv-art-stamp">LANDVILLE <b>01 / THE CITY IS OPEN</b></span>
             <span className="lv-art-caption">HUMANS + AGENTS<br />BUILD THE NEXT BLOCK.</span>
           </div>
@@ -101,6 +101,11 @@ export default function HomePage() {
             <Link className="lv-text-link" href="/docs/module-capabilities">
               SEE WHAT SCRAPY CAN BUILD <ArrowUpRight size={16} />
             </Link>
+            <div className="lv-scrapy-poster">
+              <Image src="/landville-mayor-scrapy-brand.png" alt="Mayor Scrapy in his LANDVILLE cap and original colors" fill sizes="(max-width: 760px) 280px, 340px" />
+              <span>SCRAPY / CITIZEN 001</span>
+              <strong>BRING AN IDEA.<br />I'LL BRING THE TOOLS.</strong>
+            </div>
           </div>
           <ol className="lv-build-steps">
             <li>

@@ -1,0 +1,199 @@
+/* Original LANDVILLE chapter art and ink treatment across the city. */
+.scrapy-frontier.lv-home .lv-intro {
+  border-color: #090f0a;
+  box-shadow: 11px 13px 0 #060b07, 0 0 0 2px #e3c789;
+}
+
+.scrapy-frontier.lv-home .lv-intro-story {
+  background:
+    radial-gradient(ellipse at 100% 18%, #d7b37120, transparent 42%),
+    repeating-linear-gradient(127deg, transparent 0 46px, #edd69a11 47px 48px, transparent 49px 95px),
+    #202b1c;
+}
+
+.scrapy-frontier.lv-home .lv-intro-story::after {
+  content: '';
+  position: absolute;
+  inset: 12px 11px;
+  border: 1px solid #e9d6a345;
+  pointer-events: none;
+}
+
+.scrapy-frontier.lv-home .lv-intro-art img {
+  object-position: 67% center;
+  filter: contrast(1.17) saturate(1.04);
+}
+
+.scrapy-frontier.lv-home .lv-art-stamp {
+  border: 3px solid #10170e;
+  box-shadow: 5px 6px 0 #0a1009;
+}
+
+.scrapy-frontier.lv-home .lv-first-actions > a {
+  background-image:
+    repeating-linear-gradient(112deg, transparent 0 42px, #e3c87812 43px 44px, transparent 45px 92px),
+    linear-gradient(135deg, #34452d, #1b291b);
+  border-bottom-width: 7px;
+}
+
+.lv-scrapy-poster {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: min(100%, 380px);
+  height: 240px;
+  margin-top: 25px;
+  border: 4px solid #0b140c;
+  border-bottom-width: 8px;
+  background:
+    radial-gradient(circle at 78% 45%, #d3ed7359, transparent 35%),
+    repeating-linear-gradient(-17deg, transparent 0 20px, #14190d10 21px 22px),
+    #c6a772;
+  box-shadow: 7px 9px 0 #070d08;
+  transform: rotate(-1deg);
+}
+
+.lv-scrapy-poster::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  z-index: 2;
+  border: 1px solid #111a0d8c;
+  pointer-events: none;
+}
+
+.lv-scrapy-poster img {
+  object-fit: contain;
+  object-position: right bottom;
+  width: 62% !important;
+  left: auto !important;
+  filter: drop-shadow(5px 7px 0 #0b150c);
+}
+
+.lv-scrapy-poster span,
+.lv-scrapy-poster strong {
+  position: absolute;
+  left: 18px;
+  z-index: 3;
+  max-width: 58%;
+}
+
+.lv-scrapy-poster span {
+  top: 20px;
+  padding: 5px 7px;
+  color: #d7ed81;
+  background: #1b2a1b;
+  font: 900 9px/1 monospace;
+  letter-spacing: .08em;
+}
+
+.lv-scrapy-poster strong {
+  bottom: 20px;
+  color: #f7e9c3;
+  font: 900 clamp(23px, 2vw, 34px)/.88 Impact, 'Arial Narrow', Arial, sans-serif;
+  letter-spacing: .025em;
+  text-shadow: 3px 4px 0 #11180e, -1px -1px 0 #11180e;
+  transform: skew(-4deg);
+}
+
+/* Distinct illustrated chapters use the same readable left-aligned copy zone. */
+.scrapy-frontier.city-product .product-content:not(.immersive) > .product-heading {
+  background-image:
+    linear-gradient(90deg, #0e1b0ff5 0%, #152316df 39%, #17231839 100%),
+    url('/landville-city-chapter.png');
+  background-position: center, center 50%;
+  background-size: cover;
+  border-bottom-width: 10px;
+  box-shadow: 8px 10px 0 #070c08, 0 0 0 1px #e1c982;
+}
+
+.scrapy-frontier.city-product.route-chat .product-content > .product-heading,
+.scrapy-frontier.city-product.route-proposals .product-content > .product-heading,
+.scrapy-frontier.city-product.route-citizens .product-content > .product-heading,
+.scrapy-frontier.city-product.route-yard .product-content > .product-heading {
+  background-image:
+    linear-gradient(90deg, #112012f2 0%, #122013d9 43%, #1723182b 100%),
+    url('/landville-citizens-workshop.png');
+  background-position: center, center 55%;
+}
+
+.scrapy-frontier.city-product.route-agent-market .product-content > .product-heading,
+.scrapy-frontier.city-product.route-jobs .product-content > .product-heading {
+  background-position: center, center 58%;
+}
+
+.scrapy-frontier.city-product .product-content:not(.immersive) > .product-heading h1 {
+  text-shadow: 5px 6px 0 #061008, -1px -1px 0 #091209;
+}
+
+.scrapy-frontier.city-product :is(.am-hero, .jb-hero, .uc-hero, .scrapy-profile-hero) {
+  background-image:
+    linear-gradient(90deg, #142116f3 0%, #142116da 44%, #1421161c 100%),
+    url('/landville-city-chapter.png');
+  background-position: center, center 56%;
+  background-size: cover;
+}
+
+.scrapy-frontier.city-product.route-citizens .scrapy-profile-hero,
+.scrapy-frontier.city-product.route-useful-citizens .uc-hero {
+  background-image:
+    linear-gradient(90deg, #142116f4 0%, #142116d8 47%, #1421162b 100%),
+    url('/landville-citizens-workshop.png');
+  background-position: center, center 59%;
+}
+
+.scrapy-frontier.city-product.route-proposals .city-proposal-intro,
+.scrapy-frontier.city-product.route-one-scrapy .one-scrapy-banner {
+  background-image:
+    linear-gradient(90deg, #17271cf2, #17271cb0 58%, #17271c37),
+    url('/landville-city-chapter.png');
+}
+
+.scrapy-frontier.city-product.route-yard .yard-desert {
+  background-image:
+    linear-gradient(180deg, #b1865a80, #71533395),
+    url('/landville-citizens-workshop.png');
+}
+
+.scrapy-frontier.city-product .am-hero-art {
+  background:
+    radial-gradient(circle at 50% 42%, #e9f3b1, transparent 57%),
+    repeating-linear-gradient(160deg, transparent 0 30px, #221a0e18 31px 32px),
+    #d8bf8a;
+  border: 4px solid #0e160d;
+  box-shadow: 9px 11px 0 #071008, inset 0 0 0 2px #eed9a5;
+}
+
+.scrapy-frontier.city-product .am-scrapy-poster {
+  display: block;
+  width: min(88%, 180px);
+  height: 185px;
+  object-fit: contain;
+  filter: drop-shadow(4px 6px 0 #141e12);
+}
+
+.scrapy-frontier.city-product .am-hero-art > b {
+  border: 2px solid #10190e;
+  box-shadow: 4px 4px 0 #0b130c;
+}
+
+.fg-overview-hero,
+.fg-article-header {
+  background-image:
+    linear-gradient(90deg, #142318f4 0%, #142318d7 51%, #14231849 100%),
+    url('/landville-city-chapter.png');
+  background-position: center, center 58%;
+  background-size: cover;
+}
+
+@media (max-width: 760px) {
+  .scrapy-frontier.lv-home .lv-intro-art img { object-position: 72% center; }
+  .lv-scrapy-poster { height: 210px; margin-inline: auto; }
+  .lv-scrapy-poster strong { font-size: 27px; }
+  .scrapy-frontier.city-product .product-content:not(.immersive) > .product-heading { background-position: center, 66% center; }
+  .scrapy-frontier.city-product :is(.am-hero, .jb-hero, .uc-hero, .scrapy-profile-hero) { background-position: center, 72% center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-scrapy-poster { transform: none; }
+}
