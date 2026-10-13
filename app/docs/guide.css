@@ -657,3 +657,79 @@
   .fg-article>section { padding-left: 12px; }
   .fg-starter-grid>a, .fg-chapter-group a { box-shadow: 3px 4px 0 #0b130b; }
 }
+
+/* The manual belongs to the same illustrated city as the product. */
+.fg-overview-hero,
+.fg-article-header {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 46px);
+  border: 4px solid #111a0e;
+  border-bottom-width: 8px;
+  box-shadow: 7px 9px 0 #0a1109;
+  background: linear-gradient(90deg, #17261bf5 0%, #17261bd4 52%, #17261b57 100%), url('/landville-city-chapter.png') center 52% / cover;
+}
+
+.fg-article-header {
+  background-position: center, 75% 55%;
+}
+
+.fg-overview-hero::after,
+.fg-article-header::after {
+  content: 'SCRAPY / FIELD GUIDE';
+  position: absolute;
+  top: 14px;
+  right: 15px;
+  padding: 6px 8px;
+  border: 2px solid #172111;
+  background: #d7ed85;
+  color: #233318;
+  box-shadow: 3px 4px 0 #0b130a;
+  font: 900 8px/1 monospace;
+  letter-spacing: .08em;
+  transform: rotate(2deg);
+}
+
+.fg-overview-hero h1,
+.fg-article-header h1 {
+  max-width: 730px;
+  color: #f8e9c9;
+  font-family: Impact, 'Arial Narrow', Arial, sans-serif;
+  font-weight: 900;
+  letter-spacing: .01em;
+  line-height: .94;
+  text-shadow: 4px 5px 0 #0a120a;
+}
+
+.fg-overview-hero > p,
+.fg-article-header > p,
+.fg-overview-hero > small,
+.fg-article-header > small {
+  color: #f0e5c9;
+  text-shadow: 2px 2px 0 #0b120b;
+}
+
+.fg-starter-grid > a,
+.fg-chapter-group a {
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.fg-starter-grid > a:hover,
+.fg-chapter-group a:hover {
+  transform: translateY(-3px);
+  box-shadow: 6px 8px 0 #0b130b;
+}
+
+@media (max-width: 760px) {
+  .fg-overview-hero,
+  .fg-article-header { padding: 25px 19px; }
+  .fg-overview-hero::after,
+  .fg-article-header::after { font-size: 7px; top: 10px; right: 10px; }
+  .fg-overview-hero h1,
+  .fg-article-header h1 { font-size: clamp(38px, 11vw, 54px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fg-starter-grid > a,
+  .fg-chapter-group a { transition: none; }
+}

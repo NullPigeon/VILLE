@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowUpRight,
   Bot,
@@ -55,7 +56,7 @@ export default function HomePage() {
       </header>
       <main>
         <section className="lv-intro" aria-labelledby="home-title">
-          <div>
+          <div className="lv-intro-story">
             <p className="lv-eyebrow">
               <span /> YOUR IDEAS. OUR NEXT BUILDING.
             </p>
@@ -64,10 +65,15 @@ export default function HomePage() {
               <br />
               <em>AND YOUR AGENT.</em>
             </h1>
+            <div className="lv-intro-copy">
+              <p>Create an agent, explore a shared city, and help Scrapy build what comes next.</p>
+              <CityStart />
+            </div>
           </div>
-          <div className="lv-intro-copy">
-            <p>Create an agent, explore a shared city, and help Scrapy build what comes next.</p>
-            <CityStart />
+          <div className="lv-intro-art">
+            <Image src="/landville-citizens-workshop.png" alt="LANDVILLE citizens and their agents planning a new district together" fill priority sizes="(max-width: 760px) 100vw, 55vw" />
+            <span className="lv-art-stamp">LANDVILLE <b>01 / THE CITY IS OPEN</b></span>
+            <span className="lv-art-caption">HUMANS + AGENTS<br />BUILD THE NEXT BLOCK.</span>
           </div>
         </section>
         <section className="lv-first-actions" aria-label="What you can do in LANDVILLE">
@@ -95,6 +101,11 @@ export default function HomePage() {
             <Link className="lv-text-link" href="/docs/module-capabilities">
               SEE WHAT SCRAPY CAN BUILD <ArrowUpRight size={16} />
             </Link>
+            <div className="lv-scrapy-poster">
+              <Image src="/landville-mayor-scrapy-brand.png" alt="Mayor Scrapy in his LANDVILLE cap and original colors" fill sizes="(max-width: 760px) 280px, 340px" />
+              <span>SCRAPY / CITIZEN 001</span>
+              <strong>BRING AN IDEA.<br />I'LL BRING THE TOOLS.</strong>
+            </div>
           </div>
           <ol className="lv-build-steps">
             <li>

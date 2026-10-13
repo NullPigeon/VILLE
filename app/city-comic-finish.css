@@ -1,0 +1,159 @@
+/* One LANDVILLE art direction across the pages a citizen actually visits. */
+.scrapy-frontier.city-product {
+  --comic-ink: #10180e;
+  --comic-paper: #f4e3bb;
+  --comic-lime: #d8f080;
+}
+
+.scrapy-frontier.city-product .product-heading {
+  border: 4px solid var(--comic-ink);
+  border-bottom-width: 8px;
+  box-shadow: 7px 9px 0 #090f09;
+}
+
+.scrapy-frontier.city-product.route-agent-market .product-heading,
+.scrapy-frontier.city-product.route-jobs .product-heading {
+  background-image: linear-gradient(90deg, #142116fa 0%, #142116df 42%, #14211630 100%), url('/landville-city-panorama.png');
+  background-position: center, center 56%;
+}
+
+.scrapy-frontier.city-product.route-citizens .product-heading,
+.scrapy-frontier.city-product.route-yard .product-heading {
+  background-position: center, 75% 66%;
+}
+
+.scrapy-frontier.city-product.route-chat .product-heading,
+.scrapy-frontier.city-product.route-proposals .product-heading {
+  background-position: center, 35% 51%;
+}
+
+.scrapy-frontier.city-product.route-agent-market .product-heading::after { content: '02 / CITY SERVICES'; }
+.scrapy-frontier.city-product.route-jobs .product-heading::after { content: '03 / WORK BOARD'; }
+.scrapy-frontier.city-product.route-chat .product-heading::after { content: '01 / TALK TO SCRAPY'; }
+.scrapy-frontier.city-product.route-proposals .product-heading::after { content: '04 / CITY VOTE'; }
+.scrapy-frontier.city-product.route-citizens .product-heading::after { content: '05 / YOUR CITIZEN FILE'; }
+.scrapy-frontier.city-product.route-yard .product-heading::after { content: '06 / AGENT HOME'; }
+.scrapy-frontier.city-product.route-useful-citizens .product-heading::after { content: '07 / CITY LIFE'; }
+.scrapy-frontier.city-product.route-modules .product-heading::after { content: 'LANDVILLE / OPEN BUILD'; }
+.scrapy-frontier.city-product.route-admin .product-heading::after { content: 'LANDVILLE / BUILD CONTROL'; }
+
+.scrapy-frontier.city-product.route-agent-market .am-hero,
+.scrapy-frontier.city-product.route-jobs .jb-hero,
+.scrapy-frontier.city-product.route-useful-citizens .uc-hero,
+.scrapy-frontier.city-product.route-citizens .scrapy-profile-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 4px solid var(--comic-ink);
+  border-bottom-width: 9px;
+  border-radius: 2px;
+  box-shadow: 8px 10px 0 #090f09;
+  background-image: linear-gradient(90deg, #152217f5 0%, #152217d9 48%, #15221755 100%), url('/landville-city-panorama.png');
+  background-size: cover;
+  background-position: center, center 55%;
+  background-repeat: no-repeat;
+  animation: comic-frame 6s ease-in-out infinite;
+}
+
+.scrapy-frontier.city-product.route-agent-market .am-hero {
+  background-image: linear-gradient(90deg, #152217f6 0%, #152217dd 48%, #15221761 100%), url('/landville-city-panorama.png');
+  background-position: center, 61% 45%;
+}
+
+.scrapy-frontier.city-product.route-jobs .jb-hero {
+  background-image: linear-gradient(90deg, #17221af8 0%, #17221add 50%, #17221a59 100%), url('/landville-city-panorama.png');
+  background-position: center, 62% 72%;
+}
+
+.scrapy-frontier.city-product.route-citizens .scrapy-profile-hero {
+  background-position: center, 74% 55%;
+}
+
+.scrapy-frontier.city-product :is(.am-hero-copy, .jb-hero > div:first-child, .uc-hero-copy, .scrapy-profile-hero > div:first-child) {
+  position: relative;
+  z-index: 1;
+}
+
+.scrapy-frontier.city-product :is(.am-hero h1, .jb-hero h1, .uc-hero h2, .scrapy-profile-hero h2) {
+  color: #f8e9c9;
+  text-shadow: 3px 4px 0 #0c150c;
+}
+
+.scrapy-frontier.city-product.route-proposals .city-proposal-intro,
+.scrapy-frontier.city-product.route-one-scrapy .one-scrapy-banner {
+  border: 4px solid var(--comic-ink);
+  border-bottom-width: 8px;
+  border-radius: 2px;
+  box-shadow: 6px 8px 0 #090f09;
+  background-image: linear-gradient(90deg, #1a2b1eec 0%, #1a2b1ebd 55%, #1a2b1e58 100%), url('/landville-city-panorama.png');
+  background-size: cover;
+  background-position: center 52%;
+}
+
+.scrapy-frontier.city-product.route-yard .yard-desert {
+  border: 4px solid #111b0e;
+  border-bottom-width: 9px;
+  border-radius: 2px;
+  box-shadow: 7px 9px 0 #090f09;
+  background-image: linear-gradient(180deg, #c18a52b0 0%, #7d613ead 100%), url('/landville-city-panorama.png');
+  background-position: center, center 58%;
+  background-size: cover;
+}
+
+.scrapy-frontier.city-product :is(.am-merchant-card, .jb-card, .proposal-row, .uc-tier-card, .uc-prize-card) {
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.scrapy-frontier.city-product :is(.am-merchant-card, .jb-card, .proposal-row, .uc-tier-card, .uc-prize-card):hover {
+  transform: translateY(-3px);
+  box-shadow: 7px 9px 0 #090f09;
+}
+
+.scrapy-frontier.city-product :is(.am-merchant-card, .jb-card, .proposal-row):focus-within {
+  border-color: var(--comic-lime);
+  outline: 2px solid var(--comic-lime);
+  outline-offset: 2px;
+}
+
+.city-chat-quickstart {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 22px;
+  margin-bottom: 18px;
+  border: 3px solid #101a0e;
+  border-left: 9px solid #d8ed80;
+  background: linear-gradient(118deg, #253723 0%, #1d2c1d 72%);
+  box-shadow: 5px 6px 0 #091008;
+}
+
+.city-chat-quickstart small { color: #d5ed85; font: 900 9px/1.2 monospace; letter-spacing: .12em; }
+.city-chat-quickstart h2 { margin: 5px 0; color: #f4e5c0; font: 900 clamp(21px, 2.4vw, 32px)/1 Arial, sans-serif; letter-spacing: -.03em; }
+.city-chat-quickstart p { margin: 0; max-width: 480px; color: #d1d9c7; font: 13px/1.4 Arial, sans-serif; }
+.city-chat-quick-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.city-chat-quick-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 10px; border: 2px solid #0e180d; border-bottom-width: 4px; background: #d8ed80; color: #1f3018; box-shadow: 3px 4px 0 #091009; font: 900 10px/1 Arial, sans-serif; white-space: nowrap; }
+.city-chat-quick-actions button:hover, .city-chat-quick-actions button:focus-visible { transform: translateY(-2px); background: #e8f8a3; }
+.city-chat-quick-actions svg { width: 14px; height: 14px; }
+
+@keyframes comic-frame {
+  0%, 100% { box-shadow: 8px 10px 0 #090f09, inset 0 0 0 1px #e2f48b4a; }
+  50% { box-shadow: 8px 10px 0 #090f09, inset 0 0 0 3px #e2f48b32; }
+}
+
+@media (max-width: 900px) {
+  .city-chat-quickstart { display: block; }
+  .city-chat-quick-actions { justify-content: flex-start; margin-top: 14px; }
+}
+
+@media (max-width: 760px) {
+  .scrapy-frontier.city-product .product-heading::after { font-size: 7px; }
+  .scrapy-frontier.city-product :is(.am-hero, .jb-hero, .uc-hero, .scrapy-profile-hero) { box-shadow: 5px 6px 0 #090f09; animation: none; }
+  .city-chat-quickstart { padding: 15px; }
+  .city-chat-quick-actions button { font-size: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrapy-frontier.city-product :is(.am-hero, .jb-hero, .uc-hero, .scrapy-profile-hero) { animation: none; }
+  .scrapy-frontier.city-product :is(.am-merchant-card, .jb-card, .proposal-row, .uc-tier-card, .uc-prize-card) { transition: none; }
+}

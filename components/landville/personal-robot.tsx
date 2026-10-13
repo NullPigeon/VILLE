@@ -1,5 +1,6 @@
 import type { AgentPresentation } from '@/lib/personal-agent';
 import type { RobotSkin } from '@/lib/world-presence';
+import { useId } from 'react';
 
 export { ROBOT_SKINS } from '@/lib/world-presence';
 export type { RobotSkin } from '@/lib/world-presence';
@@ -26,9 +27,15 @@ export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', class
     FOREST: { glow: '#a6f2a2', shell: '#385a3d' },
   };
   const { glow, shell } = palette[skin];
+  const hatch = `robot-hatch-${useId().replace(/:/g, '')}`;
   return (
     <svg className={`personal-robot ${className}`} viewBox="0 0 180 250" fill="none"
       xmlns="http://www.w3.org/2000/svg" aria-label="Boxy LANDVILLE robot on one wheel">
+      <defs>
+        <pattern id={hatch} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(-23)">
+          <path d="M0 0h4M1 4h2" stroke="#09110c" strokeWidth="1.25" opacity=".55" />
+        </pattern>
+      </defs>
       <ellipse cx="91" cy="236" rx="45" ry="9" fill="#070907" opacity=".55" />
       <path d="M87 41V20M87 20L100 12" stroke="#9B855D" strokeWidth="6" strokeLinecap="square" />
       <circle cx="101" cy="11" r="7" fill={glow} className="personal-robot-antenna" />
@@ -38,7 +45,14 @@ export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', class
         stroke="#B49A6E" strokeWidth="8" strokeLinecap="square" />
       <path d="M40 48L141 44L153 142L135 166L47 169L28 146L40 48Z"
         fill={shell} stroke="#211f19" strokeWidth="7" strokeLinejoin="round" />
+      <path d="M40 48L141 44L153 142L135 166L47 169L28 146L40 48Z"
+        fill={`url(#${hatch})`} opacity=".62" />
       <path d="M42 51 139 47 147 139 133 159 48 163 33 143Z" stroke="#D5B881" strokeWidth="2" />
+      <path d="m43 58 10-3m-15 83 14 11m77-93 7 1m8 79-10 13M65 161l12-2m30-2 11-4" stroke="#f5deaa" strokeWidth="2" strokeLinecap="round" opacity=".78" />
+      <circle cx="45" cy="61" r="2.3" fill="#0c140e" stroke="#d9bc85" strokeWidth="1" />
+      <circle cx="135" cy="56" r="2.3" fill="#0c140e" stroke="#d9bc85" strokeWidth="1" />
+      <circle cx="48" cy="149" r="2.3" fill="#0c140e" stroke="#d9bc85" strokeWidth="1" />
+      <circle cx="132" cy="145" r="2.3" fill="#0c140e" stroke="#d9bc85" strokeWidth="1" />
       <path d="m37 99 13 7m-11 2 12 6m-9 4 9 5m-8 3 12 7m85-35-11 8m13 2-13 9m12 1-11 9m9 1-12 10" stroke="#131b15" strokeWidth="2" strokeLinecap="round" opacity=".6" />
       <path d="m54 151 11-2m51-4 12-6m-50 14 9-1" stroke="#f2d49a" strokeWidth="1.5" opacity=".7" />
       <path d="M39 61L140 57L145 91L34 96L39 61Z" fill="#111A14" stroke="#A38653" strokeWidth="4" />

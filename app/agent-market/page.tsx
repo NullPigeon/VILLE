@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, ArrowUpRight, Bot, Check, CircleDollarSign, RadioTower, Search, ShieldCheck, ShoppingBag, Sparkles, Wallet, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ProductShell } from '@/components/landville/product-shell';
-import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { MarketStallWorkshop, type MarketStallDraft } from '@/components/landville/market-stall-workshop';
 import { MarketAgentBudgets } from '@/components/landville/market-agent-budgets';
 import { useWallet } from '@/components/landville/wallet-provider';
@@ -319,7 +319,7 @@ export default function AgentMarketPage() {
           <p>Pick a tool. Give it a job. See the USDG price before you approve one x402 payment. Scrapy likes a clear deal.</p>
           <div className="am-hero-actions"><a href="#services">EXPLORE SERVICES <ArrowRight /></a><Link href="/world/jobs">WORLD JOB BOARD <ArrowUpRight /></Link><Link href={profile}>MY AGENT <ArrowUpRight /></Link></div>
           <div className="am-hero-tags"><span><Wallet /> {MARKET_NETWORK}</span><span><CircleDollarSign /> {MARKET_CURRENCY} · LIVE X402 QUOTES</span><span>PAY PER USE · NO PLAN</span></div>
-        </div><div className="am-hero-art"><span>SCRAPY&apos;S SERVICE BOARD</span><ScrapyBot portrait /><b>WHAT&apos;S THE JOB?</b></div>
+        </div><div className="am-hero-art"><span>SCRAPY&apos;S SERVICE BOARD</span><Image className="am-scrapy-poster" src="/landville-mayor-scrapy-brand.png" alt="Mayor Scrapy welcoming citizens to the Market" width={180} height={190} /><b>WHAT&apos;S THE JOB?</b></div>
       </section>
 
       <section className="am-guide" aria-label="How to use the market">
