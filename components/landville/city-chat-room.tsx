@@ -13,7 +13,11 @@ import type { ChatRoom } from '@/lib/chat-data';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 
 export type ChatSeed = { room?: ChatRoom; district?: string; idea?: string };
-const starters = ['A tiny game', 'A useful tool', 'An art space'];
+const starters = [
+  { label: 'A tiny game', idea: 'A small arcade where citizens can play one quick game together.' },
+  { label: 'A useful tool', idea: 'A public tool that helps citizens find the right city service.' },
+  { label: 'An art space', idea: 'A gallery where citizens can share and explore community artwork.' },
+];
 
 export function CityChatRoom({ room, compact = false, seed, onSeedConsumed }: { room: ChatRoom; compact?: boolean; seed?: ChatSeed; onSeedConsumed?: () => void }) {
   const wallet = useWallet();
@@ -86,7 +90,7 @@ export function CityChatRoom({ room, compact = false, seed, onSeedConsumed }: { 
       {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
       <div className="city-message-feed" ref={feed} role="log" aria-live="polite" aria-relevant="additions" tabIndex={0} aria-label={build ? 'Public build discussions' : 'Town Square messages'} onScroll={() => { if (feed.current) follow.current = feed.current.scrollHeight - feed.current.clientHeight - feed.current.scrollTop < 90; }}>
         {chat.hasMore && <button className="city-history-button" disabled={chat.loading} onClick={() => { if (feed.current) previousHeight.current = { height: feed.current.scrollHeight, top: feed.current.scrollTop }; follow.current = false; void chat.older(); }}>Load earlier messages</button>}
-        {!chat.messages.length && <div className="city-chat-empty">{build ? <Bot /> : <MessageCircle />}<h3>{chat.loading ? 'Connecting…' : chat.error ? 'Let’s reconnect.' : build ? 'What should we build?' : 'Say hello to the town.'}</h3><p>{chat.loading ? 'Loading the conversation.' : chat.error ? 'Your draft is safe here.' : build ? 'Start small. Scrapy will help shape it.' : 'Meet the people and robots behind the city.'}</p>{build && !chat.loading && !chat.error && <div className="city-starters">{starters.map((idea) => <button key={idea} onClick={() => { saveDraft(`I'd like to build ${idea.toLowerCase()} for LANDVILLE. Help me shape it.`); composer.current?.focus(); }}>{idea}<ArrowRight /></button>)}</div>}</div>}
+        {!chat.messages.length && <div className="city-chat-empty">{build ? <Bot /> : <MessageCircle />}<h3>{chat.loading ? 'Connecting…' : chat.error ? 'Let’s reconnect.' : build ? 'What should we build?' : 'Say hello to the town.'}</h3><p>{chat.loading ? 'Loading the conversation.' : chat.error ? 'Your draft is safe here.' : build ? 'Describe what people can do there. Scrapy will help turn that into a plan.' : 'Meet the people and robots behind the city.'}</p></div>}
         {chat.messages.map((message) => {
           const request = message.kind === 'MAYOR' && message.id.startsWith('reply-') ? messagesById.get(message.id.slice(6)) : undefined;
           const plan = build && message.aiSource === 'openai' && request?.kind === 'CITIZEN' && request.askScrapy ? scrapyProposalDraft(request.body, message.body) : null;
@@ -108,6 +112,7 @@ export function CityChatRoom({ room, compact = false, seed, onSeedConsumed }: { 
       </div>
       {chat.error && <div className="city-chat-error" role="alert"><span>{chat.error}</span><button onClick={() => void chat.reload()} aria-label="Reconnect chat"><RefreshCw /></button></div>}
       <form className="city-composer" onSubmit={(event) => { event.preventDefault(); void send(); }}>
+        {build && <div className="city-starters" aria-label="Try a building idea">{starters.map((starter) => <button type="button" key={starter.label} onClick={() => { saveDraft(starter.idea); composer.current?.focus(); }}>{starter.label}<ArrowRight /></button>)}</div>}
         {build && <label className="city-district-select"><MapPin /><span>Build in</span><select aria-label="District for your idea" value={district} onChange={(event) => { setDistrict(event.target.value); saveDraft(input, event.target.value); }}>{WORLD_DISTRICTS.map((item) => <option key={item.id} value={item.proposalLabel}>{item.name}</option>)}</select></label>}
         <textarea ref={composer} value={input} onChange={(event) => saveDraft(event.target.value)} placeholder={build ? 'A place where people can…' : 'What’s happening in town?'} aria-label={build ? 'Your idea for Scrapy' : 'Your message to Town Square'} maxLength={build ? 540 : 600} rows={2} disabled={chat.sending} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && wallet.address) { event.preventDefault(); void send(); } }} />
         <div className="city-composer-footer"><small>{wallet.address ? 'Public · Enter to send' : 'Read freely. Sign in to join.'}</small>{wallet.address ? <button type="submit" disabled={chat.sending || !input.trim()}><Send />{build ? 'Ask Scrapy' : 'Send'}</button> : <Link href={`/citizens?returnTo=${encodeURIComponent(returnTo)}`}>Sign in to {build ? 'build' : 'chat'}<ArrowRight /></Link>}</div>

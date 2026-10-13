@@ -62,6 +62,7 @@ import { WorldBuildingArt } from '@/components/landville/world-building-art';
 import './frontier-art.css';
 import './world-actors.css';
 import './world-game-map.css';
+import './world-ink.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/world-presence';
@@ -644,8 +645,8 @@ export default function WorldPage() {
           <span>
             <i /> LANDVILLE / CHAPTER 01
           </span>
-          <b>Your city. Still a little wild.</b>
-          <small>{wallet.address ? 'Drag to pan · Wheel to zoom · Click to walk · WASD / arrows' : 'Drag to pan · Wheel to zoom · Open a building'}</small>
+          <b>Pick a district. See what happens.</b>
+          <small>{wallet.address ? 'Drag the map · Click to walk · Open a building' : 'Drag the map · Open a building'}</small>
           {townStatus === 'unavailable' && (
             <button onClick={() => void refresh()}>
               CITY DATA UNAVAILABLE · RETRY <RefreshCw />

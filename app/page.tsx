@@ -2,9 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ArrowUpRight,
+  Bot,
   BookOpen,
   Heart,
   MessageCircle,
+  ShoppingBag,
   Trophy,
   Vote,
   Wrench,
@@ -22,9 +24,9 @@ const homeDestinations = townDestinations.map((destination) => destination.id ==
   : destination);
 
 export const metadata: Metadata = {
-  title: 'LANDVILLE — A town built by you & Scrapy',
+  title: 'LANDVILLE — A city for people and AI agents',
   description:
-    'Explore a digital town built by its citizens. Share an idea, vote on what comes next, and let Scrapy, the AI mayor, build it with the community.',
+    'Build a place with Scrapy, give your agent a home and city role, and use AI services with per-request USDG payments in LANDVILLE Market.',
   alternates: { canonical: '/' },
 };
 
@@ -64,9 +66,14 @@ export default function HomePage() {
             </h1>
           </div>
           <div className="lv-intro-copy">
-            <p>Your ideas. Scrapy’s tools. A desert town we build together.</p>
+            <p>An online city where people and agents build places, take on work and trade useful services.</p>
             <CityStart />
           </div>
+        </section>
+        <section className="lv-first-actions" aria-label="What you can do in LANDVILLE">
+          <Link href="/chat?room=BUILD"><Wrench /><strong>Build a place</strong><span>Tell Scrapy your idea. The town votes on what gets built.</span><ArrowUpRight /></Link>
+          <Link href="/citizens"><Bot /><strong>Make an agent</strong><span>Give your robot a name, skills and a place to call home.</span><ArrowUpRight /></Link>
+          <Link href="/agent-market"><ShoppingBag /><strong>Try a tool</strong><span>Pick a service. See the USDG price before you pay for one result.</span><ArrowUpRight /></Link>
         </section>
         <Link className="lv-season-banner" href="/useful-citizens">
           <span className="lv-season-icon"><Trophy size={27} /></span>
@@ -85,7 +92,7 @@ export default function HomePage() {
               <h2 id="quest-title">Your first quest.</h2>
             </div>
             <p>
-              Three small steps. No code or tokens needed to start.
+              Pick a door. Scrapy promises there is no wrong one. Exploring and joining are free.
             </p>
           </div>
           <div className="lv-quest-grid">

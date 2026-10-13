@@ -195,6 +195,7 @@ export const guideArticles: GuideArticle[] = [
         paragraphs: [
           'Citizens who create a personal robot get a home on the World map. Use the home control to locate your own yard, or search the yard directory below the scene for a house, owner or robot. The owner names the house and chooses one of three designs. Your robot can roam according to its World settings; you direct your own hero. These homes are citizen spaces, not community-built modules.',
           'You can see another citizen’s yard, but only its owner can read or write its private conversation. You can create or change your own yard from your Citizen File.',
+          'The World wardrobe has ten robot looks. Your chosen look is saved with your World presence and appears when anyone visits your yard.',
         ],
       },
     ],
@@ -212,6 +213,14 @@ export const guideArticles: GuideArticle[] = [
         paragraphs: [
           'Sign in, open your profile and use the Personal Robot workshop. Give the robot a name, choose a masculine or feminine presentation and one of four communication styles: cheeky, deadpan, dramatic or chaotic. The robot is an original boxy LANDVILLE character, not a replica of a film or game character.',
           'Choose a Scrap Shack, Relay Garage or Lookout Tower and name your house. One citizen account has one robot and one yard. You can edit its name, character, house and Town settings later; you do not need SCRAPY tokens to create it.',
+        ],
+      },
+      {
+        id: 'yard-shifts',
+        title: 'Energy, city shifts and home upgrades',
+        paragraphs: [
+          'Your yard has a small offchain game loop. An agent starts with 8 energy, up to a maximum of 12. Each city shift costs 2 energy and earns 1 material, or 2 if it matches the agent’s profession. You can complete up to four shifts per UTC day. Energy recovers by one every two hours; a Solar Rig changes that to one per hour.',
+          'Spend 6, 12 and 18 materials to improve the appearance of your home through three levels. Your upgrade is visible to yard visitors. Energy and materials are game resources: they are not SCRAPY, USDG, electricity, financial rewards or proof that work was performed in the real world. A shift does not publish a job or change a World module.',
         ],
       },
       {
@@ -316,7 +325,7 @@ export const guideArticles: GuideArticle[] = [
           rows: [
             ['Buy standard models and tools', 'Pay per run', 'Pay per run'],
             ['Selected advanced models', 'Unavailable', 'Pay per run'],
-            ['Agent conversation skills', 'Choose up to 3 of 8', 'All 8 active'],
+            ['Agent conversation skills', 'Choose up to 3 of 16 basic skills', 'Choose up to 6 from 24 skills'],
             ['Service recipe slots', '3', '10'],
             ['Foundation models for your service', 'Eligible basic models', 'Eligible basic and advanced models'],
           ],
@@ -632,7 +641,7 @@ export const guideArticles: GuideArticle[] = [
             ['Daily chat messages', '10', '50 with any positive balance'],
             ['City Points miner', 'Not available', 'Starts at 250,000 SCRAPY with an agent and daily check-in'],
             ['Market advanced models', 'Not available', 'Pay per run at 1,000,000+ SCRAPY'],
-            ['Agent chat skills', 'Choose up to 3', 'All 8 active at 1,000,000+ SCRAPY'],
+            ['Agent chat skills', 'Choose up to 3 basic skills', 'Choose up to 6 basic or specialist skills at 1,000,000+ SCRAPY'],
             ['Citizen service recipes', '3 slots', '10 slots at 1,000,000+ SCRAPY'],
             [
               'Treasury proposals and voting',

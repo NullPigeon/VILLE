@@ -7,6 +7,7 @@ export type { RobotSkin } from '@/lib/world-presence';
 export const ROBOT_SKIN_LABELS: Record<RobotSkin, string> = {
   RUST: 'Rust Bucket', MINT: 'Mint Menace', EMBER: 'Hot Wiring',
   COBALT: 'Blue Signal', VIOLET: 'Night Shift', COPPER: 'Copperhead',
+  NEON: 'Neon Runner', SAND: 'Dust Patrol', GRAFFITI: 'Graffiti Crew', FOREST: 'Green Circuit',
 };
 
 export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', className = '' }: {
@@ -19,6 +20,10 @@ export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', class
     COBALT: { glow: '#8fcfff', shell: '#315779' },
     VIOLET: { glow: '#e0a6ff', shell: '#544063' },
     COPPER: { glow: '#ffdc81', shell: '#865735' },
+    NEON: { glow: '#e2ff4b', shell: '#794ca4' },
+    SAND: { glow: '#fff0a9', shell: '#b79560' },
+    GRAFFITI: { glow: '#ff78b7', shell: '#4b8c83' },
+    FOREST: { glow: '#a6f2a2', shell: '#385a3d' },
   };
   const { glow, shell } = palette[skin];
   return (
@@ -34,6 +39,8 @@ export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', class
       <path d="M40 48L141 44L153 142L135 166L47 169L28 146L40 48Z"
         fill={shell} stroke="#211f19" strokeWidth="7" strokeLinejoin="round" />
       <path d="M42 51 139 47 147 139 133 159 48 163 33 143Z" stroke="#D5B881" strokeWidth="2" />
+      <path d="m37 99 13 7m-11 2 12 6m-9 4 9 5m-8 3 12 7m85-35-11 8m13 2-13 9m12 1-11 9m9 1-12 10" stroke="#131b15" strokeWidth="2" strokeLinecap="round" opacity=".6" />
+      <path d="m54 151 11-2m51-4 12-6m-50 14 9-1" stroke="#f2d49a" strokeWidth="1.5" opacity=".7" />
       <path d="M39 61L140 57L145 91L34 96L39 61Z" fill="#111A14" stroke="#A38653" strokeWidth="4" />
       <path d="M47 72H66L75 82L65 87H45M133 70H113L104 81L115 86H135"
         fill={presentation === 'FEMININE' ? '#FFCF7D' : glow} className="personal-robot-eyes" />
@@ -61,6 +68,10 @@ export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', class
       {skin === 'COBALT' && <path d="M45 40h88m-74-9h60" stroke="#8fcfff" strokeWidth="5" strokeLinecap="square" />}
       {skin === 'VIOLET' && <path d="m39 39 20-13 28 8 28-13 20 12" stroke="#e0a6ff" strokeWidth="5" strokeLinecap="square" />}
       {skin === 'COPPER' && <path d="M48 35 61 23l25 8 30-9 17 13" stroke="#ffdc81" strokeWidth="5" strokeLinecap="square" />}
+      {skin === 'NEON' && <path d="M45 43 66 23 84 37 105 18 137 42M49 151l15-17 14 10 18-15 23 18" stroke="#e2ff4b" strokeWidth="5" strokeLinecap="square" />}
+      {skin === 'SAND' && <path d="M35 52h109M39 130l22 9 22-4 24 8 31-16M54 35l21-15 31 14 25-13" stroke="#6b4b2c" strokeWidth="5" strokeLinecap="square" />}
+      {skin === 'GRAFFITI' && <path d="M43 52 61 28l16 18 21-22 33 17M45 143l31-18 16 18 39-29M60 157l14-9m31-18 23-13" stroke="#ff78b7" strokeWidth="5" strokeLinecap="square" />}
+      {skin === 'FOREST' && <path d="M41 45 56 24l13 17 19-24 17 24 23-17 11 19M53 146l13-19 16 16 15-20 22 18" stroke="#b3da77" strokeWidth="5" strokeLinecap="square" />}
     </svg>
   );
 }

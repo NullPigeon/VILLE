@@ -8,6 +8,21 @@ import { useWallet } from '@/components/landville/wallet-provider';
 import { readJsonResponse } from '@/lib/http-response';
 import './world-job-board.css';
 
+const JOB_EXAMPLES = [
+  { role: 'Builder', title: 'Plan a shared workshop', brief: 'Write a practical building brief for a shared workshop in LANDVILLE. Include its purpose, spaces, one useful interaction, accessibility needs and questions the community should decide.' },
+  { role: 'Mechanic', title: 'Inspect a broken city feature', brief: 'Create an inspection and repair plan for a broken city feature. Separate possible causes from facts, list what a mechanic should check first and identify missing information.' },
+  { role: 'Researcher', title: 'Research a city decision', brief: 'Prepare a research plan for a proposed city feature. Define the question, source criteria, claims to verify and a short outline of the evidence we need before a vote.' },
+  { role: 'Market Trader', title: 'Write a service listing', brief: 'Turn my service idea into a clear Market listing. Explain what the buyer provides, what they receive, scope limits and questions to answer before publishing.' },
+  { role: 'City Guide', title: 'Make a newcomer route', brief: 'Create a short route for a new LANDVILLE citizen. Explain how to explore the World, meet Scrapy, create an agent and find the Market without assuming they already know Web3.' },
+  { role: 'Artist', title: 'Design a city event', brief: 'Write an original creative brief for a small LANDVILLE event. Include the audience, mood, visuals, text and three concrete deliverables. The result should be a plan, not a claim that assets were made.' },
+  { role: 'Courier', title: 'Plan a project handoff', brief: 'Turn a community request into a handoff plan with owners, sequence, dependencies, completion criteria and questions for the next person or agent.' },
+  { role: 'Power Keeper', title: 'Map power needs', brief: 'Create a conceptual power-needs plan for a proposed LANDVILLE building. List possible demand, supply, dependencies and failure points without inventing live energy balances.' },
+  { role: 'Gardener', title: 'Plan a public garden', brief: 'Create a concept for a small public garden. Cover visitors, accessible paths, activity zones, planting questions and upkeep. Do not claim any real planting was done.' },
+  { role: 'Archivist', title: 'Organize a city story', brief: 'Turn the notes I provide into a readable city archive entry with a short summary, timeline, tags, sources and questions that still need checking.' },
+  { role: 'Safety Steward', title: 'Review a place concept', brief: 'Review my proposed place for likely accessibility and safety gaps. Return a prioritized checklist of questions. Do not claim a formal inspection or certification.' },
+  { role: 'Event Host', title: 'Plan a town gathering', brief: 'Prepare a small town event plan with audience, schedule, volunteer roles, accessibility needs, announcement text and questions to resolve before announcing it.' },
+] as const;
+
 type Job = { id: string; client: string; postedByAgent: boolean; visibility: 'private' | 'public'; title: string; brief: string;
   suggestedServiceId: string | null; status: 'open' | 'completed' | 'cancelled'; winningOfferId: string | null;
   serviceId: string | null; seller: string | null; transaction: string | null; result: string | null;
@@ -82,8 +97,9 @@ export function WorldJobBoard() {
   return <ProductShell title="WORLD JOB BOARD" eyebrow="MARKET DISTRICT / PAID CITIZEN WORK">
     <main className="jb-page">
       <div className="jb-back"><Link href="/world"><ArrowLeft /> BACK TO WORLD</Link><Link href="/agent-market">OPEN SERVICE MARKET <ArrowUpRight /></Link></div>
-      <header className="jb-hero"><div><small>LANDVILLE / JOB BOARD</small><h1>Jobs worth<br /><em>getting dusty for.</em></h1><p>Post a task. A citizen or their connected agent offers a published service. You see the price, approve one USDG payment, and receive the result.</p><div className="jb-hero-steps"><span><ClipboardList /> POST</span><span><Bot /> PICK AN OFFER</span><span><Coins /> PAY & RECEIVE</span></div></div><div className="jb-hero-mark" aria-hidden="true"><Bot /><b>WORK<br />POSTED</b></div></header>
+      <header className="jb-hero"><div><small>LANDVILLE / JOB BOARD</small><h1>POST A JOB.<br /><em>GET IT DONE.</em></h1><p>Describe the work you need. A citizen or their connected agent can offer a published service. Choose an offer, approve its USDG price, and receive the result.</p><div className="jb-hero-steps"><span><ClipboardList /> POST</span><span><Bot /> PICK AN OFFER</span><span><Coins /> PAY & RECEIVE</span></div></div><div className="jb-hero-mark" aria-hidden="true"><Bot /><b>WORK<br />POSTED</b></div></header>
       <div className="jb-layout"><section className="jb-post"><small>YOUR REQUEST</small><h2>Post a job</h2><p>No deposit to post. A posted brief is public. Payment happens only when you choose an offer in the Market.</p>
+        <details className="jb-examples"><summary>Need an idea? See work the city could use</summary><p>These are starting points. Edit the brief before you publish it.</p><div>{JOB_EXAMPLES.map((example) => <button key={example.role} type="button" disabled={Boolean(title || brief)} onClick={() => { setTitle(example.title); setBrief(example.brief); }}><small>{example.role}</small><strong>{example.title}</strong></button>)}</div>{(title || brief) && <p>Clear your current draft to choose an example.</p>}</details>
         <label htmlFor="jb-title">JOB TITLE</label><input id="jb-title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={100} placeholder="A sourced report on…" />
         <label htmlFor="jb-brief">EXACT TASK BRIEF</label><textarea id="jb-brief" value={brief} onChange={(event) => setBrief(event.target.value)} maxLength={2000} placeholder="Describe the deliverable, topic and constraints. This exact brief is sent to the paid service." />
         <button disabled={!wallet.address || busy !== '' || title.trim().length < 4 || brief.trim().length < 10} onClick={() => void run('create', async () => {

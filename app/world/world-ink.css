@@ -1,0 +1,36 @@
+/* LANDVILLE's own inked desert city: material strokes, comic contrast, readable controls. */
+.city-product .world-explorer{background:radial-gradient(ellipse at 53% 42%,#d4b474 0,#957244 68%,#473e2b 100%);isolation:isolate}
+.city-product .world-explorer:after{content:"";position:absolute;inset:0;z-index:10;pointer-events:none;background:radial-gradient(ellipse at center,transparent 46%,#17191136 82%,#17191178 100%),radial-gradient(circle,#1c25131b .8px,transparent 1.2px) 0 0/6px 6px;mask-image:radial-gradient(ellipse at center,transparent 38%,#000 95%)}
+.city-product .world-map-scene{background-color:#bd9559;background-image:radial-gradient(ellipse at 50% 44%,#e9c77d90,transparent 49%),radial-gradient(ellipse at 9% 18%,#ebbe70a0,transparent 29%),radial-gradient(ellipse at 89% 76%,#73563788,transparent 32%),repeating-linear-gradient(118deg,transparent 0 17px,#3d302010 18px 19px,transparent 20px 37px),radial-gradient(circle,#2b251b2c .7px,transparent 1.2px);background-size:auto,auto,auto,auto,13px 11px;box-shadow:inset 0 0 0 7px #25251a,inset 0 0 0 12px #d8b879,inset 0 0 110px #37271c66}
+.city-product .world-city-scenery{filter:contrast(1.23) saturate(1.16) drop-shadow(1px 2px 0 #201e1740)}
+.city-product .world-district-land{mix-blend-mode:multiply;opacity:.72}
+.city-product .world-district-land path{stroke:#25271c;stroke-width:5;filter:drop-shadow(5px 7px 0 #261d1840)}
+.city-product .world-district-land path.active{stroke:#eff7a2;stroke-width:7;filter:drop-shadow(0 0 12px #d6f18e)}
+.city-product .world-map-scene .world-road-curbs path{stroke:#241f19;stroke-width:65;filter:drop-shadow(4px 6px 0 #1a1b16a6)}
+.city-product .world-map-scene .world-road-beds path{stroke:#686346;stroke-width:49}
+.city-product .world-map-scene .world-road-curbs path:nth-child(n+3){stroke-width:41}.city-product .world-map-scene .world-road-beds path:nth-child(n+3){stroke-width:27}
+.city-product .world-road-marks path{stroke:#f0cc78;stroke-width:2.5;opacity:.87}
+.city-product .world-map-scene .world-object-card{border:4px solid #171d15;border-bottom:9px solid #101710;border-radius:2px;background:#485b35;box-shadow:7px 10px 0 #1a2018,13px 17px 0 #49392788;filter:drop-shadow(0 0 1px #11180e)}
+.city-product .world-map-scene .world-object-card[data-kind=utility]{background:#436d55}.city-product .world-map-scene .world-object-card[data-kind=art]{background:#865468}.city-product .world-map-scene .world-object-card[data-kind=media]{background:#4c6980}.city-product .world-map-scene .world-object-card[data-kind=venue]{background:#986338}
+.city-product .world-map-scene .world-object-card .world-building-art{filter:drop-shadow(3px 5px 0 #1419119c) contrast(1.1) saturate(1.08)}
+.city-product .world-object-preview{border:4px solid #182015;border-radius:1px;box-shadow:inset 3px 3px 0 #121b13,4px 5px 0 #151b13}
+.city-product .world-object-label{border:3px solid #131b12;border-left:6px solid #d4ef77;border-radius:1px;background:#202c1d;color:#f5e8c7;box-shadow:4px 5px 0 #10180c}
+.city-product .world-object-label strong{font:900 12px/1.22 Arial,Helvetica,sans-serif;letter-spacing:-.01em}.city-product .world-object-label small{font:700 9px/1.2 Arial,sans-serif;color:#d4e89c}
+.city-product .world-map-scene .world-object-card:hover,.city-product .world-map-scene .world-object-card.selected{border-color:#d8ef88;filter:drop-shadow(0 0 14px #e5f798) drop-shadow(4px 6px 0 #192412)}
+.city-product .world-map-scene .world-district-tag{border:4px solid #191f17;border-bottom-width:8px;border-radius:1px;background:#edd29a;color:#26321b;box-shadow:5px 7px 0 #2e281dcc;rotate:-2deg;font:900 13px/1 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-shadow:none}
+.city-product .world-map-scene .world-district-tag.token{background:#a8cbb2;rotate:1deg}.city-product .world-map-scene .world-district-tag.meme{background:#dfabb8;rotate:2deg}.city-product .world-map-scene .world-district-tag.market{background:#d8e88b;rotate:-1deg}
+.city-product .world-map-scene .world-district-tag.active{background:var(--district-color);box-shadow:5px 7px 0 #1d2817,0 0 0 4px #f8e8b8}
+.city-product .world-plaza{border:5px solid #171f14;border-bottom-width:12px;border-radius:3px;background:repeating-linear-gradient(135deg,#9cad5740 0 8px,transparent 9px 20px),#758a43;box-shadow:7px 9px 0 #1d2b18,13px 15px 0 #3c302480}
+.city-product .world-plaza span{font:900 13px/1.1 Arial,sans-serif;color:#f1f4c8;text-shadow:2px 2px #15200f}
+.city-product .world-city-status,.city-product .world-exploration-hud,.city-product .world-district-visit,.city-product .world-camera-tools{border:3px solid #141d11;border-radius:2px;background:repeating-linear-gradient(130deg,transparent 0 38px,#d3d6840c 39px 40px,transparent 41px 77px),#1e2b1c;box-shadow:5px 6px 0 #0e160d,9px 11px 0 #41372d88}
+.city-product .world-city-status{border-left:8px solid #d9f07e}.city-product .world-city-status>b{font:900 18px/1.1 Arial,sans-serif;color:#f2e7c6;letter-spacing:-.02em}.city-product .world-city-status>small{color:#d6ddba}
+.city-product .world-district-travel{border:3px solid #111b0f;border-bottom-width:7px;border-radius:2px;background:#22311fe8;box-shadow:6px 7px 0 #0e180c}.city-product .world-district-travel button,.city-product .world-district-travel .world-nav-jobs{border:2px solid #71894b;border-radius:1px;font-weight:900}.city-product .world-district-travel button.active{border-color:#dff39a;background:#d9ee81}
+.city-product .world-map-scene .world-yard-house>svg:first-of-type{filter:drop-shadow(3px 5px 0 #181c14) contrast(1.16) saturate(1.12)}
+.city-product .world-map-scene .world-yard-house>span:last-child{border:3px solid #161f13;border-radius:1px;box-shadow:4px 5px 0 #111910}
+.city-product .world-vacant-lot{border:4px dashed #24311d;background:repeating-linear-gradient(130deg,#edf39b55 0 8px,#a6b96d55 9px 16px);box-shadow:6px 7px 0 #45382688}
+.city-product .world-drawer{border-left:5px solid #121a11;background:repeating-linear-gradient(123deg,transparent 0 60px,#e2d3900c 61px 62px,transparent 63px 99px),#1b271a;box-shadow:-8px 0 0 #d1e777}
+.city-product .world-drawer h2{font:900 30px/1.04 Arial,sans-serif;letter-spacing:-.04em;color:#f0e4c7}
+.city-product .city-world-welcome{border:4px solid #171d13;border-radius:2px;background:repeating-linear-gradient(124deg,transparent 0 39px,#32271912 40px 41px,transparent 42px 69px),#ebd6a5;box-shadow:8px 9px 0 #1b2515,0 22px 80px #11170caa}
+.city-product .city-world-welcome h1{font:900 42px/1.01 Arial,sans-serif;letter-spacing:-.05em}.city-product .city-welcome-actions button{border:3px solid #172010;border-radius:2px;box-shadow:4px 5px 0 #15200f}
+@media(max-width:760px){.city-product .world-city-status>b{font-size:14px}.city-product .city-world-welcome h1{font-size:32px}.city-product .world-district-travel{box-shadow:3px 4px 0 #0e180c}.city-product .world-explorer:after{background:radial-gradient(ellipse at center,transparent 45%,#17191135 100%)}}
+@media(prefers-reduced-motion:reduce){.city-product .world-map-scene .world-object-card,.city-product .world-map-scene .world-district-tag{transition:none}}

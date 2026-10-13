@@ -2,7 +2,7 @@ export type ExternalMarketService = {
   id: string;
   name: string;
   provider: 'agent402' | 'spraay' | 'stockkit' | 'relay' | 'mesh' | 'imperium';
-  category: 'AI Models' | 'Media' | 'Search' | 'Research' | 'Web & Scraping' | 'Documents' | 'Market Data' | 'Weather' | 'Site & Domains' | 'Energy & Climate' | 'Developer';
+  category: 'AI Models' | 'Media' | 'Search' | 'Research' | 'Web & Scraping' | 'Documents' | 'Market Data' | 'Weather' | 'Location' | 'Site & Domains' | 'Energy & Climate' | 'Developer';
   description: string;
   input: 'prompt' | 'query' | 'url' | 'symbol' | 'address' | 'domain' | 'coordinates' | 'none';
   placeholder: string;
@@ -74,6 +74,9 @@ export const EXTERNAL_MARKET_SERVICES: ExternalMarketService[] = [
   { id: 'agent402-pdf-markdown', name: 'PDF to Markdown', provider: 'agent402', category: 'Documents',
     description: 'Turn a public text-based PDF into clean Markdown for reading or reuse. Scanned pages need OCR.',
     input: 'url', placeholder: 'https://example.com/report.pdf', docs: 'https://agent402.tools/tools/pdf-to-markdown' },
+  { id: 'agent402-image-ocr', name: 'Read Text in an Image', provider: 'agent402', category: 'Documents',
+    description: 'Extract English text and line positions from one public PNG or JPEG image.',
+    input: 'url', placeholder: 'https://example.com/photo.jpg', docs: 'https://agent402.tools/tools/image-ocr' },
   { id: 'agent402-robots', name: 'Check Crawl Access', provider: 'agent402', category: 'Site & Domains',
     description: 'Check whether a site allows bots to read a page and find its sitemap.', input: 'url',
     placeholder: 'https://example.com/article', docs: 'https://agent402.tools/tools/robots-check' },
@@ -104,9 +107,24 @@ export const EXTERNAL_MARKET_SERVICES: ExternalMarketService[] = [
   { id: 'agent402-weather', name: 'Current Weather', provider: 'agent402', category: 'Weather',
     description: 'Get current weather for any latitude and longitude.',
     input: 'coordinates', placeholder: '48.8566, 2.3522', docs: 'https://agent402.tools/tools/weather-current' },
+  { id: 'agent402-reverse-geocode', name: 'Identify a Place', provider: 'agent402', category: 'Location',
+    description: 'Turn coordinates into a street address and place details from open map data.',
+    input: 'coordinates', placeholder: '38.8977, -77.0365', docs: 'https://agent402.tools/tools/reverse-geocode' },
   { id: 'featured-flux-image', name: 'Generate an Image', provider: 'relay', category: 'Media',
     description: 'Create one image from a text prompt with FLUX Schnell. See the live USDG quote first.',
     input: 'prompt', placeholder: 'Describe the image you want', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-flux-dev', name: 'Detailed Image', provider: 'relay', category: 'Media',
+    description: 'Generate a more detailed image with FLUX.1 Dev. One prompt, one image.',
+    input: 'prompt', placeholder: 'Describe the image you want', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-flux-pro', name: 'Studio Image', provider: 'relay', category: 'Media', holderOnly: true,
+    description: 'Generate one high-quality image with FLUX 1.1 Pro.',
+    input: 'prompt', placeholder: 'Describe the finished image', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-sdxl-image', name: 'SDXL Image', provider: 'relay', category: 'Media',
+    description: 'Generate one image with Fast SDXL.',
+    input: 'prompt', placeholder: 'Describe the image you want', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-recraft-image', name: 'Illustration & Lettering', provider: 'relay', category: 'Media', holderOnly: true,
+    description: 'Create one illustration or design with Recraft V3, suited to artwork with text.',
+    input: 'prompt', placeholder: 'Describe your illustration or lettering', docs: 'https://meshgateway.co/marketplace/network/fal' },
   { id: 'featured-exa-search', name: 'Semantic Web Search', provider: 'relay', category: 'Search',
     description: 'Find relevant web pages with semantic search and source links.',
     input: 'query', placeholder: 'What should we research?', docs: 'https://meshgateway.co/marketplace/network/exa' },
@@ -232,7 +250,7 @@ export function externalResourceMatches(serviceId: string, quotedUrl: string, re
   }
   // These merchants sign a fixed route and omit the user's query from resource.url.
   if (['agent402-search', 'agent402-news', 'agent402-answer', 'agent402-stock-quote',
-    'agent402-sec-filings', 'agent402-crypto-price', 'agent402-weather',
+    'agent402-sec-filings', 'agent402-crypto-price', 'agent402-weather', 'agent402-reverse-geocode',
     'mesh-dex-price', 'mesh-dex-pairs', 'mesh-dex-trending', 'mesh-rwa-quote',
     'mesh-stock-contract', 'mesh-hook-permissions', 'mesh-paper-search',
     'mesh-citation-search', 'mesh-wiki-search', 'mesh-hacker-news',
@@ -290,6 +308,8 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
     body: JSON.stringify({ url: input }) };
   if (service.id === 'agent402-pdf-markdown') return { url: 'https://agent402.tools/api/pdf-to-markdown', method: 'POST' as const,
     body: JSON.stringify({ url: input }) };
+  if (service.id === 'agent402-image-ocr') return { url: 'https://agent402.tools/api/image-ocr', method: 'POST' as const,
+    body: JSON.stringify({ url: input, lang: 'eng' }) };
   if (service.id === 'agent402-robots') return { url: 'https://agent402.tools/api/robots-check', method: 'POST' as const,
     body: JSON.stringify({ url: input }) };
   if (service.id === 'agent402-http-check') return { url: 'https://agent402.tools/api/http-check', method: 'POST' as const,
@@ -309,8 +329,19 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
     const [lat, lon] = input.split(',').map((part) => Number(part.trim()));
     return { url: `https://agent402.tools/api/weather-current?lat=${lat}&lon=${lon}`, method: 'GET' as const, body: undefined };
   }
+  if (service.id === 'agent402-reverse-geocode') {
+    const [lat, lon] = input.split(',').map((part) => Number(part.trim()));
+    return { url: `https://agent402.tools/api/reverse-geocode?lat=${lat}&lon=${lon}`, method: 'GET' as const, body: undefined };
+  }
   const featured = 'https://api.meshgateway.co/x';
-  if (service.id === 'featured-flux-image') return { url: `${featured}/fal/fal-ai/flux/schnell`, method: 'POST' as const,
+  const imagePaths: Record<string, string> = {
+    'featured-flux-image': 'fal-ai/flux/schnell',
+    'featured-flux-dev': 'fal-ai/flux/dev',
+    'featured-flux-pro': 'fal-ai/flux-pro/v1.1',
+    'featured-sdxl-image': 'fal-ai/fast-sdxl',
+    'featured-recraft-image': 'fal-ai/recraft-v3',
+  };
+  if (imagePaths[service.id]) return { url: `${featured}/fal/${imagePaths[service.id]}`, method: 'POST' as const,
     body: JSON.stringify({ prompt: input, image_size: 'square', num_images: 1 }) };
   if (service.id === 'featured-exa-search') return { url: `${featured}/exa/search`, method: 'POST' as const,
     body: JSON.stringify({ query: input, numResults: 5 }) };

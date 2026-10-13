@@ -188,3 +188,18 @@
 @media(prefers-reduced-motion:reduce) {
   .scrapy-frontier :is(button,a) { transition:none; }
 }
+/* Comic ink, sand and lime across shared product screens. Keep headings readable. */
+.scrapy-frontier :is(.product-heading h1,.am-hero h1,.am-section-head h2,.jb-hero h1,.jb-post h2,.jb-list-head h2,.yard-task-desk h2,.am-stall-workshop h2,.am-stall-workshop h3){font-family:Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:-.035em;line-height:1.05}
+.scrapy-frontier .am-hero h1,.scrapy-frontier .jb-hero h1{font-size:clamp(39px,5vw,68px)}
+.scrapy-frontier :is(.am-hero,.am-merchant-card,.am-stall-workshop,.am-stall-starters,.jb-hero,.jb-card,.yard-task-desk){border-radius:2px;border-color:#11180d;box-shadow:5px 6px 0 #080d08,inset 0 0 0 1px #b1c68355}
+.scrapy-frontier :is(.am-hero,.jb-hero,.yard-task-desk){background-image:repeating-linear-gradient(122deg,transparent 0 52px,#d3ca8a12 53px,#d3ca8a12 54px,transparent 55px 96px),linear-gradient(130deg,#2b3823,#172118 70%)}
+.scrapy-frontier :is(.am-merchant-card,.jb-card,.am-stall-starter-list article){outline:1px solid #bdd47a35;outline-offset:-6px}
+@media(prefers-reduced-motion:reduce){.scrapy-frontier :is(.am-merchant-card,.am-skill,.jb-card){transition:none}}
+.scrapy-frontier.lv-home .lv-first-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1380px;margin:0 auto 28px;padding:0 32px}
+.scrapy-frontier.lv-home .lv-first-actions>a{display:grid;grid-template-columns:34px 1fr 20px;align-content:start;gap:8px 10px;padding:20px;border:3px solid #111a0e;background:repeating-linear-gradient(130deg,transparent 0 54px,#d6dc8a12 55px 56px,transparent 57px 90px),#293724;box-shadow:5px 6px #090f09;color:#f1e7c8;text-decoration:none}
+.scrapy-frontier.lv-home .lv-first-actions>a>svg:first-child{grid-row:span 2;color:#d9ed78}.scrapy-frontier.lv-home .lv-first-actions>a>svg:last-child{grid-column:3;grid-row:1;color:#d9ed78}.scrapy-frontier.lv-home .lv-first-actions strong{font:900 20px/1.1 Arial,sans-serif}.scrapy-frontier.lv-home .lv-first-actions span{grid-column:2/4;font:14px/1.45 Arial,sans-serif;color:#d9dec8}.scrapy-frontier.lv-home .lv-first-actions>a:hover{background-color:#37472e;border-color:#d4ec7c}
+.scrapy-frontier.city-product .product-heading h1{font-family:Arial,Helvetica,sans-serif;font-size:clamp(35px,4vw,62px);letter-spacing:-.045em;line-height:1.04}
+.scrapy-frontier.city-product :is(.lv-panel,.proposal-row,.city-my-builds article,.uc-board,.uc-rules,.uc-tier-card,.uc-prize-card,.yard-intro,.yard-chat,.scrapy-metal-panel,.city-miner,.city-chat-room){border-color:#151e10;border-width:3px;border-radius:2px;box-shadow:5px 6px 0 #080d08,inset 0 0 0 1px #b1c68340}
+.scrapy-frontier.city-product :is(.lv-panel,.proposal-row,.uc-board,.yard-intro,.scrapy-metal-panel){background-image:repeating-linear-gradient(127deg,transparent 0 66px,#d1c78a0e 67px,#d1c78a0e 68px,transparent 69px 100px)}
+.scrapy-frontier.city-product :is(.city-room-header h2,.city-my-builds h2,.yard-intro h2,.yard-chat h2){font-family:Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:-.025em}
+@media(max-width:760px){.scrapy-frontier.lv-home .lv-first-actions{grid-template-columns:1fr;padding:0 18px}}

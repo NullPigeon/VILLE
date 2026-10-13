@@ -27,6 +27,8 @@ export function GameHero({ skin = 'SCAVENGER', className = '' }: { skin?: HeroSk
     <g className="game-hero-body">
       <path d="m28 51-11 9 5 34 12 4 12-9 13 9 12-5 5-32-13-10Z" fill={p.coat} stroke={ink} strokeWidth="4" strokeLinejoin="round" />
       <path d="m26 56 20 13 20-13-7 30-13 11-13-11Z" fill={p.shade} stroke={ink} strokeWidth="3" />
+      <path d="m25 65 8 5m-7 3 10 6m-9 3 7 4m31-24-8 8m12-2-9 10m8 1-6 6" stroke={ink} strokeWidth="1.8" strokeLinecap="round" opacity=".72" />
+      <path d="m34 58 7 4m12-1 8-5m-37 27 3 5m41-10-4 7" stroke={p.trim} strokeWidth="1.6" opacity=".8" />
       <path d="M42 65h8v28h-8z" fill={p.trim} />
       <path d="M31 88h30l-2 9H33Z" fill="#3e4231" stroke={ink} strokeWidth="3" />
       <rect x="42" y="88" width="10" height="8" rx="1" fill={p.glow} stroke={ink} strokeWidth="2" />
@@ -38,6 +40,7 @@ export function GameHero({ skin = 'SCAVENGER', className = '' }: { skin?: HeroSk
       <path d="M25 32q-2-21 20-25 24 0 25 23l-6 22-18 10-18-10Z" fill={p.hood} stroke={ink} strokeWidth="4" strokeLinejoin="round" />
       <path d="M30 33q3-13 16-14 14 0 18 14l-2 16-17 7-15-7Z" fill="#a77955" stroke={ink} strokeWidth="3" />
       <path d="M29 31 22 27l8-13 13-7 22 6 7 16-10 2-4-9-16-3-10 6Z" fill={p.hood} stroke={ink} strokeWidth="3" />
+      <path d="m27 23 12-6m-8 11 15-8m10-7 9 6m-6-2 8 7" stroke={ink} strokeWidth="1.5" strokeLinecap="round" opacity=".65" />
       <path d="M31 33h31l-3 13H34Z" fill="#263c32" stroke={ink} strokeWidth="3" />
       <path d="m36 38 9 2 4-2 9 1" stroke={p.glow} strokeWidth="4" strokeLinecap="square" />
       <path d="m36 50 9 6 12-6" stroke={ink} strokeWidth="3" strokeLinecap="round" />

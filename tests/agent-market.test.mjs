@@ -3,6 +3,53 @@ import test from 'node:test';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, HOLDER_SLOT_LIMIT, DEFAULT_AGENT_SKILLS, MARKET_NETWORK, MARKET_HOLDER_MINIMUM, availableAgentSkills, hasMarketHolderBalance, validateAgentSkills } from '../lib/agent-market.ts';
 import { MARKET_SERVICES, marketService } from '../lib/market-services.ts';
 import { EXTERNAL_MARKET_SERVICES, RELAY_MODEL_SERVICES, externalMarketRequest, externalMarketService, externalModelHolderOnly, externalResourceMatches } from '../lib/external-market.ts';
+import { AGENT_SERVICE_STARTERS } from '../lib/agent-service-starters.ts';
+import { CITY_PROFESSIONS } from '../lib/personal-agent.ts';
+import { YARD_ACTIONS, yardEnergy, yardMaterialGain, yardUpgradeCost } from '../lib/yard-economy.ts';
+
+void test('yard energy recovers without banking above capacity and profession work earns a bonus', () => {
+  const row = { owner_wallet: '0x0', energy: 7, materials: 0, house_level: 0, energy_at: '2026-10-13T00:00:00.000Z' };
+  const now = Date.parse('2026-10-13T03:30:00.000Z');
+  assert.deepEqual(yardEnergy(row, 'NONE', now), { energy: 8, nextEnergyAt: '2026-10-13T04:00:00.000Z' });
+  assert.deepEqual(yardEnergy(row, 'SOLAR_RIG', now), { energy: 10, nextEnergyAt: '2026-10-13T04:00:00.000Z' });
+  assert.deepEqual(yardEnergy({ ...row, energy: 12 }, 'NONE', now), { energy: 12, nextEnergyAt: null });
+  assert.equal(yardUpgradeCost(0), 6);
+  assert.equal(yardUpgradeCost(2), 18);
+  assert.equal(yardUpgradeCost(3), null);
+  assert.equal(yardMaterialGain('REPAIR', 'MECHANIC'), 2);
+  assert.equal(yardMaterialGain('REPAIR', 'ARTIST'), 1);
+  assert.deepEqual(new Set(YARD_ACTIONS.flatMap((item) => item.roles)), new Set(CITY_PROFESSIONS.map((item) => item.id)));
+});
+
+void test('new image services pin a single merchant model route and limit generated images', () => {
+  const routes = {
+    'featured-flux-dev': '/x/fal/fal-ai/flux/dev',
+    'featured-flux-pro': '/x/fal/fal-ai/flux-pro/v1.1',
+    'featured-sdxl-image': '/x/fal/fal-ai/fast-sdxl',
+    'featured-recraft-image': '/x/fal/fal-ai/recraft-v3',
+  };
+  for (const [id, path] of Object.entries(routes)) {
+    const service = externalMarketService(id);
+    assert.ok(service);
+    const request = externalMarketRequest(service, 'A green city at dusk');
+    assert.equal(new URL(request.url).pathname, path);
+    assert.equal(JSON.parse(request.body).num_images, 1);
+    assert.equal(externalResourceMatches(id, request.url, request.url), true);
+  }
+  assert.equal(externalMarketService('featured-flux-pro').holderOnly, true);
+  assert.equal(externalMarketService('featured-recraft-image').holderOnly, true);
+});
+
+void test('every city profession has a draft starter that fits the seller form and a real foundation kind', () => {
+  const supportedKinds = new Set(MARKET_SERVICES.filter((service) => ['model', 'long-form', 'research-brief'].includes(service.kind)).map((service) => service.kind));
+  assert.deepEqual(new Set(AGENT_SERVICE_STARTERS.map((starter) => starter.profession)), new Set(CITY_PROFESSIONS.map((role) => role.id)));
+  for (const starter of AGENT_SERVICE_STARTERS) {
+    assert.ok(starter.title.length >= 3 && starter.title.length <= 80);
+    assert.ok(starter.description.length >= 10 && starter.description.length <= 280);
+    assert.ok(starter.instructions.length >= 10 && starter.instructions.length <= 1000);
+    assert.ok(starter.preferredKinds.some((kind) => supportedKinds.has(kind)));
+  }
+});
 
 void test('nonholders can equip at most three distinct basic skills', () => {
   assert.deepEqual(validateAgentSkills(DEFAULT_AGENT_SKILLS), DEFAULT_AGENT_SKILLS);
@@ -64,6 +111,16 @@ void test('advanced direct models require verified SCRAPY holder access', () => 
   assert.equal(externalModelHolderOnly('openai/gpt-6-luna'), false);
   assert.equal(externalModelHolderOnly('openai/gpt-4o-mini'), false);
   assert.equal(externalModelHolderOnly('anthropic/claude-sonnet-4'), false);
+});
+
+void test('document OCR and reverse place lookup use pinned x402 routes', () => {
+  const ocr = externalMarketRequest(externalMarketService('agent402-image-ocr'), 'https://example.org/sign.jpg');
+  assert.equal(ocr.url, 'https://agent402.tools/api/image-ocr');
+  assert.deepEqual(JSON.parse(ocr.body), { url: 'https://example.org/sign.jpg', lang: 'eng' });
+  const place = externalMarketRequest(externalMarketService('agent402-reverse-geocode'), '38.8977, -77.0365');
+  assert.equal(place.url, 'https://agent402.tools/api/reverse-geocode?lat=38.8977&lon=-77.0365');
+  assert.equal(externalResourceMatches('agent402-reverse-geocode', 'https://agent402.tools/api/reverse-geocode', place.url), true);
+  assert.equal(externalResourceMatches('agent402-reverse-geocode', 'https://attacker.example/api/reverse-geocode', place.url), false);
 });
 
 void test('existing model cards resolve to fixed x402 routes without city API keys', () => {

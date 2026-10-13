@@ -30,7 +30,7 @@ export function ChatProposalDraft({
     event.preventDefault();
     if (busy || created || atLimit || status !== 'ready') return;
     setBusy(true);
-    setNotice('Checking your account and SCRAPY holdings…');
+    setNotice('Submitting your building plan…');
     try {
       const proposal = await createProposal({ ...draft, sourceReplyId });
       setCreated(proposal.id);
@@ -45,10 +45,9 @@ export function ChatProposalDraft({
   }
   return (
     <form className="proposal-form" id="proposal-draft" onSubmit={submit}>
-      <h3>Ready for the town?</h3>
+      <h3>Put this building to a vote.</h3>
       <p>
-        Check the plan and district. Confirm to open voting.
-        To change the idea, return to Scrapy first.
+        Read Scrapy’s plan below. If it looks right, submit it for the town to decide. You can go back to chat to change the idea.
       </p>
       <label>
         OBJECT NAME
@@ -58,20 +57,12 @@ export function ChatProposalDraft({
         WHAT WILL IT DO?
         <textarea value={summaryText} readOnly />
       </label>
-      <label>
+      <details><summary>Change building category (optional)</summary><label>
         CATEGORY
-        <select
-          value={draft.category}
-          disabled={busy || Boolean(created)}
-          onChange={(event) =>
-            setDraft({ ...draft, category: event.target.value })
-          }
-        >
-          {['UTILITY', 'GAME', 'ART', 'MEME', 'TOKEN', 'OTHER'].map((item) => (
-            <option key={item}>{item}</option>
-          ))}
+        <select value={draft.category} disabled={busy || Boolean(created)} onChange={(event) => setDraft({ ...draft, category: event.target.value })}>
+          {['UTILITY', 'GAME', 'ART', 'MEME', 'TOKEN', 'OTHER'].map((item) => <option key={item}>{item}</option>)}
         </select>
-      </label>
+      </label></details>
       <label>
         DISTRICT
         <select
@@ -126,7 +117,7 @@ export function ChatProposalDraft({
         disabled={busy}
         onClick={onClose}
       >
-        {created ? 'CLOSE' : 'DISCARD DRAFT'}
+          {created ? 'CLOSE' : 'BACK TO CHAT'}
       </button>
     </form>
   );

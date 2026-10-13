@@ -60,8 +60,8 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
   }
 
   return <section className={`${styles.panel} scrapy-metal-panel`} aria-label="Personal Scrapy robot">
-    <header><span><Bot /> YOUR OWN LITTLE GREMLIN / SCRAPY SUPERVISED</span><h3>{created ? 'Your robot. Your rules.' : 'Build your personal robot.'}</h3>
-      <p>One boxy town companion per citizen. Give it a name, a personality and a home in the desert.</p></header>
+    <header><span><Bot /> YOUR AGENT &amp; YARD</span><h3>{created ? 'Make your agent your own.' : 'Create your agent.'}</h3>
+      <p>Name your robot, pick its look and home, then choose a city role. You can change these later.</p></header>
     {loading ? <p>Checking the workshop…</p> : <div className={styles.layout}>
       <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <div className={styles.fields}>
@@ -74,14 +74,15 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
           <label key={value}><input type="radio" name="personality" checked={form.personality === value} onChange={() => setForm({ ...form, personality: value })} /><span>{PERSONALITY_LABELS[value]}</span></label>)}</div></fieldset>
         <fieldset><legend>CHOOSE ONE HOUSE</legend><div className={styles.houseOptions}>{AGENT_HOUSES.map((value) =>
           <label key={value}><input type="radio" name="houseStyle" checked={form.houseStyle === value} onChange={() => setForm({ ...form, houseStyle: value })} /><AgentHouseArt style={value} /><span>{HOUSE_LABELS[value]}</span></label>)}</div></fieldset>
-        <fieldset><legend>ADD SOMETHING TO YOUR YARD</legend><p>Choose one visible feature. It is decorative for now and costs nothing.</p>
+        <fieldset><legend>ADD SOMETHING TO YOUR YARD</legend><p>Choose one feature for free. The Solar Rig restores one game energy per hour; other features change the look of your yard.</p>
           <label className={styles.selectLabel}>YARD FEATURE<select value={form.yardFeature} onChange={(event) => setForm({ ...form, yardFeature: event.target.value as Form['yardFeature'] })}>
             {YARD_FEATURES.map((value) => <option key={value} value={value}>{YARD_FEATURE_LABELS[value]}</option>)}
           </select></label></fieldset>
-        <fieldset><legend>CHOOSE A CITY ROLE</legend><p>This tells other citizens what your agent is interested in. It does not assign jobs or start paid work.</p>
+        <fieldset><legend>CHOOSE A CITY ROLE</legend><p>Your role suggests a Market service starter and gives a bonus on matching yard shifts. You choose whether to test or publish a service.</p>
           <label className={styles.selectLabel}>PROFESSION<select value={form.profession} onChange={(event) => setForm({ ...form, profession: event.target.value as Form['profession'] })}>
             {CITY_PROFESSIONS.map((value) => <option key={value.id} value={value.id}>{value.name}</option>)}
           </select></label><p>{CITY_PROFESSIONS.find((value) => value.id === form.profession)?.description}</p></fieldset>
+        <details className={styles.advanced}><summary>MORE AGENT SETTINGS <span>World roaming and speech · Public chat {form.townMode === 'OFF' ? 'off' : 'on'}</span></summary>
         <fieldset><legend>WORLD / HOW YOUR AGENT LIVES</legend>
           <p>Your robot walks on the shared map by itself. Choose how far it explores. Short lines appear above its head from time to time.</p>
           <label className={styles.selectLabel}>ROAMING<select value={form.worldRoamMode} onChange={(event) => setForm({ ...form, worldRoamMode: event.target.value as Form['worldRoamMode'] })}>
@@ -102,9 +103,10 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
           </select></label>
           {form.townMode !== 'OFF' && !autonomyAvailable && <p className={styles.warning}>Town automation is awaiting operator activation. Your setting will be saved, but the robot will stay quiet until it is enabled.</p>}
         </fieldset>
+        </details>
         <div className={styles.actions}><button className="lv-button primary" type="submit" disabled={saving}><Wrench /> {saving ? 'SAVING…' : created ? 'UPDATE ROBOT & YARD' : 'BUILD ROBOT & YARD'}</button>
           {created && <Link className="lv-button" href="/agent-market">EQUIP MARKET SKILLS <ArrowUpRight /></Link>}
-          {created && <Link className="lv-button" href={`/yard/${owner}`}>ENTER YOUR YARD <ArrowUpRight /></Link>}</div>
+          {created && <Link className="lv-button" href={`/yard/${owner}`}>ENTER YOUR YARD <ArrowUpRight /></Link>}{created && <Link className="lv-button" href="/world">CHOOSE A ROBOT LOOK <ArrowUpRight /></Link>}</div>
         {notice && <output>{notice}</output>}
       </form>
       <aside className={styles.preview}><div className={styles.previewSky}><span>LOT 01 / PRIVATE PROPERTY</span><AgentHouseArt style={form.houseStyle} /><PersonalRobot presentation={form.presentation} /></div>

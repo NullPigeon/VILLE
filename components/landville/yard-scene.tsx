@@ -6,7 +6,8 @@ import { ArrowLeft, ArrowUpRight, Bot, ReceiptText, Send, ShieldCheck } from 'lu
 import { ProductShell } from '@/components/landville/product-shell';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
 import { YardCityMiner } from '@/components/landville/city-miner';
-import { PersonalRobot, ROBOT_SKINS, type RobotSkin } from '@/components/landville/personal-robot';
+import { YardShiftDesk } from '@/components/landville/yard-shift-desk';
+import { PersonalRobot } from '@/components/landville/personal-robot';
 import { CITY_PROFESSIONS, YARD_FEATURE_LABELS } from '@/lib/personal-agent';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { readJsonResponse } from '@/lib/http-response';
@@ -14,6 +15,7 @@ import type { PublicYard, YardMessage } from '@/lib/personal-agent';
 import { marketService, type YardMarketSuggestion } from '@/lib/market-services';
 import { externalMarketService } from '@/lib/external-market';
 import './yard-scene.css';
+import './yard-ink.css';
 
 class YardNotFoundError extends Error {}
 type MarketOrder = { serviceId: string; transaction: string | null; createdAt: string };
@@ -63,24 +65,13 @@ export function YardScene({ owner }: { owner: string }) {
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
-  const [robotSkin, setRobotSkin] = useState<RobotSkin>('RUST');
+  const [houseLevel, setHouseLevel] = useState(0);
   const feed = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!own) return;
-    const timer = window.setTimeout(() => {
-      try {
-        const saved = JSON.parse(window.localStorage.getItem(`landville-hero:${owner.toLowerCase()}`) || '{}') as { robotSkin?: string };
-        if (ROBOT_SKINS.some((skin) => skin === saved.robotSkin)) setRobotSkin(saved.robotSkin as RobotSkin);
-      } catch { /* Default paint remains available. */ }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [own, owner]);
 
   useEffect(() => {
     let active = true;
     loadPublicYard(owner)
-      .then((result) => { if (active) setYard(result); })
+      .then((result) => { if (active) { setYard(result); setHouseLevel(result.houseLevel); } })
       .catch((caught: Error) => { if (active) { setNotFound(caught instanceof YardNotFoundError); setYardError(caught instanceof YardNotFoundError ? caught.message : 'The yard could not be loaded right now. This does not mean your saved house was deleted. Please retry.'); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -178,14 +169,15 @@ export function YardScene({ owner }: { owner: string }) {
         <section className="yard-desert" aria-label={`${yard.houseName}, ${yard.ownerLabel}'s yard`}>
           <div className="yard-sun" aria-hidden="true" /><div className="yard-dunes" aria-hidden="true" />
           <div className="yard-fence back" aria-hidden="true" />
-          <div className="yard-home"><AgentHouseArt style={yard.houseStyle} /><div className="yard-nameplate">{yard.houseName}</div></div>
+          <div className={`yard-home yard-home-level-${houseLevel}`}><AgentHouseArt style={yard.houseStyle} />{houseLevel >= 1 && <span className="yard-home-lights" aria-hidden="true" />}{houseLevel >= 2 && <span className="yard-home-annex" aria-hidden="true" />}{houseLevel >= 3 && <span className="yard-home-tower" aria-hidden="true" />}<div className="yard-nameplate">{yard.houseName}{houseLevel > 0 ? ` · LV ${houseLevel}` : ''}</div></div>
           {yard.yardFeature !== 'NONE' && <div className={`yard-feature yard-feature-${yard.yardFeature.toLowerCase().replace('_', '-')}`}><span aria-hidden="true" /><b>{YARD_FEATURE_LABELS[yard.yardFeature]}</b></div>}
-          <div className="yard-robot"><PersonalRobot presentation={yard.presentation} skin={robotSkin} /><div className="yard-nameplate">{yard.name}</div></div>
+          <div className="yard-robot"><PersonalRobot presentation={yard.presentation} skin={yard.robotSkin} /><div className="yard-nameplate">{yard.name}</div></div>
           <div className="yard-fence front" aria-hidden="true" />
           <div className="yard-ground" aria-hidden="true" />
           <div className="yard-sign"><small>LANDVILLE LOT</small><b>{yard.houseName}</b><span>KEPT BY {yard.ownerLabel} · {CITY_PROFESSIONS.find((item) => item.id === yard.profession)?.name}</span></div>
         </section>
         {own && <div className="yard-miner-slot"><YardCityMiner /></div>}
+        {own && <YardShiftDesk profession={yard.profession} feature={yard.yardFeature} onLevelChange={setHouseLevel} />}
         <section className="yard-lower">
           <div className="yard-intro"><small>ONE CITIZEN · ONE ROBOT · ONE HOME</small><h2>{yard.name} lives here.</h2><p>{own ? 'Your own corner of town. Chat with your robot, check in for points, or take a building idea to Scrapy.' : `${yard.ownerLabel}’s home and personal AI companion.`}</p><p>City role: <strong>{CITY_PROFESSIONS.find((item) => item.id === yard.profession)?.name}</strong>. A role describes your agent; it does not automatically assign work.</p><div className="city-yard-actions">{own && <Link className="lv-button" href={`/citizens/${owner}#your-agent`}>Customize your robot</Link>}<Link className="lv-button primary" href="/chat?room=BUILD">Build with Scrapy</Link><Link className="lv-button" href="/chat?room=TOWN">Join Town Square</Link></div></div>
           <div className="yard-chat"><header><Bot /><div><h2>{own ? `TALK TO ${yard.name.toUpperCase()}` : 'PRIVATE YARD CHAT'}</h2><small>{own ? 'ONLY YOU CAN READ THIS CONVERSATION' : 'ONLY THE OWNER CAN READ OR WRITE HERE'}</small></div>{own && <Link className="yard-tools-link" href="/agent-market">FIND TOOLS <ArrowUpRight /></Link>}</header>
