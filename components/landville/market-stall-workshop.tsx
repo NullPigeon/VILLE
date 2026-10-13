@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Bot, Trash2 } from 'lucide-react';
+import { AGENT_SERVICE_STARTERS, type AgentServiceStarter } from '@/lib/agent-service-starters';
 import { readJsonResponse } from '@/lib/http-response';
+import { CITY_PROFESSIONS, type CityProfession, type PersonalAgent } from '@/lib/personal-agent';
 import './market-stall-workshop.css';
 
-type Service = { id: string; name: string; kind: string; holderOnly: boolean; priceUsd: string };
+type Service = { id: string; name: string; kind: string; holderOnly: boolean; priceUsd: string; setupReady: boolean };
 export type MarketStallDraft = { id: string; slot: number; baseServiceId: string; title: string; description: string; instructions: string;
   status: 'draft' | 'published'; markupMicro: number; updatedAt: string };
 
@@ -21,7 +23,37 @@ export function MarketStallWorkshop({ services, agentExists, holder, onTest, onP
   const [notice, setNotice] = useState('');
   const [markups, setMarkups] = useState<Record<string, string>>({});
   const [balance, setBalance] = useState<{ availableMicro: number; earnedMicro: number; payoutsReady: boolean; payouts: Array<{ id: string; status: string; transaction_hash: string | null }> } | null>(null);
+  const [agentProfession, setAgentProfession] = useState<CityProfession | null>(null);
+  const [starterProfession, setStarterProfession] = useState<CityProfession>('BUILDER');
   const eligible = services.filter((service) => ['model', 'long-form', 'research-brief'].includes(service.kind) && (holder || !service.holderOnly));
+
+  useEffect(() => {
+    if (!agentExists) return;
+    let active = true;
+    fetch('/api/agents/me', { cache: 'no-store' })
+      .then((response) => readJsonResponse<{ agent: PersonalAgent | null }>(response, 'Load agent role'))
+      .then(({ agent }) => {
+        if (!active || !agent || !CITY_PROFESSIONS.some((role) => role.id === agent.profession)) return;
+        setAgentProfession(agent.profession);
+        setStarterProfession(agent.profession);
+      }).catch(() => undefined);
+    return () => { active = false; };
+  }, [agentExists]);
+
+  function applyStarter(starter: AgentServiceStarter) {
+    const foundations = starter.preferredKinds.flatMap((kind) => eligible.filter((service) => service.kind === kind));
+    const foundation = foundations.find((service) => service.setupReady) || foundations[0];
+    if (!foundation) { setError('No compatible foundation service is available for this recipe yet.'); return; }
+    setBaseServiceId(foundation.id);
+    setTitle(starter.title);
+    setDescription(starter.description);
+    setInstructions(starter.instructions);
+    setError('');
+    setNotice(foundation.setupReady
+      ? 'Starter loaded. Edit the recipe, save it, then run a private test before publishing.'
+      : 'Starter loaded. You can save this draft now; its foundation must open before testing or publishing.');
+    document.getElementById('am-stall-recipe')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 
   useEffect(() => {
     if (!agentExists) return;
@@ -73,7 +105,7 @@ export function MarketStallWorkshop({ services, agentExists, holder, onTest, onP
       const result = await readJsonResponse<{ draft: MarketStallDraft }>(response, 'Save service draft');
       setDrafts((current) => [...current, result.draft].sort((a, b) => a.slot - b.slot));
       setTitle(''); setDescription(''); setInstructions('');
-      setNotice('Service recipe saved privately. Test it, then publish when city checkout opens.');
+      setNotice('Service recipe saved privately. Test it, then publish when checkout and payouts are ready.');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save service.'); }
     finally { setBusy(false); }
   }
@@ -93,7 +125,11 @@ export function MarketStallWorkshop({ services, agentExists, holder, onTest, onP
     <header className="am-section-head"><div><small>06 / YOUR AGENT&apos;S WORKSHOP</small><h2 id="am-stall-title">BUILD A SERVICE.</h2></div><span>{holder ? '10 HOLDER DRAFT SLOTS' : '3 CITIZEN DRAFT SLOTS'}</span></header>
     <p className="am-section-intro">Give your robot a specialty and save a private recipe. Publishing currently uses a LANDVILLE-operated foundation and opens only when city checkout and payouts are configured. Direct x402 model purchases cannot yet be resold. For live city sales, you earn 90% of your markup; 10% goes to the treasury.</p>
     {!agentExists ? <div className="am-stall-empty"><Bot /><span>Create your personal agent first to prepare a service.</span><Link href="/citizens">CREATE AGENT <ArrowUpRight /></Link></div> : <>
-      <div className="am-stall-layout"><div className="am-stall-form"><label>FOUNDATION MODEL<select value={baseServiceId} onChange={(event) => setBaseServiceId(event.target.value)}>{eligible.map((service) => <option key={service.id} value={service.id}>{service.name}{service.holderOnly ? ' · HOLDER' : ''}</option>)}</select></label>
+      <div className="am-stall-starters"><div className="am-stall-starters-head"><div><small>START WITH A CITY JOB</small><h3>What could your agent offer?</h3><p>Pick a text-service example for a city role. It fills an editable draft; your agent does not start working or charging until you test and publish it.</p></div><label>ROLE TO EXPLORE<select value={starterProfession} onChange={(event) => setStarterProfession(event.target.value as CityProfession)}>{CITY_PROFESSIONS.map((role) => <option key={role.id} value={role.id}>{role.name}{agentProfession === role.id ? ' · YOUR AGENT' : ''}</option>)}</select></label></div>
+        <div className="am-stall-starter-list">{AGENT_SERVICE_STARTERS.filter((starter) => starter.profession === starterProfession).map((starter) => <article key={starter.id}><small>{CITY_PROFESSIONS.find((role) => role.id === starter.profession)?.name}</small><h4>{starter.title}</h4><p>{starter.description}</p><button type="button" disabled={!eligible.some((service) => starter.preferredKinds.includes(service.kind as 'model' | 'long-form' | 'research-brief'))} onClick={() => applyStarter(starter)}>USE THIS STARTER <ArrowUpRight /></button></article>)}</div>
+        <p className="am-stall-starter-note">Your chosen role is a specialty, not a job assignment. Once your service is live, you or your linked agent can offer it on the <Link href="/world/jobs">World job board <ArrowUpRight /></Link>.</p>
+      </div>
+      <div className="am-stall-layout"><div className="am-stall-form" id="am-stall-recipe"><label>FOUNDATION MODEL<select value={baseServiceId} onChange={(event) => setBaseServiceId(event.target.value)}>{eligible.map((service) => <option key={service.id} value={service.id}>{service.name}{service.holderOnly ? ' · HOLDER' : ''}</option>)}</select></label>
         <label>SERVICE NAME<input maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Pitch Doctor" /></label>
         <label>WHAT IT DOES<input maxLength={280} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Turns a rough pitch into a sharp one-page brief" /></label>
         <label>ROBOT&apos;S RECIPE<textarea maxLength={1000} value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Describe the steps and style your agent should follow..." /></label>

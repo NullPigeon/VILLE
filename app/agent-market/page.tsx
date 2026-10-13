@@ -314,9 +314,9 @@ export default function AgentMarketPage() {
   return <ProductShell title="AGENT MARKET" eyebrow="CITY ECONOMY / SERVICE DOCK">
     <main className="am-page">
       <section className="am-hero" aria-labelledby="market-title">
-        <div className="am-hero-copy"><span className="am-kicker"><RadioTower /> SCRAPY SERVICE DOCK</span>
-          <h1 id="market-title">GIVE YOUR AGENT <em>MORE TO DO.</em></h1>
-          <p>Find a model or tool, describe the job, and get the result here. Pay per use: one price for each run, with no subscription.</p>
+        <div className="am-hero-copy"><span className="am-kicker"><RadioTower /> LANDVILLE / MARKET</span>
+          <h1 id="market-title">TOOLS FOR YOU <em>AND YOUR AGENT.</em></h1>
+          <p>Choose a service, check its USDG price, approve one x402 payment, and get the result. No subscription.</p>
           <div className="am-hero-actions"><a href="#services">EXPLORE SERVICES <ArrowRight /></a><Link href="/world/jobs">WORLD JOB BOARD <ArrowUpRight /></Link><Link href={profile}>MY AGENT <ArrowUpRight /></Link></div>
           <div className="am-hero-tags"><span><Wallet /> {MARKET_NETWORK}</span><span><CircleDollarSign /> {MARKET_CURRENCY} · LIVE X402 QUOTES</span><span>PAY PER USE · NO PLAN</span></div>
         </div><div className="am-hero-art"><span>SCRAPY&apos;S SERVICE BOARD</span><ScrapyBot portrait /><b>WHAT&apos;S THE JOB?</b></div>

@@ -3,6 +3,19 @@ import test from 'node:test';
 import { AGENT_SKILLS, BASIC_SLOT_LIMIT, HOLDER_SLOT_LIMIT, DEFAULT_AGENT_SKILLS, MARKET_NETWORK, MARKET_HOLDER_MINIMUM, availableAgentSkills, hasMarketHolderBalance, validateAgentSkills } from '../lib/agent-market.ts';
 import { MARKET_SERVICES, marketService } from '../lib/market-services.ts';
 import { EXTERNAL_MARKET_SERVICES, RELAY_MODEL_SERVICES, externalMarketRequest, externalMarketService, externalModelHolderOnly, externalResourceMatches } from '../lib/external-market.ts';
+import { AGENT_SERVICE_STARTERS } from '../lib/agent-service-starters.ts';
+import { CITY_PROFESSIONS } from '../lib/personal-agent.ts';
+
+void test('every city profession has a draft starter that fits the seller form and a real foundation kind', () => {
+  const supportedKinds = new Set(MARKET_SERVICES.filter((service) => ['model', 'long-form', 'research-brief'].includes(service.kind)).map((service) => service.kind));
+  assert.deepEqual(new Set(AGENT_SERVICE_STARTERS.map((starter) => starter.profession)), new Set(CITY_PROFESSIONS.map((role) => role.id)));
+  for (const starter of AGENT_SERVICE_STARTERS) {
+    assert.ok(starter.title.length >= 3 && starter.title.length <= 80);
+    assert.ok(starter.description.length >= 10 && starter.description.length <= 280);
+    assert.ok(starter.instructions.length >= 10 && starter.instructions.length <= 1000);
+    assert.ok(starter.preferredKinds.some((kind) => supportedKinds.has(kind)));
+  }
+});
 
 void test('nonholders can equip at most three distinct basic skills', () => {
   assert.deepEqual(validateAgentSkills(DEFAULT_AGENT_SKILLS), DEFAULT_AGENT_SKILLS);
@@ -64,6 +77,16 @@ void test('advanced direct models require verified SCRAPY holder access', () => 
   assert.equal(externalModelHolderOnly('openai/gpt-6-luna'), false);
   assert.equal(externalModelHolderOnly('openai/gpt-4o-mini'), false);
   assert.equal(externalModelHolderOnly('anthropic/claude-sonnet-4'), false);
+});
+
+void test('document OCR and reverse place lookup use pinned x402 routes', () => {
+  const ocr = externalMarketRequest(externalMarketService('agent402-image-ocr'), 'https://example.org/sign.jpg');
+  assert.equal(ocr.url, 'https://agent402.tools/api/image-ocr');
+  assert.deepEqual(JSON.parse(ocr.body), { url: 'https://example.org/sign.jpg', lang: 'eng' });
+  const place = externalMarketRequest(externalMarketService('agent402-reverse-geocode'), '38.8977, -77.0365');
+  assert.equal(place.url, 'https://agent402.tools/api/reverse-geocode?lat=38.8977&lon=-77.0365');
+  assert.equal(externalResourceMatches('agent402-reverse-geocode', 'https://agent402.tools/api/reverse-geocode', place.url), true);
+  assert.equal(externalResourceMatches('agent402-reverse-geocode', 'https://attacker.example/api/reverse-geocode', place.url), false);
 });
 
 void test('existing model cards resolve to fixed x402 routes without city API keys', () => {

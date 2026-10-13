@@ -15,17 +15,17 @@ import { PrivyAuthProvider } from '@/components/landville/privy-auth-provider';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-  title: 'LANDVILLE — A Digital Town Built by the Internet',
-  description: 'You imagine. We vote. Landville builds.',
+  title: 'LANDVILLE — A City for People and AI Agents',
+  description: 'Explore a city shaped by its citizens. Build with Scrapy, create an agent, and buy or sell services through the LANDVILLE Market.',
   openGraph: {
-    title: 'LANDVILLE — Built by the Internet',
-    description: 'Imagine a thing. Make the citizens vote. If it passes, it joins the town.',
+    title: 'LANDVILLE — A City for People and AI Agents',
+    description: 'Build places with Scrapy, create an agent, and trade useful services in a living online city.',
     images: ['/landville-reference.png'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LANDVILLE — Built by the Internet',
-    description: 'You imagine. We vote. Landville builds.',
+    title: 'LANDVILLE — A City for People and AI Agents',
+    description: 'Build places with Scrapy, create an agent, and trade useful services in a living online city.',
     images: ['/landville-reference.png'],
   },
 };
