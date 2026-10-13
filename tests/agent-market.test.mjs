@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AGENT_SKILLS, BASIC_SLOT_LIMIT, DEFAULT_AGENT_SKILLS, MARKET_NETWORK, MARKET_HOLDER_MINIMUM, availableAgentSkills, hasMarketHolderBalance, validateAgentSkills } from '../lib/agent-market.ts';
+import { AGENT_SKILLS, BASIC_SLOT_LIMIT, HOLDER_SLOT_LIMIT, DEFAULT_AGENT_SKILLS, MARKET_NETWORK, MARKET_HOLDER_MINIMUM, availableAgentSkills, hasMarketHolderBalance, validateAgentSkills } from '../lib/agent-market.ts';
 import { MARKET_SERVICES, marketService } from '../lib/market-services.ts';
-import { EXTERNAL_MARKET_SERVICES, RELAY_MODEL_SERVICES, externalMarketRequest, externalMarketService, externalModelHolderOnly } from '../lib/external-market.ts';
+import { EXTERNAL_MARKET_SERVICES, RELAY_MODEL_SERVICES, externalMarketRequest, externalMarketService, externalModelHolderOnly, externalResourceMatches } from '../lib/external-market.ts';
 
 void test('nonholders can equip at most three distinct basic skills', () => {
   assert.deepEqual(validateAgentSkills(DEFAULT_AGENT_SKILLS), DEFAULT_AGENT_SKILLS);
@@ -10,12 +10,17 @@ void test('nonholders can equip at most three distinct basic skills', () => {
   assert.throws(() => validateAgentSkills(AGENT_SKILLS.map((skill) => skill.id)));
   assert.throws(() => validateAgentSkills(['city-guide', 'city-guide']));
   assert.throws(() => validateAgentSkills(['deep-planner']));
+  assert.throws(() => validateAgentSkills(['city-architect']));
   assert.equal(BASIC_SLOT_LIMIT, 3);
 });
 
-void test('verified holder access covers all live skills and stays on Robinhood Chain', () => {
+void test('verified holders can equip six specialist skills without auto-enabling every skill', () => {
   assert.deepEqual(availableAgentSkills(false, ['city-guide']), ['city-guide']);
-  assert.deepEqual(availableAgentSkills(true, ['city-guide']), AGENT_SKILLS.map((skill) => skill.id));
+  assert.deepEqual(availableAgentSkills(false, ['city-architect']), []);
+  assert.deepEqual(availableAgentSkills(true, ['city-guide']), ['city-guide']);
+  assert.deepEqual(validateAgentSkills(['city-guide', 'city-architect'], true), ['city-guide', 'city-architect']);
+  assert.throws(() => validateAgentSkills(AGENT_SKILLS.slice(0, 7).map((skill) => skill.id), true));
+  assert.equal(HOLDER_SLOT_LIMIT, 6);
   assert.equal(MARKET_NETWORK, 'eip155:4663');
   assert.equal(MARKET_HOLDER_MINIMUM, 1_000_000n * 10n ** 18n);
   assert.equal(hasMarketHolderBalance(MARKET_HOLDER_MINIMUM - 1n), false);
@@ -75,4 +80,75 @@ void test('existing model cards resolve to fixed x402 routes without city API ke
   const longform = externalMarketService('relay-long-form');
   assert.ok(longform);
   assert.equal(JSON.parse(externalMarketRequest(longform, 'Write a report').body).max_tokens, 6000);
+});
+
+void test('new Mesh listings use fixed Robinhood USDG routes and bind quotes to the route', () => {
+  const examples = {
+    'mesh-dex-price': 'ETH', 'mesh-dex-pairs': 'ETH', 'mesh-dex-trending': '',
+    'mesh-rwa-quote': 'AAPL', 'mesh-stock-contract': 'AAPL',
+    'mesh-hook-permissions': '0x0000000000000000000000000000000000000000',
+    'mesh-paper-search': 'AI agents', 'mesh-citation-search': 'AI agents',
+    'mesh-wiki-search': 'AI agents', 'mesh-hacker-news': 'AI agents',
+    'mesh-place-geocode': 'Madrid', 'mesh-weather-forecast': '40.4168, -3.7038',
+    'mesh-electricity-price': '', 'mesh-renewable-share': '', 'mesh-repo-search': 'agent tools',
+  };
+  for (const [id, input] of Object.entries(examples)) {
+    const service = externalMarketService(id);
+    assert.ok(service);
+    assert.equal(service.provider, 'mesh');
+    const request = externalMarketRequest(service, input);
+    const url = new URL(request.url);
+    assert.equal(url.hostname, 'api.meshgateway.co');
+    assert.equal(request.method, 'GET');
+    assert.equal(externalResourceMatches(id, `${url.origin}${url.pathname}`, request.url), true);
+    assert.equal(externalResourceMatches(id, `${url.origin}/m/other/route`, request.url), false);
+    assert.equal(externalResourceMatches(id, `https://attacker.example${url.pathname}`, request.url), false);
+  }
+  assert.throws(() => externalMarketRequest(externalMarketService('mesh-hook-permissions'), 'not-an-address'));
+  assert.throws(() => externalMarketRequest(externalMarketService('mesh-weather-forecast'), '999, 999'));
+});
+
+void test('featured merchant routes pin a single paid operation and validate its input', () => {
+  const examples = {
+    'featured-flux-image': 'A friendly robot',
+    'featured-exa-search': 'AI agents',
+    'featured-brave-search': 'AI agents',
+    'featured-parallel-search': 'AI agents',
+    'featured-firecrawl-scrape': 'https://example.org/article',
+    'featured-browserbase-fetch': 'https://example.org',
+    'featured-diffbot-article': 'https://example.org/article',
+    'featured-deepgram-analyze': 'This robot is helpful.',
+    'featured-stock-quote': 'AAPL',
+    'featured-coin-price': 'bitcoin',
+    'featured-openweather': '40.4168, -3.7038',
+    'featured-wolfram-answer': '2+2',
+  };
+  for (const [id, input] of Object.entries(examples)) {
+    const service = externalMarketService(id);
+    assert.ok(service);
+    const request = externalMarketRequest(service, input);
+    assert.equal(request.method, 'POST');
+    assert.match(request.url, /^https:\/\/api\.meshgateway\.co\/x\/[-a-z0-9/]+$/);
+    assert.equal(externalResourceMatches(id, request.url, request.url), true);
+    assert.equal(externalResourceMatches(id, request.url + '/other', request.url), false);
+    assert.ok(JSON.parse(request.body));
+  }
+  assert.throws(() => externalMarketRequest(externalMarketService('featured-firecrawl-scrape'), 'http://localhost'));
+  assert.throws(() => externalMarketRequest(externalMarketService('featured-openweather'), '999, 999'));
+  assert.throws(() => externalMarketRequest(externalMarketService('featured-stock-quote'), '../secret'));
+});
+
+void test('independent seller signals bind their original x402 resource to the gateway route', () => {
+  for (const signal of ['momentum', 'sentiment', 'regime', 'fundamentals', 'risk', 'anomaly']) {
+    const id = `imperium-${signal}`;
+    const service = externalMarketService(id);
+    assert.ok(service);
+    const request = externalMarketRequest(service, 'aapl');
+    assert.equal(request.url, `https://api.meshgateway.co/m/imperium-pulse/${signal}`);
+    assert.equal(request.method, 'POST');
+    assert.equal(JSON.parse(request.body).symbol, 'AAPL');
+    assert.equal(externalResourceMatches(id, `https://api.imperium-fi.com/v1/pulse/${signal}`, request.url), true);
+    assert.equal(externalResourceMatches(id, 'https://api.imperium-fi.com/v1/pulse/risk?extra=1', request.url), false);
+    assert.equal(externalResourceMatches(id, 'https://attacker.example/v1/pulse/momentum', request.url), false);
+  }
 });

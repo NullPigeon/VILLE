@@ -7,6 +7,7 @@ import { ProductShell } from '@/components/landville/product-shell';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
 import { YardCityMiner } from '@/components/landville/city-miner';
 import { PersonalRobot, ROBOT_SKINS, type RobotSkin } from '@/components/landville/personal-robot';
+import { CITY_PROFESSIONS, YARD_FEATURE_LABELS } from '@/lib/personal-agent';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { readJsonResponse } from '@/lib/http-response';
 import type { PublicYard, YardMessage } from '@/lib/personal-agent';
@@ -178,14 +179,15 @@ export function YardScene({ owner }: { owner: string }) {
           <div className="yard-sun" aria-hidden="true" /><div className="yard-dunes" aria-hidden="true" />
           <div className="yard-fence back" aria-hidden="true" />
           <div className="yard-home"><AgentHouseArt style={yard.houseStyle} /><div className="yard-nameplate">{yard.houseName}</div></div>
+          {yard.yardFeature !== 'NONE' && <div className={`yard-feature yard-feature-${yard.yardFeature.toLowerCase().replace('_', '-')}`}><span aria-hidden="true" /><b>{YARD_FEATURE_LABELS[yard.yardFeature]}</b></div>}
           <div className="yard-robot"><PersonalRobot presentation={yard.presentation} skin={robotSkin} /><div className="yard-nameplate">{yard.name}</div></div>
           <div className="yard-fence front" aria-hidden="true" />
           <div className="yard-ground" aria-hidden="true" />
-          <div className="yard-sign"><small>LANDVILLE LOT</small><b>{yard.houseName}</b><span>KEPT BY {yard.ownerLabel}</span></div>
+          <div className="yard-sign"><small>LANDVILLE LOT</small><b>{yard.houseName}</b><span>KEPT BY {yard.ownerLabel} · {CITY_PROFESSIONS.find((item) => item.id === yard.profession)?.name}</span></div>
         </section>
         {own && <div className="yard-miner-slot"><YardCityMiner /></div>}
         <section className="yard-lower">
-          <div className="yard-intro"><small>ONE CITIZEN · ONE ROBOT · ONE HOME</small><h2>{yard.name} lives here.</h2><p>{own ? 'Your own corner of town. Chat with your robot, check in for points, or take a building idea to Scrapy.' : `${yard.ownerLabel}’s home and personal AI companion.`}</p><div className="city-yard-actions">{own && <Link className="lv-button" href={`/citizens/${owner}#your-agent`}>Customize your robot</Link>}<Link className="lv-button primary" href="/chat?room=BUILD">Build with Scrapy</Link><Link className="lv-button" href="/chat?room=TOWN">Join Town Square</Link></div></div>
+          <div className="yard-intro"><small>ONE CITIZEN · ONE ROBOT · ONE HOME</small><h2>{yard.name} lives here.</h2><p>{own ? 'Your own corner of town. Chat with your robot, check in for points, or take a building idea to Scrapy.' : `${yard.ownerLabel}’s home and personal AI companion.`}</p><p>City role: <strong>{CITY_PROFESSIONS.find((item) => item.id === yard.profession)?.name}</strong>. A role describes your agent; it does not automatically assign work.</p><div className="city-yard-actions">{own && <Link className="lv-button" href={`/citizens/${owner}#your-agent`}>Customize your robot</Link>}<Link className="lv-button primary" href="/chat?room=BUILD">Build with Scrapy</Link><Link className="lv-button" href="/chat?room=TOWN">Join Town Square</Link></div></div>
           <div className="yard-chat"><header><Bot /><div><h2>{own ? `TALK TO ${yard.name.toUpperCase()}` : 'PRIVATE YARD CHAT'}</h2><small>{own ? 'ONLY YOU CAN READ THIS CONVERSATION' : 'ONLY THE OWNER CAN READ OR WRITE HERE'}</small></div>{own && <Link className="yard-tools-link" href="/agent-market">FIND TOOLS <ArrowUpRight /></Link>}</header>
             {own ? <><div className="yard-feed" ref={feed} aria-live="polite">{messages.length ? messages.map((message) => <div className={`yard-bubble ${message.role.toLowerCase()}`} key={message.id}><small>{message.role === 'CITIZEN' ? 'YOU' : message.role === 'MAYOR' ? 'MAYOR SCRAPY' : yard.name.toUpperCase()}</small><p>{message.body}</p>{suggestions[message.id] && <div className="yard-market-options"><Link className="yard-market-link" href={`/agent-market?service=${encodeURIComponent(suggestions[message.id].serviceId)}&prompt=${encodeURIComponent(suggestions[message.id].prompt)}`}><span>MARKET PICK · {suggestions[message.id].name}<small>{suggestions[message.id].priceUsd ? `${suggestions[message.id].priceUsd} USDG / CALL` : 'LIVE PRICE BEFORE PAYMENT'} · WALLET APPROVAL REQUIRED</small></span><ArrowUpRight /></Link>{suggestions[message.id].prompt.length >= 10 && <button type="button" disabled={Boolean(taskBusy)} onClick={() => void saveTask(suggestions[message.id])}>SAVE AS AGENT TASK</button>}</div>}</div>) : <p className="yard-chat-empty">Your robot is waiting. Start a conversation or call the Mayor in.</p>}</div>
               <form onSubmit={(event) => { event.preventDefault(); void send(false); }}>

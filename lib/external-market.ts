@@ -1,10 +1,10 @@
 export type ExternalMarketService = {
   id: string;
   name: string;
-  provider: 'agent402' | 'spraay' | 'stockkit' | 'relay';
-  category: 'AI Models' | 'Search' | 'Research' | 'Web & Scraping' | 'Market Data' | 'Site & Domains';
+  provider: 'agent402' | 'spraay' | 'stockkit' | 'relay' | 'mesh' | 'imperium';
+  category: 'AI Models' | 'Media' | 'Search' | 'Research' | 'Web & Scraping' | 'Documents' | 'Market Data' | 'Weather' | 'Site & Domains' | 'Energy & Climate' | 'Developer';
   description: string;
-  input: 'prompt' | 'query' | 'url' | 'symbol' | 'address' | 'domain' | 'none';
+  input: 'prompt' | 'query' | 'url' | 'symbol' | 'address' | 'domain' | 'coordinates' | 'none';
   placeholder: string;
   docs?: string;
   modelPicker?: boolean;
@@ -71,6 +71,9 @@ export const EXTERNAL_MARKET_SERVICES: ExternalMarketService[] = [
   { id: 'agent402-pdf', name: 'Read a PDF', provider: 'agent402', category: 'Web & Scraping',
     description: 'Extract text and page details from one public PDF URL.', input: 'url',
     placeholder: 'https://example.com/report.pdf', docs: 'https://agent402.tools/tools/pdf' },
+  { id: 'agent402-pdf-markdown', name: 'PDF to Markdown', provider: 'agent402', category: 'Documents',
+    description: 'Turn a public text-based PDF into clean Markdown for reading or reuse. Scanned pages need OCR.',
+    input: 'url', placeholder: 'https://example.com/report.pdf', docs: 'https://agent402.tools/tools/pdf-to-markdown' },
   { id: 'agent402-robots', name: 'Check Crawl Access', provider: 'agent402', category: 'Site & Domains',
     description: 'Check whether a site allows bots to read a page and find its sitemap.', input: 'url',
     placeholder: 'https://example.com/article', docs: 'https://agent402.tools/tools/robots-check' },
@@ -89,6 +92,118 @@ export const EXTERNAL_MARKET_SERVICES: ExternalMarketService[] = [
   { id: 'agent402-crypto-news', name: 'Crypto Headlines', provider: 'agent402', category: 'Market Data',
     description: 'Read recent crypto headlines from major publications.', input: 'query',
     placeholder: 'bitcoin', docs: 'https://agent402.tools/tools/crypto-news' },
+  { id: 'agent402-stock-quote', name: 'US Stock Close', provider: 'agent402', category: 'Market Data',
+    description: 'See the latest end-of-day US stock quote. This is not a live intraday price.',
+    input: 'symbol', placeholder: 'NVDA', docs: 'https://agent402.tools/tools/stock-quote' },
+  { id: 'agent402-sec-filings', name: 'Company Filings', provider: 'agent402', category: 'Research',
+    description: 'Find recent SEC filings and source links for one US-listed company.',
+    input: 'symbol', placeholder: 'AAPL', docs: 'https://agent402.tools/tools/edgar-filings' },
+  { id: 'agent402-crypto-price', name: 'Crypto Price', provider: 'agent402', category: 'Market Data',
+    description: 'Get a current price and 24-hour market snapshot for one coin.',
+    input: 'symbol', placeholder: 'BTC', docs: 'https://agent402.tools/tools/crypto-price' },
+  { id: 'agent402-weather', name: 'Current Weather', provider: 'agent402', category: 'Weather',
+    description: 'Get current weather for any latitude and longitude.',
+    input: 'coordinates', placeholder: '48.8566, 2.3522', docs: 'https://agent402.tools/tools/weather-current' },
+  { id: 'featured-flux-image', name: 'Generate an Image', provider: 'relay', category: 'Media',
+    description: 'Create one image from a text prompt with FLUX Schnell. See the live USDG quote first.',
+    input: 'prompt', placeholder: 'Describe the image you want', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-exa-search', name: 'Semantic Web Search', provider: 'relay', category: 'Search',
+    description: 'Find relevant web pages with semantic search and source links.',
+    input: 'query', placeholder: 'What should we research?', docs: 'https://meshgateway.co/marketplace/network/exa' },
+  { id: 'featured-brave-search', name: 'Independent Web Search', provider: 'relay', category: 'Search',
+    description: 'Search an independent web index for current pages and snippets.',
+    input: 'query', placeholder: 'What should we find?', docs: 'https://meshgateway.co/marketplace/network/brave' },
+  { id: 'featured-parallel-search', name: 'Research Search', provider: 'relay', category: 'Search',
+    description: 'Search the web for sources suitable for research.',
+    input: 'query', placeholder: 'Research question or topic', docs: 'https://meshgateway.co/marketplace/network/parallel' },
+  { id: 'featured-firecrawl-scrape', name: 'Read a Web Page', provider: 'relay', category: 'Web & Scraping',
+    description: 'Extract clean Markdown from one public page.',
+    input: 'url', placeholder: 'https://example.org/article', docs: 'https://meshgateway.co/marketplace/network/firecrawl' },
+  { id: 'featured-browserbase-fetch', name: 'Fetch a Dynamic Page', provider: 'relay', category: 'Web & Scraping',
+    description: 'Fetch a public page through a managed browser service.',
+    input: 'url', placeholder: 'https://example.org', docs: 'https://meshgateway.co/marketplace/network/browserbase' },
+  { id: 'featured-diffbot-article', name: 'Extract an Article', provider: 'relay', category: 'Web & Scraping',
+    description: 'Extract article text and structured metadata from a public URL.',
+    input: 'url', placeholder: 'https://example.org/article', docs: 'https://meshgateway.co/marketplace/network/diffbot' },
+  { id: 'featured-deepgram-analyze', name: 'Analyze Text', provider: 'relay', category: 'Research',
+    description: 'Analyze supplied text for topics and sentiment.',
+    input: 'prompt', placeholder: 'Paste the text to analyze', docs: 'https://meshgateway.co/marketplace/network/deepgram' },
+  { id: 'featured-stock-quote', name: 'Live Stock Quote', provider: 'relay', category: 'Market Data',
+    description: 'Look up the latest available stock quote through Alpha Vantage.',
+    input: 'symbol', placeholder: 'AAPL', docs: 'https://meshgateway.co/marketplace/network/alphavantage' },
+  { id: 'featured-coin-price', name: 'CoinGecko Price', provider: 'relay', category: 'Market Data',
+    description: 'Look up a coin price in USD by CoinGecko ID, such as bitcoin.',
+    input: 'query', placeholder: 'bitcoin', docs: 'https://meshgateway.co/marketplace/network/coingecko' },
+  { id: 'featured-openweather', name: 'Global Current Weather', provider: 'relay', category: 'Weather',
+    description: 'Check current weather at a latitude and longitude.',
+    input: 'coordinates', placeholder: '40.4168, -3.7038', docs: 'https://meshgateway.co/marketplace/network/openweather' },
+  { id: 'featured-wolfram-answer', name: 'Compute an Answer', provider: 'relay', category: 'Research',
+    description: 'Ask a short math or factual question of a computational knowledge engine.',
+    input: 'query', placeholder: 'What is 17% of 240?', docs: 'https://meshgateway.co/marketplace/network/wolframalpha' },
+  { id: 'mesh-dex-price', name: 'DEX Token Price', provider: 'mesh', category: 'Market Data',
+    description: 'Find the highest-volume stablecoin market for a token symbol or name and see its current price.',
+    input: 'query', placeholder: 'ETH or PEPE', docs: 'https://meshgateway.co/marketplace/mesh-gecko' },
+  { id: 'mesh-dex-pairs', name: 'DEX Pair Search', provider: 'mesh', category: 'Market Data',
+    description: 'Compare live DEX pools across chains by price, liquidity and trading volume.',
+    input: 'query', placeholder: 'Token name, symbol or address', docs: 'https://meshgateway.co/marketplace/mesh-gecko' },
+  { id: 'mesh-dex-trending', name: 'Trending DEX Tokens', provider: 'mesh', category: 'Market Data',
+    description: 'See ten currently boosted tokens with live price and liquidity data. This is not a recommendation.',
+    input: 'none', placeholder: '', holderOnly: true, docs: 'https://meshgateway.co/marketplace/mesh-gecko' },
+  { id: 'mesh-rwa-quote', name: 'Robinhood Asset Quote', provider: 'mesh', category: 'Market Data',
+    description: 'Look up a verified tokenized stock or other real-world asset on Robinhood Chain.',
+    input: 'symbol', placeholder: 'AAPL', docs: 'https://meshgateway.co/marketplace/mesh-rwa' },
+  { id: 'mesh-stock-contract', name: 'Stock Token Details', provider: 'mesh', category: 'Market Data',
+    description: 'Inspect a Robinhood Chain stock token contract, supply, holders and explorer link.',
+    input: 'symbol', placeholder: 'AAPL', holderOnly: true, docs: 'https://meshgateway.co/marketplace/hood-stocks' },
+  { id: 'mesh-hook-permissions', name: 'DEX Hook Permissions', provider: 'mesh', category: 'Market Data',
+    description: 'Decode what a Uniswap v4 hook contract can do before an agent interacts with a pool.',
+    input: 'address', placeholder: '0x… hook contract address', holderOnly: true,
+    docs: 'https://meshgateway.co/marketplace/v4-hooks' },
+  { id: 'mesh-paper-search', name: 'Research Papers', provider: 'mesh', category: 'Research',
+    description: 'Search scholarly works and receive citation and open-access details.',
+    input: 'query', placeholder: 'What topic are you researching?', docs: 'https://meshgateway.co/marketplace/scholar' },
+  { id: 'mesh-citation-search', name: 'DOI & Citation Search', provider: 'mesh', category: 'Research',
+    description: 'Find scholarly publication metadata, DOIs and journal details through Crossref.',
+    input: 'query', placeholder: 'Paper title or research topic', docs: 'https://meshgateway.co/marketplace/crossref' },
+  { id: 'mesh-wiki-search', name: 'Encyclopedia Search', provider: 'mesh', category: 'Research',
+    description: 'Find English Wikipedia articles and excerpts for a research topic.',
+    input: 'query', placeholder: 'Topic or place', docs: 'https://meshgateway.co/marketplace/wiki' },
+  { id: 'mesh-hacker-news', name: 'Tech News Search', provider: 'mesh', category: 'Search',
+    description: 'Find Hacker News stories about a company, technology or topic.',
+    input: 'query', placeholder: 'AI agents', docs: 'https://meshgateway.co/marketplace/hacker-news' },
+  { id: 'mesh-place-geocode', name: 'Find Place Coordinates', provider: 'mesh', category: 'Weather',
+    description: 'Resolve a city or place name to coordinates, country and timezone.',
+    input: 'query', placeholder: 'Madrid', docs: 'https://meshgateway.co/marketplace/weather' },
+  { id: 'mesh-weather-forecast', name: 'Weather Forecast', provider: 'mesh', category: 'Weather',
+    description: 'Get current temperature and wind plus the next three days for a coordinate.',
+    input: 'coordinates', placeholder: '40.4168, -3.7038', docs: 'https://meshgateway.co/marketplace/weather' },
+  { id: 'mesh-electricity-price', name: 'German Power Prices', provider: 'mesh', category: 'Energy & Climate',
+    description: 'Read day-ahead hourly wholesale electricity prices for Germany, in EUR/MWh.',
+    input: 'none', placeholder: '', docs: 'https://meshgateway.co/marketplace/awattar' },
+  { id: 'mesh-renewable-share', name: 'Renewable Power Share', provider: 'mesh', category: 'Energy & Climate',
+    description: 'Read Germany’s daily average share of electricity demand met by renewables.',
+    input: 'none', placeholder: '', docs: 'https://meshgateway.co/marketplace/energy-charts' },
+  { id: 'mesh-repo-search', name: 'Open Source Repo Search', provider: 'mesh', category: 'Developer',
+    description: 'Search public GitHub repositories by topic and inspect stars, language and license.',
+    input: 'query', placeholder: 'agent tools', docs: 'https://meshgateway.co/marketplace/github-public' },
+  { id: 'imperium-momentum', name: 'Stock Momentum Signal', provider: 'imperium', category: 'Market Data',
+    description: 'Read direction, strength and time horizon for one tokenized stock. Informational data only.',
+    input: 'symbol', placeholder: 'AAPL', docs: 'https://meshgateway.co/marketplace/imperium-pulse' },
+  { id: 'imperium-sentiment', name: 'Stock Sentiment Signal', provider: 'imperium', category: 'Market Data',
+    description: 'Read aggregated sentiment for one tokenized stock. Informational data only.',
+    input: 'symbol', placeholder: 'AAPL', docs: 'https://meshgateway.co/marketplace/imperium-pulse' },
+  { id: 'imperium-regime', name: 'Stock Market Regime', provider: 'imperium', category: 'Market Data',
+    description: 'See the current market-regime classification and supporting factors for one stock token.',
+    input: 'symbol', placeholder: 'AAPL', docs: 'https://meshgateway.co/marketplace/imperium-pulse' },
+  { id: 'imperium-fundamentals', name: 'Stock Fundamentals', provider: 'imperium', category: 'Market Data',
+    description: 'Get a structured fundamentals report for one tokenized stock.',
+    input: 'symbol', placeholder: 'AAPL', holderOnly: true, docs: 'https://meshgateway.co/marketplace/imperium-pulse' },
+  { id: 'imperium-risk', name: 'Stock Risk Signal', provider: 'imperium', category: 'Market Data',
+    description: 'Review a structured risk signal for one tokenized stock. It does not place a trade.',
+    input: 'symbol', placeholder: 'AAPL', holderOnly: true, docs: 'https://meshgateway.co/marketplace/imperium-pulse' },
+  { id: 'imperium-anomaly', name: 'Stock Activity Anomaly', provider: 'imperium', category: 'Market Data',
+    description: 'Spot unusual activity or changing conditions for one tokenized stock.',
+    input: 'symbol', placeholder: 'AAPL', holderOnly: true, docs: 'https://meshgateway.co/marketplace/imperium-pulse' },
   { id: 'spraay-prices', name: 'Crypto Price Feed', provider: 'spraay', category: 'Market Data',
     description: 'Read Spraay’s current multi-token price feed.', input: 'none',
     placeholder: '', docs: 'https://docs.spraay.app/' },
@@ -109,8 +224,20 @@ export function externalMarketService(id: string) {
 
 export function externalResourceMatches(serviceId: string, quotedUrl: string, requestUrl: string) {
   if (quotedUrl === requestUrl) return true;
-  // Agent402 signs its fixed route and omits the user's search query from resource.url.
-  if (serviceId === 'agent402-search' || serviceId === 'agent402-news' || serviceId === 'agent402-answer') {
+  // This seller's gateway forwards its own x402 challenge, which names its origin.
+  const imperiumSignal = serviceId.startsWith('imperium-') ? serviceId.slice('imperium-'.length) : '';
+  if (['momentum', 'sentiment', 'regime', 'fundamentals', 'risk', 'anomaly'].includes(imperiumSignal)) {
+    return requestUrl === `https://api.meshgateway.co/m/imperium-pulse/${imperiumSignal}` &&
+      quotedUrl === `https://api.imperium-fi.com/v1/pulse/${imperiumSignal}`;
+  }
+  // These merchants sign a fixed route and omit the user's query from resource.url.
+  if (['agent402-search', 'agent402-news', 'agent402-answer', 'agent402-stock-quote',
+    'agent402-sec-filings', 'agent402-crypto-price', 'agent402-weather',
+    'mesh-dex-price', 'mesh-dex-pairs', 'mesh-dex-trending', 'mesh-rwa-quote',
+    'mesh-stock-contract', 'mesh-hook-permissions', 'mesh-paper-search',
+    'mesh-citation-search', 'mesh-wiki-search', 'mesh-hacker-news',
+    'mesh-place-geocode', 'mesh-weather-forecast', 'mesh-electricity-price',
+    'mesh-renewable-share', 'mesh-repo-search'].includes(serviceId)) {
     try {
       const quoted = new URL(quotedUrl);
       const requested = new URL(requestUrl);
@@ -129,7 +256,14 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
     throw new Error('Choose a model from the live catalog.');
   }
   if (service.input === 'symbol' && !/^[A-Za-z][A-Za-z0-9.-]{0,14}$/.test(input)) throw new Error('Enter a stock symbol such as NVDA.');
-  if (service.input === 'address' && !/^0x[0-9a-fA-F]{40}$/.test(input)) throw new Error('Enter one EVM wallet address.');
+  if (service.input === 'coordinates') {
+    const parts = input.split(',').map((part) => part.trim());
+    if (parts.length !== 2 || parts.some((part) => !/^-?\d{1,3}(?:\.\d{1,6})?$/.test(part))
+      || Math.abs(Number(parts[0])) > 90 || Math.abs(Number(parts[1])) > 180) {
+      throw new Error('Enter latitude and longitude, for example 48.8566, 2.3522.');
+    }
+  }
+  if (service.input === 'address' && !/^0x[0-9a-fA-F]{40}$/.test(input)) throw new Error('Enter one EVM address.');
   if (service.input === 'domain' && (input.length > 253 || !/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(input) || /\.(?:local|internal|test|invalid|example|onion)$/i.test(input))) {
     throw new Error('Enter a public domain such as example.com.');
   }
@@ -154,6 +288,8 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
     body: JSON.stringify({ url: input }) };
   if (service.id === 'agent402-pdf') return { url: 'https://agent402.tools/api/pdf', method: 'POST' as const,
     body: JSON.stringify({ url: input }) };
+  if (service.id === 'agent402-pdf-markdown') return { url: 'https://agent402.tools/api/pdf-to-markdown', method: 'POST' as const,
+    body: JSON.stringify({ url: input }) };
   if (service.id === 'agent402-robots') return { url: 'https://agent402.tools/api/robots-check', method: 'POST' as const,
     body: JSON.stringify({ url: input }) };
   if (service.id === 'agent402-http-check') return { url: 'https://agent402.tools/api/http-check', method: 'POST' as const,
@@ -166,6 +302,67 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
     body: JSON.stringify({ host: input }) };
   if (service.id === 'agent402-crypto-news') return { url: 'https://agent402.tools/api/crypto-news', method: 'POST' as const,
     body: JSON.stringify({ query: input, limit: 10 }) };
+  if (service.id === 'agent402-stock-quote') return { url: `https://agent402.tools/api/stock-quote?symbol=${encodeURIComponent(input.toUpperCase())}`, method: 'GET' as const, body: undefined };
+  if (service.id === 'agent402-sec-filings') return { url: `https://agent402.tools/api/edgar-filings?ticker=${encodeURIComponent(input.toUpperCase())}&limit=10`, method: 'GET' as const, body: undefined };
+  if (service.id === 'agent402-crypto-price') return { url: `https://agent402.tools/api/crypto-price?coins=${encodeURIComponent(input.toUpperCase())}&currency=usd`, method: 'GET' as const, body: undefined };
+  if (service.id === 'agent402-weather') {
+    const [lat, lon] = input.split(',').map((part) => Number(part.trim()));
+    return { url: `https://agent402.tools/api/weather-current?lat=${lat}&lon=${lon}`, method: 'GET' as const, body: undefined };
+  }
+  const featured = 'https://api.meshgateway.co/x';
+  if (service.id === 'featured-flux-image') return { url: `${featured}/fal/fal-ai/flux/schnell`, method: 'POST' as const,
+    body: JSON.stringify({ prompt: input, image_size: 'square', num_images: 1 }) };
+  if (service.id === 'featured-exa-search') return { url: `${featured}/exa/search`, method: 'POST' as const,
+    body: JSON.stringify({ query: input, numResults: 5 }) };
+  if (service.id === 'featured-brave-search') return { url: `${featured}/brave/brave/web-search`, method: 'POST' as const,
+    body: JSON.stringify({ q: input }) };
+  if (service.id === 'featured-parallel-search') return { url: `${featured}/parallel/api/search`, method: 'POST' as const,
+    body: JSON.stringify({ query: input }) };
+  if (service.id === 'featured-firecrawl-scrape') return { url: `${featured}/firecrawl/v1/scrape`, method: 'POST' as const,
+    body: JSON.stringify({ url: input, formats: ['markdown'], onlyMainContent: true }) };
+  if (service.id === 'featured-browserbase-fetch') return { url: `${featured}/browserbase/fetch`, method: 'POST' as const,
+    body: JSON.stringify({ url: input }) };
+  if (service.id === 'featured-diffbot-article') return { url: `${featured}/diffbot/diffbot/article`, method: 'POST' as const,
+    body: JSON.stringify({ url: input }) };
+  if (service.id === 'featured-deepgram-analyze') return { url: `${featured}/deepgram/deepgram/analyze`, method: 'POST' as const,
+    body: JSON.stringify({ text: input }) };
+  if (service.id === 'featured-stock-quote') return { url: `${featured}/alphavantage/alphavantage/global-quote`, method: 'POST' as const,
+    body: JSON.stringify({ symbol: input.toUpperCase() }) };
+  if (service.id === 'featured-coin-price') return { url: `${featured}/coingecko/coingecko/simple-price`, method: 'POST' as const,
+    body: JSON.stringify({ ids: input.toLowerCase(), vs_currencies: 'usd' }) };
+  if (service.id === 'featured-openweather') {
+    const [lat, lon] = input.split(',').map((part) => Number(part.trim()));
+    return { url: `${featured}/openweather/openweather/current-weather`, method: 'POST' as const,
+      body: JSON.stringify({ lat, lon }) };
+  }
+  if (service.id === 'featured-wolfram-answer') return { url: `${featured}/wolframalpha/wolframalpha/short-answer`, method: 'POST' as const,
+    body: JSON.stringify({ input }) };
+  const mesh = 'https://api.meshgateway.co/m';
+  if (service.id === 'mesh-dex-price') return { url: `${mesh}/mesh-gecko/price?q=${encodeURIComponent(input)}`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-dex-pairs') return { url: `${mesh}/mesh-gecko/search?q=${encodeURIComponent(input)}&limit=10`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-dex-trending') return { url: `${mesh}/mesh-gecko/trending?limit=10`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-rwa-quote') return { url: `${mesh}/mesh-rwa/quote?symbol=${encodeURIComponent(input.toUpperCase())}`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-stock-contract') return { url: `${mesh}/hood-stocks/token?symbol=${encodeURIComponent(input.toUpperCase())}`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-hook-permissions') return { url: `${mesh}/v4-hooks/permissions?address=${encodeURIComponent(input)}`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-paper-search') return { url: `${mesh}/scholar/search?search=${encodeURIComponent(input)}&per-page=5`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-citation-search') return { url: `${mesh}/crossref/works?query=${encodeURIComponent(input)}&rows=5`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-wiki-search') return { url: `${mesh}/wiki/search?q=${encodeURIComponent(input)}&limit=5`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-hacker-news') return { url: `${mesh}/hacker-news/search?query=${encodeURIComponent(input)}&tags=story&hitsPerPage=10`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-place-geocode') return { url: `${mesh}/weather/geocode?name=${encodeURIComponent(input)}&count=5`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-weather-forecast') {
+    const [lat, lon] = input.split(',').map((part) => Number(part.trim()));
+    return { url: `${mesh}/weather/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&forecast_days=3&timezone=auto`, method: 'GET' as const, body: undefined };
+  }
+  if (service.id === 'mesh-electricity-price') return { url: `${mesh}/awattar/de`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-renewable-share') return { url: `${mesh}/energy-charts/ren-share?country=de`, method: 'GET' as const, body: undefined };
+  if (service.id === 'mesh-repo-search') return { url: `${mesh}/github-public/search?q=${encodeURIComponent(input)}&per_page=5`, method: 'GET' as const, body: undefined };
+  if (service.provider === 'imperium') {
+    const signal = service.id.slice('imperium-'.length);
+    if (['momentum', 'sentiment', 'regime', 'fundamentals', 'risk', 'anomaly'].includes(signal)) {
+      return { url: `${mesh}/imperium-pulse/${signal}`, method: 'POST' as const,
+        body: JSON.stringify({ symbol: input.toUpperCase() }) };
+    }
+  }
   if (service.id === 'spraay-prices') return { url: 'https://gateway.spraay.app/api/v1/prices', method: 'GET' as const, body: undefined };
   if (service.id === 'stockkit-research') return { url: `https://api.stockkit.dev/v1/x402/research/${input.toUpperCase()}`, method: 'GET' as const, body: undefined };
   if (service.id === 'stockkit-portfolio') return { url: `https://api.stockkit.dev/v1/x402/portfolio/${input}`, method: 'GET' as const, body: undefined };

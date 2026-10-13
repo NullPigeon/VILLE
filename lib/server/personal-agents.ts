@@ -9,7 +9,7 @@ import { database } from '@/lib/server/database';
 export type AgentRow = {
   owner_wallet: string; name: string; presentation: PersonalAgent['presentation'];
   personality: PersonalAgent['personality']; house_style: PersonalAgent['houseStyle'];
-  house_name: string; town_mode: PersonalAgent['townMode']; interval_minutes: number;
+  house_name: string; yard_feature?: PersonalAgent['yardFeature']; profession?: PersonalAgent['profession']; town_mode: PersonalAgent['townMode']; interval_minutes: number;
   world_roam_mode: PersonalAgent['worldRoamMode']; world_speech_enabled: boolean; world_phrases: string[];
   next_town_at: string; created_at: string; lease_id?: string | null;
 };
@@ -22,6 +22,7 @@ export function agentRecord(row: AgentRow): PersonalAgent {
   return {
     ownerWallet: row.owner_wallet, name: row.name, presentation: row.presentation,
     personality: row.personality, houseStyle: row.house_style, houseName: row.house_name,
+    yardFeature: row.yard_feature || 'NONE', profession: row.profession || 'BUILDER',
     townMode: row.town_mode, intervalMinutes: row.interval_minutes,
     worldRoamMode: row.world_roam_mode || 'CITY', worldSpeechEnabled: row.world_speech_enabled ?? true,
     worldPhrases: row.world_phrases || [],
@@ -45,7 +46,7 @@ export async function readPublicYards(): Promise<PublicYard[]> {
   const identities = await citizenIdentities(rows.map((row) => row.owner_wallet));
   return rows.map((row) => ({
     ownerWallet: row.owner_wallet, name: row.name, presentation: row.presentation,
-    houseStyle: row.house_style, houseName: row.house_name,
+    houseStyle: row.house_style, houseName: row.house_name, yardFeature: row.yard_feature || 'NONE', profession: row.profession || 'BUILDER',
     personality: row.personality, worldRoamMode: row.world_roam_mode || 'CITY',
     worldSpeechEnabled: row.world_speech_enabled ?? true, worldPhrases: row.world_phrases || [],
     ownerLabel: citizenLabel(identities.get(row.owner_wallet)),
@@ -73,7 +74,7 @@ export async function readPublicYard(owner: string): Promise<PublicYard | null> 
   }
   return {
     ownerWallet: agent.ownerWallet, name: agent.name, presentation: agent.presentation,
-    houseStyle: agent.houseStyle, houseName: agent.houseName,
+    houseStyle: agent.houseStyle, houseName: agent.houseName, yardFeature: agent.yardFeature, profession: agent.profession,
     personality: agent.personality, worldRoamMode: agent.worldRoamMode,
     worldSpeechEnabled: agent.worldSpeechEnabled, worldPhrases: agent.worldPhrases,
     ownerLabel,

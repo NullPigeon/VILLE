@@ -6,13 +6,21 @@ export type { RobotSkin } from '@/lib/world-presence';
 
 export const ROBOT_SKIN_LABELS: Record<RobotSkin, string> = {
   RUST: 'Rust Bucket', MINT: 'Mint Menace', EMBER: 'Hot Wiring',
+  COBALT: 'Blue Signal', VIOLET: 'Night Shift', COPPER: 'Copperhead',
 };
 
 export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', className = '' }: {
   presentation?: AgentPresentation; skin?: RobotSkin; className?: string;
 }) {
-  const glow = skin === 'MINT' ? '#9df9dc' : skin === 'EMBER' ? '#ffb35a' : '#C7FF00';
-  const shell = skin === 'MINT' ? '#42685d' : skin === 'EMBER' ? '#9b5136' : '#3B3D30';
+  const palette: Record<RobotSkin, { glow: string; shell: string }> = {
+    RUST: { glow: '#c7ff00', shell: '#3b3d30' },
+    MINT: { glow: '#9df9dc', shell: '#42685d' },
+    EMBER: { glow: '#ffb35a', shell: '#9b5136' },
+    COBALT: { glow: '#8fcfff', shell: '#315779' },
+    VIOLET: { glow: '#e0a6ff', shell: '#544063' },
+    COPPER: { glow: '#ffdc81', shell: '#865735' },
+  };
+  const { glow, shell } = palette[skin];
   return (
     <svg className={`personal-robot ${className}`} viewBox="0 0 180 250" fill="none"
       xmlns="http://www.w3.org/2000/svg" aria-label="Boxy LANDVILLE robot on one wheel">
@@ -50,6 +58,9 @@ export function PersonalRobot({ presentation = 'MASCULINE', skin = 'RUST', class
       {skin === 'RUST' && <path d="M142 69h16l8 22-16 4" fill="#916746" stroke="#26251e" strokeWidth="4" />}
       {skin === 'MINT' && <path d="m45 38-17-9 6-13 22 9" fill="#b1dfbc" stroke="#26251e" strokeWidth="4" />}
       {skin === 'EMBER' && <path d="M58 34 76 20l26 4 18 13" stroke="#ffb35a" strokeWidth="7" strokeLinecap="square" />}
+      {skin === 'COBALT' && <path d="M45 40h88m-74-9h60" stroke="#8fcfff" strokeWidth="5" strokeLinecap="square" />}
+      {skin === 'VIOLET' && <path d="m39 39 20-13 28 8 28-13 20 12" stroke="#e0a6ff" strokeWidth="5" strokeLinecap="square" />}
+      {skin === 'COPPER' && <path d="M48 35 61 23l25 8 30-9 17 13" stroke="#ffdc81" strokeWidth="5" strokeLinecap="square" />}
     </svg>
   );
 }

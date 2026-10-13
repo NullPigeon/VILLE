@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AGENT_SKILLS, BASIC_SLOT_LIMIT, FUTURE_STALLS, MARKET_CURRENCY, MARKET_NETWORK, validateAgentSkills, type AgentSkillId } from '@/lib/agent-market';
+import { AGENT_SKILLS, BASIC_SLOT_LIMIT, HOLDER_SLOT_LIMIT, FUTURE_STALLS, MARKET_CURRENCY, MARKET_NETWORK, validateAgentSkills, type AgentSkillId } from '@/lib/agent-market';
 import { MARKET_SERVICES } from '@/lib/market-services';
 import { ApiError, apiFailure, jsonBody, requireMutation, requireWallet } from '@/lib/server/api';
 import { database, enforceRate } from '@/lib/server/database';
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
   const paymentsReady = marketPaymentsConfigured() && await marketOrderStorageReady() &&
     await getMarketPaymentServer().then(() => true).catch(() => false);
-  const catalogue = { skills: AGENT_SKILLS, futureStalls: FUTURE_STALLS, basicSlotLimit: BASIC_SLOT_LIMIT, network: MARKET_NETWORK, currency: MARKET_CURRENCY };
+  const catalogue = { skills: AGENT_SKILLS, futureStalls: FUTURE_STALLS, basicSlotLimit: BASIC_SLOT_LIMIT, holderSlotLimit: HOLDER_SLOT_LIMIT, network: MARKET_NETWORK, currency: MARKET_CURRENCY };
   try {
     const owner = requireWallet(request);
     let selected: AgentSkillId[] = [];
@@ -52,10 +52,11 @@ export async function PUT(request: NextRequest) {
     requireMutation(request);
     const owner = requireWallet(request);
     const body = await jsonBody(request);
-    if (Object.keys(body).length !== 1 || !Object.hasOwn(body, 'selected')) throw new ApiError(400, 'Choose basic skills to equip.');
+    if (Object.keys(body).length !== 1 || !Object.hasOwn(body, 'selected')) throw new ApiError(400, 'Choose agent skills to equip.');
+    const holder = await hasMarketHolderAccess(owner).catch(() => false);
     let selected;
-    try { selected = validateAgentSkills(body.selected); }
-    catch { throw new ApiError(400, 'Choose up to three different basic skills.'); }
+    try { selected = validateAgentSkills(body.selected, holder); }
+    catch { throw new ApiError(400, holder ? 'Choose up to six different skills.' : 'Choose up to three basic skills.'); }
     await readAgentMarketSkills(owner);
     await enforceRate(owner, 'agent-market-loadout', 5);
     const rows = await database<Array<{ market_skills: string[] }>>(
