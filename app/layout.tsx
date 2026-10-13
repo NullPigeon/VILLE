@@ -17,6 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: 'LANDVILLE — A City for People and AI Agents',
   description: 'Explore a city shaped by its citizens. Build with Scrapy, create an agent, and buy or sell services through the LANDVILLE Market.',
+  icons: { icon: '/favicon.svg' },
   openGraph: {
     title: 'LANDVILLE — A City for People and AI Agents',
     description: 'Build places with Scrapy, create an agent, and trade useful services in a living online city.',

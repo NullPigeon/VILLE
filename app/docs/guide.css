@@ -619,3 +619,41 @@
     font-size: 12px;
   }
 }
+
+/* The field guide shares the city's ink and colour, with quiet reading surfaces. */
+.fg-root {
+  --fg-bg: #182117;
+  --fg-border: #72815b;
+  --fg-ink: #f0e7d3;
+  --fg-muted: #c7cfb9;
+  --fg-acid: #d4ee7c;
+  background-image: radial-gradient(circle at 88% 8%, #b77e3a20, transparent 30%), repeating-linear-gradient(127deg, transparent 0 76px, #dfd1930a 77px 78px, transparent 79px 133px);
+}
+.fg-header { border-bottom: 4px solid #10180f; background: #263420; box-shadow: inset 0 -1px #9aaa67; }
+.fg-brand { color: #f1e2bd; text-shadow: 2px 2px #0d160b; }
+.fg-brand span { color: #d5ec86; }
+.fg-header nav a:last-child { padding: 8px 12px; border: 2px solid #111b0f; background: #d4ed7e; color: #24351a; font-weight: 900; box-shadow: 3px 3px #0d160b; }
+.fg-sidebar { border-right: 3px solid #121b10; }
+.fg-guide-label strong { color: #ebdfba; text-shadow: 2px 2px #0d160b; }
+.fg-search { border: 2px solid #111a10; background: #243021; }
+.fg-navigation a[aria-current='page'] { border-left: 5px solid var(--fg-acid); background: #304424; color: #f1f6d2; font-weight: 800; }
+.fg-main h1 { color: #f5e8c9; text-shadow: 3px 3px #0d160b; }
+.fg-overview-hero h1 em { color: #d4ee7c; }
+.fg-starter-grid>a, .fg-chapter-group a {
+  border: 3px solid #111b10;
+  background: #283725;
+  box-shadow: 4px 5px 0 #0b130b;
+}
+.fg-starter-grid>a:hover, .fg-chapter-group a:hover { background: #34482a; border-color: #d4ee7c; }
+.fg-starter-grid h2, .fg-chapter-group h3 { color: #f2e5c6; font-weight: 850; }
+.fg-note { border: 3px solid #101b0e; border-left: 8px solid #d4ee7c; background: #293923; box-shadow: 4px 5px 0 #0c140a; }
+.fg-article>section { padding-left: 18px; border-left: 3px solid #6e8153; }
+.fg-article h2 { font-weight: 850; color: #f2e7cb; }
+.fg-table-wrap { border: 3px solid #111a0f; box-shadow: 4px 5px 0 #0c140a; }
+.fg-root thead th { background: #344829; color: #e2f49e; }
+.fg-destination { border: 3px solid #101a0f; background: #d4ee7c; color: #27381d !important; font-weight: 900; box-shadow: 4px 5px #0d160b; }
+@media (max-width: 760px) {
+  .fg-header nav a:last-child { padding: 7px 9px; box-shadow: 2px 2px #0d160b; }
+  .fg-article>section { padding-left: 12px; }
+  .fg-starter-grid>a, .fg-chapter-group a { box-shadow: 3px 4px 0 #0b130b; }
+}

@@ -43,3 +43,7 @@
 .city-welcome-links{display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:14px}
 .city-world-welcome .city-welcome-links a{margin:0;display:inline-flex;justify-content:flex-start;padding:4px 0;color:#324d20;font:800 11px/1.35 Arial,Helvetica,sans-serif;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:760px){.city-world-welcome{width:400px}.city-welcome-links{display:grid}.city-world-welcome h1{font-size:29px}}
+.city-world-welcome .city-welcome-actions>a{display:flex;align-items:center;justify-content:center;gap:7px;margin:0;border:2px solid #344720;background:#f6e8bf;color:#253a15;border-radius:7px;padding:11px;font:800 12px Arial;text-decoration:none;box-shadow:2px 2px #657442}
+.city-world-welcome .city-welcome-actions>a svg{width:16px;height:16px}
+.city-world-welcome .city-welcome-links button{display:inline-flex;align-items:center;gap:6px;padding:4px 0;border:0;background:none;color:#324d20;font:800 11px/1.35 Arial,Helvetica,sans-serif;text-decoration:underline;text-underline-offset:3px}
+.city-world-welcome .city-welcome-links button svg{width:13px;height:13px}
