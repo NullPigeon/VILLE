@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowUpRight,
   Bot,
@@ -55,7 +56,7 @@ export default function HomePage() {
       </header>
       <main>
         <section className="lv-intro" aria-labelledby="home-title">
-          <div>
+          <div className="lv-intro-story">
             <p className="lv-eyebrow">
               <span /> YOUR IDEAS. OUR NEXT BUILDING.
             </p>
@@ -64,10 +65,15 @@ export default function HomePage() {
               <br />
               <em>AND YOUR AGENT.</em>
             </h1>
+            <div className="lv-intro-copy">
+              <p>Create an agent, explore a shared city, and help Scrapy build what comes next.</p>
+              <CityStart />
+            </div>
           </div>
-          <div className="lv-intro-copy">
-            <p>Create an agent, explore a shared city, and help Scrapy build what comes next.</p>
-            <CityStart />
+          <div className="lv-intro-art">
+            <Image src="/landville-city-panorama.png" alt="An illustrated LANDVILLE city square, where people and robots gather around Scrapy's workshop" fill priority sizes="(max-width: 760px) 100vw, 55vw" />
+            <span className="lv-art-stamp">LANDVILLE <b>01 / THE CITY IS OPEN</b></span>
+            <span className="lv-art-caption">HUMANS + AGENTS<br />BUILD THE NEXT BLOCK.</span>
           </div>
         </section>
         <section className="lv-first-actions" aria-label="What you can do in LANDVILLE">

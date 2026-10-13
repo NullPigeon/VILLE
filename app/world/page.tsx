@@ -51,7 +51,6 @@ import {
   type WorldDistrictId,
 } from '@/lib/world-districts';
 import { readJsonResponse } from '@/lib/http-response';
-import { WorldWelcome } from '@/components/landville/world-welcome';
 import { WorldLife } from '@/components/landville/world-life';
 import { GameHero, HERO_SKINS, HERO_SKIN_LABELS, type HeroSkin } from '@/components/landville/game-hero';
 import { PersonalRobot, ROBOT_SKINS, ROBOT_SKIN_LABELS, type RobotSkin } from '@/components/landville/personal-robot';
@@ -63,6 +62,7 @@ import './frontier-art.css';
 import './world-actors.css';
 import './world-game-map.css';
 import './world-ink.css';
+import './world-overview.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/world-presence';
@@ -114,6 +114,7 @@ export default function WorldPage() {
   const [activeDistrict, setActiveDistrict] = useState<WorldDistrictId | ''>(
     '',
   );
+  const [overviewOpen, setOverviewOpen] = useState(true);
   const [exploration, setExploration] = useState<{
     districts: string[];
     places: string[];
@@ -146,6 +147,11 @@ export default function WorldPage() {
   const cameraTouched = useRef(false);
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const stage = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const showOverview = () => setOverviewOpen(true);
+    window.addEventListener('landville:open-welcome', showOverview);
+    return () => window.removeEventListener('landville:open-welcome', showOverview);
+  }, []);
   const bounds = useRef({ width: 0, height: 0 });
   const drag = useRef<{
     id: number;
@@ -475,6 +481,7 @@ export default function WorldPage() {
   }
 
   function exploreDistrict(id: WorldDistrictId | '') {
+    setOverviewOpen(false);
     setActiveDistrict(id);
     const item = WORLD_DISTRICTS.find((entry) => entry.id === id);
     if (item && id !== 'townwide') {
@@ -645,7 +652,7 @@ export default function WorldPage() {
           <span>
             <i /> LANDVILLE / CHAPTER 01
           </span>
-          <b>Pick a district. See what happens.</b>
+          <b>{district ? `Now exploring ${district.name}.` : 'Pick a district. See what happens.'}</b>
           <small>{wallet.address ? 'Drag the map · Click to walk · Open a building' : 'Drag the map · Open a building'}</small>
           {townStatus === 'unavailable' && (
             <button onClick={() => void refresh()}>
@@ -656,12 +663,13 @@ export default function WorldPage() {
         <nav
           className="world-district-travel"
           aria-label="Travel around the city"
+          inert={overviewOpen}
         >
           <button
             className={!activeDistrict ? 'active' : ''}
-            onClick={() => exploreDistrict('')}
+            onClick={() => setOverviewOpen(true)}
           >
-            <Map /> CITY MAP
+            <Map /> CITY OVERVIEW
           </button>
           {ownYard && <button className="world-nav-home" onClick={() => {
             const point = yardPosition(yards.indexOf(ownYard));
@@ -700,6 +708,7 @@ export default function WorldPage() {
         </div>
         <div
           className="world-map-scene"
+          inert={overviewOpen}
           style={{
             width: mapWidth,
             height: mapHeight,
@@ -1052,7 +1061,7 @@ export default function WorldPage() {
             <Minus />
           </button>
           <button
-            onClick={() => exploreDistrict('')}
+            onClick={() => setOverviewOpen(true)}
             aria-label="Show whole city"
           >
             <Map />
@@ -1071,20 +1080,27 @@ export default function WorldPage() {
           )}
         </div>
         {district && (
-          <aside className="world-district-visit" aria-live="polite">
+          <aside className={`world-district-visit district-${district.id}`} style={{ '--district-color': district.color } as CSSProperties} aria-live="polite">
             <small>DISTRICT {district.number} / YOU ARE HERE</small>
             <h2>{district.name}</h2>
             <p>{district.description}</p>
-            <span>
-              {groups[WORLD_DISTRICTS.indexOf(district)].length} PUBLISHED
-              PLACES
-            </span>
+            <span>{groups[WORLD_DISTRICTS.indexOf(district)].length} PUBLISHED PLACES</span>
+            <div className="world-district-places">
+              {groups[WORLD_DISTRICTS.indexOf(district)].length ? groups[WORLD_DISTRICTS.indexOf(district)].map((place) => <button key={place.id} onClick={() => inspectObject(place.id)}><Building2 /><span>{place.title}<small>OPEN THIS PLACE</small></span><Compass /></button>) : <p>The first place here could be yours.</p>}
+            </div>
             <button className="city-district-build" onClick={() => openCityChat({ room: 'BUILD', district: district.proposalLabel })}><Bot /> BUILD HERE</button>
-            <button onClick={() => exploreDistrict('')}>
-              <Map /> BACK TO CITY
+            <button onClick={() => setOverviewOpen(true)}>
+              <Map /> ALL DISTRICTS
             </button>
           </aside>
         )}
+        {overviewOpen && <section className="world-overview" aria-label="Explore LANDVILLE districts">
+          <Image src="/landville-world-overview.png" fill priority sizes="100vw" alt="" />
+          <div className="world-overview-shade" />
+          <div className="world-overview-head"><small>LANDVILLE / WORLD MAP</small><h1>YOUR CITY.<br /><em>YOUR NEXT STOP.</em></h1><p>Pick a district to explore its places, people and ideas.</p><button onClick={() => { setOverviewOpen(false); setActiveDistrict(''); moveCamera(mapWidth / 2, baseMapHeight / 2, bounds.current.width < 760 ? .72 : .85); }}><Map /> EXPLORE THE CITY <Compass /></button></div>
+          <div className="world-overview-districts" aria-label="Choose a district">{WORLD_DISTRICTS.map((item) => <button key={item.id} className={`world-overview-district district-${item.id}`} style={{ '--district-color': item.color } as CSSProperties} onClick={() => exploreDistrict(item.id)}><span>{item.number} / DISTRICT</span><b>{item.name}</b><small>{groups[WORLD_DISTRICTS.indexOf(item)].length} PLACES <Compass /></small></button>)}</div>
+          <div className="world-overview-foot"><span>FIVE DISTRICTS. COUNTLESS BAD IDEAS WORTH BUILDING.</span><span>CHOOSE A DISTRICT ↗</span></div>
+        </section>}
         <button
           className={`world-signal-trigger${holder ? ' verified' : ''}`}
           aria-expanded={signalOpen}
@@ -1280,7 +1296,6 @@ export default function WorldPage() {
             </div>
           </aside>
         )}
-        <WorldWelcome />
       </section>
       <section
         id="yards"

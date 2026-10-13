@@ -42,12 +42,26 @@ export function ProductShell({ title, eyebrow, actions, children, immersive = fa
   const wallet = useWallet();
   const town = useLandville();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try { setCollapsed(localStorage.getItem('landville-side-menu') === 'collapsed'); } catch { /* Keep the menu visible. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const toggleCollapsed = () => {
+    setCollapsed((value) => {
+      const next = !value;
+      try { localStorage.setItem('landville-side-menu', next ? 'collapsed' : 'open'); } catch { /* Local preference is optional. */ }
+      return next;
+    });
+  };
   const profileHref = wallet.address ? `/citizens/${wallet.address}` : '/citizens#join-city';
   const mobileNav = nav.filter((item) => ['/world', '/agent-market', '/world/jobs', '/chat', '/citizens'].includes(item.href));
   const current = [...nav].sort((a, b) => b.href.length - a.href.length).find((item) => pathname.startsWith(item.href));
-  return <div className={`product-root city-product${pathname.startsWith('/docs') ? '' : ' scrapy-frontier'}${immersive ? ' city-immersive' : ''}`}>
+  return <div className={`product-root city-product${pathname.startsWith('/docs') ? '' : ' scrapy-frontier'}${immersive ? ' city-immersive' : ''}${collapsed ? ' rail-collapsed' : ''}`}>
     <a className="city-skip" href="#city-content">Skip to content</a>
-    <aside className={open ? 'product-rail rail-open' : 'product-rail'} aria-label="City navigation">
+    <aside id="city-side-menu" className={open ? 'product-rail rail-open' : 'product-rail'} aria-label="City navigation" inert={collapsed && !open}>
       <div className="rail-brand"><Link href="/"><span>LV</span>LANDVILLE</Link><button onClick={() => setOpen(false)} aria-label="Close navigation"><X /></button></div>
       <span className="city-rail-label">YOUR LITTLE CORNER OF CHAOS</span>
       <nav>{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href === '/citizens' ? profileHref : href} className={current?.href === href ? 'active' : ''} aria-current={current?.href === href ? 'page' : undefined} onClick={() => setOpen(false)}><Icon /><span>{href === '/citizens' && !wallet.address ? 'Join the city' : label}</span></Link>)}{town.isAdmin && <Link href="/admin" onClick={() => setOpen(false)}><Wrench /><span>Build control</span></Link>}</nav>
@@ -58,7 +72,7 @@ export function ProductShell({ title, eyebrow, actions, children, immersive = fa
     </aside>
     {open && <button className="product-rail-scrim" onClick={() => setOpen(false)} aria-label="Close navigation" />}
     <div className="product-main">
-      <header className={`product-topbar${immersive ? ' immersive-bar' : ''}`}><button className="product-menu" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu /></button><Link href="/" className="city-top-brand">LANDVILLE<span> / {current?.label || 'City'}</span></Link><div className="city-top-actions"><MotionToggle />{immersive && <button className="city-icon-button" aria-label="How to explore LANDVILLE" title="How to play" onClick={() => window.dispatchEvent(new Event('landville:open-welcome'))}><HelpCircle /></button>}{immersive ? <button className="city-build-cta" onClick={() => openCityChat({ room: 'BUILD' })}><Bot /><span>Build with Scrapy</span><ArrowUpRight /></button> : <Link className="city-build-cta" href="/chat?room=BUILD"><Bot /><span>Build with Scrapy</span><ArrowUpRight /></Link>}</div></header>
+      <header className={`product-topbar${immersive ? ' immersive-bar' : ''}`}><button className="product-menu" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu /></button><button className="product-rail-toggle" onClick={toggleCollapsed} aria-label={collapsed ? 'Show side menu' : 'Hide side menu'} title={collapsed ? 'Show menu' : 'Hide menu'} aria-expanded={!collapsed}>{collapsed ? <Menu /> : <X />}</button><Link href="/" className="city-top-brand">LANDVILLE<span> / {current?.label || 'City'}</span></Link><div className="city-top-actions"><MotionToggle />{immersive && <button className="city-icon-button" aria-label="How to explore LANDVILLE" title="How to play" onClick={() => window.dispatchEvent(new Event('landville:open-welcome'))}><HelpCircle /></button>}{immersive ? <button className="city-build-cta" onClick={() => openCityChat({ room: 'BUILD' })}><Bot /><span>Build with Scrapy</span><ArrowUpRight /></button> : <Link className="city-build-cta" href="/chat?room=BUILD"><Bot /><span>Build with Scrapy</span><ArrowUpRight /></Link>}</div></header>
       <main id="city-content" className={immersive ? 'product-content immersive' : 'product-content'}>{!immersive && <div className="product-heading"><div><p><i />{eyebrow}</p><h1>{title}</h1></div>{actions}</div>}{!immersive && town.status === 'unavailable' && <output className="admin-warning">City data is taking a break. You can still look around; try again in a moment.</output>}{children}</main>
       <nav className="mobile-dock" aria-label="Quick navigation">{mobileNav.map(({ href, label, icon: Icon }) => <Link key={href} href={href === '/citizens' ? profileHref : href} className={current?.href === href ? 'active' : ''} aria-current={current?.href === href ? 'page' : undefined}><Icon /><span>{href === '/chat' ? 'Chat' : href === '/citizens' ? 'Me' : label}</span></Link>)}</nav>
     </div>
