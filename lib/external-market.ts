@@ -113,6 +113,18 @@ export const EXTERNAL_MARKET_SERVICES: ExternalMarketService[] = [
   { id: 'featured-flux-image', name: 'Generate an Image', provider: 'relay', category: 'Media',
     description: 'Create one image from a text prompt with FLUX Schnell. See the live USDG quote first.',
     input: 'prompt', placeholder: 'Describe the image you want', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-flux-dev', name: 'Detailed Image', provider: 'relay', category: 'Media',
+    description: 'Generate a more detailed image with FLUX.1 Dev. One prompt, one image.',
+    input: 'prompt', placeholder: 'Describe the image you want', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-flux-pro', name: 'Studio Image', provider: 'relay', category: 'Media', holderOnly: true,
+    description: 'Generate one high-quality image with FLUX 1.1 Pro.',
+    input: 'prompt', placeholder: 'Describe the finished image', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-sdxl-image', name: 'SDXL Image', provider: 'relay', category: 'Media',
+    description: 'Generate one image with Fast SDXL.',
+    input: 'prompt', placeholder: 'Describe the image you want', docs: 'https://meshgateway.co/marketplace/network/fal' },
+  { id: 'featured-recraft-image', name: 'Illustration & Lettering', provider: 'relay', category: 'Media', holderOnly: true,
+    description: 'Create one illustration or design with Recraft V3, suited to artwork with text.',
+    input: 'prompt', placeholder: 'Describe your illustration or lettering', docs: 'https://meshgateway.co/marketplace/network/fal' },
   { id: 'featured-exa-search', name: 'Semantic Web Search', provider: 'relay', category: 'Search',
     description: 'Find relevant web pages with semantic search and source links.',
     input: 'query', placeholder: 'What should we research?', docs: 'https://meshgateway.co/marketplace/network/exa' },
@@ -322,7 +334,14 @@ export function externalMarketRequest(service: ExternalMarketService, rawInput: 
     return { url: `https://agent402.tools/api/reverse-geocode?lat=${lat}&lon=${lon}`, method: 'GET' as const, body: undefined };
   }
   const featured = 'https://api.meshgateway.co/x';
-  if (service.id === 'featured-flux-image') return { url: `${featured}/fal/fal-ai/flux/schnell`, method: 'POST' as const,
+  const imagePaths: Record<string, string> = {
+    'featured-flux-image': 'fal-ai/flux/schnell',
+    'featured-flux-dev': 'fal-ai/flux/dev',
+    'featured-flux-pro': 'fal-ai/flux-pro/v1.1',
+    'featured-sdxl-image': 'fal-ai/fast-sdxl',
+    'featured-recraft-image': 'fal-ai/recraft-v3',
+  };
+  if (imagePaths[service.id]) return { url: `${featured}/fal/${imagePaths[service.id]}`, method: 'POST' as const,
     body: JSON.stringify({ prompt: input, image_size: 'square', num_images: 1 }) };
   if (service.id === 'featured-exa-search') return { url: `${featured}/exa/search`, method: 'POST' as const,
     body: JSON.stringify({ query: input, numResults: 5 }) };

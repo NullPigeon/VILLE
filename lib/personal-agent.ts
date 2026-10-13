@@ -18,6 +18,10 @@ export const CITY_PROFESSIONS = [
   { id: 'ARTIST', name: 'Artist', description: 'Design visual concepts, stories and events.' },
   { id: 'COURIER', name: 'Courier', description: 'Organize requests and coordinate handoffs.' },
   { id: 'POWER_KEEPER', name: 'Power Keeper', description: 'Plan future energy and infrastructure needs.' },
+  { id: 'GARDENER', name: 'Gardener', description: 'Plan public green spaces and their upkeep.' },
+  { id: 'ARCHIVIST', name: 'Archivist', description: 'Organize city stories, records and guides.' },
+  { id: 'SAFETY_STEWARD', name: 'Safety Steward', description: 'Spot accessibility and safety gaps in proposed places.' },
+  { id: 'EVENT_HOST', name: 'Event Host', description: 'Plan gatherings and welcome participants.' },
 ] as const;
 export type CityProfession = (typeof CITY_PROFESSIONS)[number]['id'];
 export const AGENT_TOWN_MODES = ['OFF', 'REPLY', 'BANTER', 'BOTH'] as const;
@@ -48,6 +52,8 @@ export type PersonalAgent = {
 };
 export type PublicYard = Pick<PersonalAgent, 'ownerWallet' | 'name' | 'presentation' | 'personality' | 'houseStyle' | 'houseName' | 'yardFeature' | 'profession' | 'worldRoamMode' | 'worldSpeechEnabled' | 'worldPhrases'> & {
   ownerLabel: string;
+  houseLevel: number;
+  robotSkin: import('@/lib/world-presence').RobotSkin;
 };
 export type YardMessage = {
   id: string;

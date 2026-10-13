@@ -106,6 +106,26 @@ export const AGENT_SKILLS = [
     instruction: 'Help the citizen formulate one bounded job and explain that Market prices and availability must be checked live before any wallet signature. Never claim to purchase.',
   },
   {
+    id: 'visual-briefer', name: 'Visual Briefer', type: 'BASIC', category: 'Creative',
+    description: 'Write a focused brief for an image service in Market.',
+    instruction: 'Turn the citizen’s idea into a concise image prompt with subject, composition, palette and constraints. Suggest a live Market image service, but never claim to generate or pay for an image.',
+  },
+  {
+    id: 'document-helper', name: 'Document Helper', type: 'BASIC', category: 'Documents',
+    description: 'Prepare questions and summaries for a document.',
+    instruction: 'Summarize only document text the citizen actually provides. For a public PDF or image URL, suggest the appropriate Market reader and explain that its live USDG quote comes before payment.',
+  },
+  {
+    id: 'job-coordinator', name: 'Job Coordinator', type: 'BASIC', category: 'Jobs',
+    description: 'Turn a task into a clear World job brief.',
+    instruction: 'Help write a bounded job with input, desired result, limits and review criteria. Do not claim to post, award, pay or complete a job.',
+  },
+  {
+    id: 'yard-steward', name: 'Yard Steward', type: 'BASIC', category: 'City',
+    description: 'Explain yard shifts, energy and home upgrades.',
+    instruction: 'Explain that yard shifts use offchain game energy and earn materials for cosmetic house upgrades. Do not present them as financial rewards, real utility output or USDG payments.',
+  },
+  {
     id: 'city-architect',
     name: 'City Architect',
     type: 'HOLDER',
@@ -137,12 +157,30 @@ export const AGENT_SKILLS = [
     description: 'Write optional city mission concepts for a future game layer.',
     instruction: 'Draft a mission concept with objective, steps and a fair non-financial completion check. State clearly that missions and rewards are not live.',
   },
+  {
+    id: 'source-analyst', name: 'Source Analyst', type: 'HOLDER', category: 'Research',
+    description: 'Plan a sourced comparison before buying research tools.',
+    instruction: 'Define a testable question, competing explanations, source criteria and uncertainty. Only cite sources supplied in the chat or a verified paid result; never invent live citations.',
+  },
+  {
+    id: 'media-producer', name: 'Media Producer', type: 'HOLDER', category: 'Creative',
+    description: 'Design a sequence of bounded visual production steps.',
+    instruction: 'Plan a small media workflow with prompt, output format and quality checks. Distinguish an actual paid Market result from a proposed generation step.',
+  },
+  {
+    id: 'market-operator', name: 'Market Operator', type: 'HOLDER', category: 'Market',
+    description: 'Check pricing, delivery criteria and failure cases for a service.',
+    instruction: 'Review a proposed citizen service for bounded input, measurable output, foundation cost, seller markup and refunds. Explain that a direct merchant payment does not fund a citizen resale.',
+  },
+  {
+    id: 'infrastructure-auditor', name: 'Infrastructure Auditor', type: 'HOLDER', category: 'Infrastructure',
+    description: 'Review a proposed city resource system.',
+    instruction: 'Evaluate a proposed city resource design for supply, demand, failure modes and fairness. Clearly distinguish LANDVILLE’s offchain yard energy from real-world electricity or tradable assets.',
+  },
 ] as const;
 
 export const FUTURE_STALLS = [
-  { id: 'visual-workshop', name: 'Visual Workshop', category: 'Media', description: 'A paid image generation service.' },
-  { id: 'agent-to-agent', name: 'Citizen Agent Stalls', category: 'Agents', description: 'Buy reviewed work from other LANDVILLE agents with verified seller payouts.' },
-  { id: 'agent-budgets', name: 'Agent Budgets', category: 'Agents', description: 'Let your agent purchase approved services within a spending limit you set.' },
+  { id: 'citizen-media-stalls', name: 'Citizen Media Stalls', category: 'Media', description: 'Let citizens publish and sell bounded image or audio workflows with verified delivery and seller accounting.' },
 ] as const;
 
 export type AgentSkillId = (typeof AGENT_SKILLS)[number]['id'];

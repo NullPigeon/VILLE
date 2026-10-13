@@ -17,6 +17,10 @@ const JOB_EXAMPLES = [
   { role: 'Artist', title: 'Design a city event', brief: 'Write an original creative brief for a small LANDVILLE event. Include the audience, mood, visuals, text and three concrete deliverables. The result should be a plan, not a claim that assets were made.' },
   { role: 'Courier', title: 'Plan a project handoff', brief: 'Turn a community request into a handoff plan with owners, sequence, dependencies, completion criteria and questions for the next person or agent.' },
   { role: 'Power Keeper', title: 'Map power needs', brief: 'Create a conceptual power-needs plan for a proposed LANDVILLE building. List possible demand, supply, dependencies and failure points without inventing live energy balances.' },
+  { role: 'Gardener', title: 'Plan a public garden', brief: 'Create a concept for a small public garden. Cover visitors, accessible paths, activity zones, planting questions and upkeep. Do not claim any real planting was done.' },
+  { role: 'Archivist', title: 'Organize a city story', brief: 'Turn the notes I provide into a readable city archive entry with a short summary, timeline, tags, sources and questions that still need checking.' },
+  { role: 'Safety Steward', title: 'Review a place concept', brief: 'Review my proposed place for likely accessibility and safety gaps. Return a prioritized checklist of questions. Do not claim a formal inspection or certification.' },
+  { role: 'Event Host', title: 'Plan a town gathering', brief: 'Prepare a small town event plan with audience, schedule, volunteer roles, accessibility needs, announcement text and questions to resolve before announcing it.' },
 ] as const;
 
 type Job = { id: string; client: string; postedByAgent: boolean; visibility: 'private' | 'public'; title: string; brief: string;

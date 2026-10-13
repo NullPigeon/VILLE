@@ -74,11 +74,11 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
           <label key={value}><input type="radio" name="personality" checked={form.personality === value} onChange={() => setForm({ ...form, personality: value })} /><span>{PERSONALITY_LABELS[value]}</span></label>)}</div></fieldset>
         <fieldset><legend>CHOOSE ONE HOUSE</legend><div className={styles.houseOptions}>{AGENT_HOUSES.map((value) =>
           <label key={value}><input type="radio" name="houseStyle" checked={form.houseStyle === value} onChange={() => setForm({ ...form, houseStyle: value })} /><AgentHouseArt style={value} /><span>{HOUSE_LABELS[value]}</span></label>)}</div></fieldset>
-        <fieldset><legend>ADD SOMETHING TO YOUR YARD</legend><p>Choose one visible feature. It is decorative for now and costs nothing.</p>
+        <fieldset><legend>ADD SOMETHING TO YOUR YARD</legend><p>Choose one feature for free. The Solar Rig restores one game energy per hour; other features change the look of your yard.</p>
           <label className={styles.selectLabel}>YARD FEATURE<select value={form.yardFeature} onChange={(event) => setForm({ ...form, yardFeature: event.target.value as Form['yardFeature'] })}>
             {YARD_FEATURES.map((value) => <option key={value} value={value}>{YARD_FEATURE_LABELS[value]}</option>)}
           </select></label></fieldset>
-        <fieldset><legend>CHOOSE A CITY ROLE</legend><p>Your role suggests a service starter in Market. You choose whether to test or publish a service.</p>
+        <fieldset><legend>CHOOSE A CITY ROLE</legend><p>Your role suggests a Market service starter and gives a bonus on matching yard shifts. You choose whether to test or publish a service.</p>
           <label className={styles.selectLabel}>PROFESSION<select value={form.profession} onChange={(event) => setForm({ ...form, profession: event.target.value as Form['profession'] })}>
             {CITY_PROFESSIONS.map((value) => <option key={value.id} value={value.id}>{value.name}</option>)}
           </select></label><p>{CITY_PROFESSIONS.find((value) => value.id === form.profession)?.description}</p></fieldset>
@@ -106,7 +106,7 @@ export function AgentConfigurator({ owner, onSaved }: { owner: string; onSaved?:
         </details>
         <div className={styles.actions}><button className="lv-button primary" type="submit" disabled={saving}><Wrench /> {saving ? 'SAVING…' : created ? 'UPDATE ROBOT & YARD' : 'BUILD ROBOT & YARD'}</button>
           {created && <Link className="lv-button" href="/agent-market">EQUIP MARKET SKILLS <ArrowUpRight /></Link>}
-          {created && <Link className="lv-button" href={`/yard/${owner}`}>ENTER YOUR YARD <ArrowUpRight /></Link>}</div>
+          {created && <Link className="lv-button" href={`/yard/${owner}`}>ENTER YOUR YARD <ArrowUpRight /></Link>}{created && <Link className="lv-button" href="/world">CHOOSE A ROBOT LOOK <ArrowUpRight /></Link>}</div>
         {notice && <output>{notice}</output>}
       </form>
       <aside className={styles.preview}><div className={styles.previewSky}><span>LOT 01 / PRIVATE PROPERTY</span><AgentHouseArt style={form.houseStyle} /><PersonalRobot presentation={form.presentation} /></div>

@@ -5,6 +5,7 @@ import { citizenLabel } from '@/lib/citizen-identity';
 import { citizenIdentities } from '@/lib/server/citizens';
 import { ApiError } from '@/lib/server/api';
 import { database } from '@/lib/server/database';
+import { ROBOT_SKINS, type RobotSkin } from '@/lib/world-presence';
 
 export type AgentRow = {
   owner_wallet: string; name: string; presentation: PersonalAgent['presentation'];
@@ -44,12 +45,22 @@ export async function readPublicYards(): Promise<PublicYard[]> {
     'landville_personal_agents?select=*&order=created_at.asc,owner_wallet.asc&limit=500',
   );
   const identities = await citizenIdentities(rows.map((row) => row.owner_wallet));
+  const levels = await database<Array<{ owner_wallet: string; house_level: number }>>(
+    'landville_yard_resources?select=owner_wallet,house_level&limit=500',
+  ).catch(() => []);
+  const levelByOwner = new Map(levels.map((row) => [row.owner_wallet, row.house_level]));
+  const appearances = await database<Array<{ wallet: string; robot_skin: RobotSkin }>>(
+    'landville_world_presence?select=wallet,robot_skin&limit=500',
+  ).catch(() => []);
+  const skinByOwner = new Map(appearances.map((row) => [row.wallet, row.robot_skin]));
   return rows.map((row) => ({
     ownerWallet: row.owner_wallet, name: row.name, presentation: row.presentation,
     houseStyle: row.house_style, houseName: row.house_name, yardFeature: row.yard_feature || 'NONE', profession: row.profession || 'BUILDER',
     personality: row.personality, worldRoamMode: row.world_roam_mode || 'CITY',
     worldSpeechEnabled: row.world_speech_enabled ?? true, worldPhrases: row.world_phrases || [],
     ownerLabel: citizenLabel(identities.get(row.owner_wallet)),
+    houseLevel: levelByOwner.get(row.owner_wallet) || 0,
+    robotSkin: ROBOT_SKINS.includes(skinByOwner.get(row.owner_wallet) as RobotSkin) ? skinByOwner.get(row.owner_wallet)! : 'RUST',
   }));
 }
 
@@ -78,6 +89,12 @@ export async function readPublicYard(owner: string): Promise<PublicYard | null> 
     personality: agent.personality, worldRoamMode: agent.worldRoamMode,
     worldSpeechEnabled: agent.worldSpeechEnabled, worldPhrases: agent.worldPhrases,
     ownerLabel,
+    houseLevel: await database<Array<{ house_level: number }>>(
+      `landville_yard_resources?select=house_level&owner_wallet=eq.${owner}&limit=1`,
+    ).then((rows) => rows[0]?.house_level || 0).catch(() => 0),
+    robotSkin: await database<Array<{ robot_skin: RobotSkin }>>(
+      `landville_world_presence?select=robot_skin&wallet=eq.${owner}&limit=1`,
+    ).then((rows) => ROBOT_SKINS.includes(rows[0]?.robot_skin) ? rows[0].robot_skin : 'RUST').catch(() => 'RUST'),
   };
 }
 

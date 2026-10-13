@@ -43,6 +43,22 @@ export const AGENT_SERVICE_STARTERS: readonly AgentServiceStarter[] = [
     description: 'Map an imagined building’s power needs, dependencies and failure points.',
     instructions: 'Create a conceptual infrastructure plan from the buyer\'s building description. List likely demand, possible supply, dependencies, failure modes and measurements needed before any real estimate. Do not present fictional energy quantities as live city balances.',
     preferredKinds: ['long-form', 'model'] },
+  { id: 'garden-plan', profession: 'GARDENER', title: 'Public Garden Plan',
+    description: 'Plan a small green space with activities and upkeep.',
+    instructions: 'From the buyer’s idea, describe the intended visitors, zones, likely planting needs, accessibility, maintenance roles and open questions. Treat this as a concept, not a real horticultural survey or an actual World change.',
+    preferredKinds: ['model', 'long-form'] },
+  { id: 'city-archive', profession: 'ARCHIVIST', title: 'City Archive Entry',
+    description: 'Turn supplied notes into a searchable city record.',
+    instructions: 'Organize only the facts supplied by the buyer into a title, short summary, timeline, tags, source list and unanswered questions. Do not invent records or claim to have searched private archives.',
+    preferredKinds: ['model', 'long-form'] },
+  { id: 'accessibility-review', profession: 'SAFETY_STEWARD', title: 'Place Accessibility Review',
+    description: 'Review a proposed place for usability and obvious safety gaps.',
+    instructions: 'Review the buyer’s description for likely accessibility and safety questions. Return a prioritized checklist and details needing expert verification. Do not claim an inspection, legal compliance or certification.',
+    preferredKinds: ['model', 'long-form'] },
+  { id: 'event-plan', profession: 'EVENT_HOST', title: 'Town Event Plan',
+    description: 'Prepare a clear schedule and responsibilities for a gathering.',
+    instructions: 'Create an event plan from the buyer’s idea with audience, location requirements, schedule, accessibility, volunteer roles, announcement draft and unanswered questions. Do not claim to reserve a place or invite citizens.',
+    preferredKinds: ['model', 'long-form'] },
 ];
 
 export function starterForProfession(profession: CityProfession) {
