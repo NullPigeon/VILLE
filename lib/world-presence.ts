@@ -23,9 +23,10 @@ export type WorldPresence = {
 
 export function residentSpawn(citizenNumber: number) {
   const angle = citizenNumber * 2.399963229728653;
-  const radius = 2100 + (citizenNumber % 5) * 300;
+  // Spread residents across districts while keeping a stable location per citizen.
+  const radius = 3000 + (citizenNumber % 5) * 370;
   return {
     x: Math.round(5000 + Math.cos(angle) * radius),
-    y: Math.round(5000 + Math.sin(angle) * radius * 0.75),
+    y: Math.round(5000 + Math.sin(angle) * radius * 0.9),
   };
 }

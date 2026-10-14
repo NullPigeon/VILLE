@@ -39,7 +39,6 @@
 /* Close-up terrain borrows the same inked city texture while all clickable
    roads, buildings and agents remain independent interactive layers. */
 .city-product .world-map-scene{isolation:isolate;background-color:#ad8650;background-image:radial-gradient(ellipse at 50% 45%,#e8c68194,transparent 55%),radial-gradient(circle,#29261938 .8px,transparent 1.2px),repeating-linear-gradient(118deg,transparent 0 31px,#30291c1d 32px 33px,transparent 34px 67px);background-size:auto,13px 11px,auto}
-.city-product .world-map-scene:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:url('/landville-world-overview.png');background-position:center top;background-size:100% auto;opacity:.27;mix-blend-mode:multiply;mask-image:linear-gradient(180deg,#000 0 25%,transparent 46%,#000 67% 100%)}
 .city-product .world-city-scenery{filter:contrast(1.45) saturate(1.22) drop-shadow(3px 5px 0 #14181069)}
 .city-product .world-frontier-art{filter:contrast(1.25) saturate(1.18) drop-shadow(2px 4px 0 #15191477)}
 .city-product .world-map-scene .world-district-land path{stroke:#1b2118;stroke-width:6;filter:drop-shadow(5px 8px 0 #2a25185c)}
