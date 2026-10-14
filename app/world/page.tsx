@@ -52,6 +52,8 @@ import { PersonalRobot, ROBOT_SKINS, ROBOT_SKIN_LABELS, type RobotSkin } from '@
 import { WorldAgentChat } from '@/components/landville/world-agent-chat';
 import { WorldMission } from '@/components/landville/world-mission';
 import { WorldBuildingArt } from '@/components/landville/world-building-art';
+import { WorldFeatureArt } from '@/components/landville/world-feature-art';
+import { worldFeatureKindFromBrief, worldFeaturePlacement } from '@/lib/world-change';
 import './frontier-art.css';
 import './world-actors.css';
 import './world-game-map.css';
@@ -59,6 +61,7 @@ import './world-ink.css';
 import './world-overview.css';
 import './world-painted-map.css';
 import './world-living-map.css';
+import './world-revision.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/world-presence';
@@ -105,6 +108,8 @@ export default function WorldPage() {
   const {
     objects,
     citizens,
+    proposals,
+    worldFeatures,
     likeBudget,
     likeModule,
     status: townStatus,
@@ -126,6 +131,14 @@ export default function WorldPage() {
   );
   const [overviewOpen, setOverviewOpen] = useState(true);
   const [hudOpen, setHudOpen] = useState(false);
+  const [previewId, setPreviewId] = useState('');
+  const previewFocused = useRef('');
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('preview') || '';
+    if (!/^LV-[1-9][0-9]{0,15}$/.test(id)) return;
+    const timer = window.setTimeout(() => setPreviewId(id), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const [exploration, setExploration] = useState<{
     districts: string[];
     places: string[];
@@ -192,6 +205,10 @@ export default function WorldPage() {
   );
   const extraYardRows = Math.ceil(Math.max(0, yards.length - 6) / 8);
   const mapHeight = baseMapHeight + extraYardRows * 190;
+  const previewProposal = proposals.find((item) => item.id === previewId && item.category === 'WORLD');
+  const publishedPreview = worldFeatures.find((item) => item.proposalId === previewId);
+  const previewKind = previewProposal ? worldFeatureKindFromBrief(previewProposal.summary.split("SCRAPY'S PLAN:\n")[1] || '') : null;
+  const previewPosition = previewProposal ? worldFeaturePlacement(previewProposal.id, previewProposal.district) : null;
   const holder = Boolean(
     wallet.linkedWallet &&
     wallet.snapshot?.source === 'chain' &&
@@ -426,6 +443,21 @@ export default function WorldPage() {
   }, [baseMapHeight, clampCamera, minimumZoom]);
 
   useEffect(() => {
+    if (!previewId || !previewProposal || !previewKind || previewFocused.current === previewId || !bounds.current.width) return;
+    const location = publishedPreview || previewPosition;
+    if (!location) return;
+    previewFocused.current = previewId;
+    const zoom = bounds.current.width < 760 ? .7 : .95;
+    const x = mapWidth * location.x / 100;
+    const y = baseMapHeight * location.y / 100;
+    const timer = window.setTimeout(() => {
+      setOverviewOpen(false);
+      setCamera(clampCamera(bounds.current.width / 2 - x * zoom, bounds.current.height / 2 - y * zoom, zoom));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [previewId, previewProposal, previewKind, previewPosition, publishedPreview, baseMapHeight, clampCamera, camera.zoom]);
+
+  useEffect(() => {
     const surface = stage.current;
     if (!surface) return;
     const onWheel = (event: WheelEvent) => {
@@ -525,6 +557,7 @@ export default function WorldPage() {
       (event.target as Element).closest('button,a,input,aside')
     )
       return;
+    event.preventDefault();
     drag.current = {
       id: event.pointerId,
       x: event.clientX,
@@ -569,13 +602,10 @@ export default function WorldPage() {
     );
     const item = WORLD_DISTRICTS[groupIndex];
     const index = groups[groupIndex].findIndex((object) => object.id === id);
-    const rows = Math.ceil(groups[groupIndex].length / 2);
-    let x =
-      (mapWidth * item.x) / 100 +
-      (groups[groupIndex].length === 1 ? 0 : index % 2 === 0 ? -165 : 165);
-    let y =
-      (baseMapHeight * item.y) / 100 +
-      (Math.floor(index / 2) - (rows - 1) / 2) * 240;
+    const row = Math.floor(index / 3);
+    const rowCount = Math.min(3, groups[groupIndex].length - row * 3);
+    let x = (mapWidth * item.x) / 100 + (index % 3 - (rowCount - 1) / 2) * 470;
+    let y = (baseMapHeight * item.y) / 100 + (row - (Math.ceil(groups[groupIndex].length / 3) - 1) / 2) * 430;
     if (item.id === 'townwide') {
       const ring = [[0, -280], [0, 280], [-300, 0], [300, 0]];
       const slot = ring[index % ring.length];
@@ -722,7 +752,7 @@ export default function WorldPage() {
           )}
         </div>
         <div
-          className={`world-map-scene${overviewOpen ? '' : ' is-entered'}${camera.zoom < .4 ? ' map-far' : ''}`}
+          className={`world-map-scene${overviewOpen ? '' : ' is-entered'}${camera.zoom < .4 ? ' map-far' : camera.zoom < .8 ? ' map-mid' : ''}`}
           inert={overviewOpen}
           style={{
             width: mapWidth,
@@ -731,35 +761,8 @@ export default function WorldPage() {
           }}
         >
           <div className="world-map-art" style={{ height: mapHeight }} aria-hidden="true">
-            <Image src="/landville-frontier-terrain-v2.png" alt="" fill sizes="(max-width: 760px) 2200px, 5200px" quality={90} priority />
+            <Image src="/landville-inked-desert-terrain.png" alt="" fill sizes="(max-width: 760px) 2200px, 5200px" quality={90} priority draggable={false} />
           </div>
-          <svg
-            className="world-district-land"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            style={{ height: baseMapHeight }}
-            aria-hidden="true"
-          >
-            <path
-              className={activeDistrict === 'dump' ? 'active dump' : 'dump'}
-              d="M 32 27 L 48 27 L 48 47 L 32 47 Z"
-            />
-            <path
-              className={activeDistrict === 'token' ? 'active token' : 'token'}
-              d="M 52 27 L 68 27 L 68 47 L 52 47 Z"
-            />
-            <path
-              className={activeDistrict === 'meme' ? 'active meme' : 'meme'}
-              d="M 32 53 L 48 53 L 48 73 L 32 73 Z"
-            />
-            <path
-              className={
-                activeDistrict === 'market' ? 'active market' : 'market'
-              }
-              d="M 52 53 L 68 53 L 68 73 L 52 73 Z"
-            />
-          </svg>
-
           <button
             onClick={() => openCityChat({ room: 'TOWN' })}
             className="world-plaza"
@@ -819,20 +822,9 @@ export default function WorldPage() {
               data-kind={object.kind}
             >
               <span className="world-object-foundation" aria-hidden="true" />
-              <WorldBuildingArt kind={object.kind} seed={object.id} />
+              <WorldBuildingArt kind={object.kind} seed={object.id} title={object.title} description={object.description} approved={object.artApproved} />
               <span className="world-object-neon" aria-hidden="true">{object.title}</span>
               {!exploration.places.includes(object.id) && <span className="world-explore-beacon" aria-hidden="true">EXPLORE <Compass /></span>}
-              <div className="world-object-preview" aria-hidden="true">
-                <Building2 />
-                <iframe
-                  title={`${object.title} static preview`}
-                  src={`/api/modules/${encodeURIComponent(object.id)}/preview`}
-                  sandbox=""
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  tabIndex={-1}
-                />
-              </div>
               <div className="world-object-label">
                 <strong>{object.title}</strong>
                 <small>{object.creator}</small>
@@ -860,6 +852,15 @@ export default function WorldPage() {
               />
             </article>
           ))}
+
+          {worldFeatures.map((feature) => <Link key={feature.proposalId} className="world-feature world-feature-live" href={`/proposals#${feature.proposalId}`}
+            style={{ left: mapWidth * feature.x / 100, top: baseMapHeight * feature.y / 100 }} aria-label={`Visit ${feature.title} World change`}>
+            <WorldFeatureArt kind={feature.kind} /><span>{feature.title}<small>{feature.district}</small></span>
+          </Link>)}
+          {previewProposal && previewKind && previewPosition && !publishedPreview && <div className="world-feature world-feature-proposed"
+            style={{ left: mapWidth * previewPosition.x / 100, top: baseMapHeight * previewPosition.y / 100 }} aria-label={`Preview of proposed ${previewProposal.title}`}>
+            <WorldFeatureArt kind={previewKind} /><span>PROPOSAL PREVIEW<small>{previewProposal.title}</small></span>
+          </div>}
 
           {citizens.filter((citizen) => {
             const owner = citizen.wallet.toLowerCase();

@@ -33,6 +33,8 @@ export async function publishVerifiedBuild(id: string, actor: string) {
   const deployedSha = process.env.VERCEL_GIT_COMMIT_SHA;
   const projectId = process.env.LANDVILLE_VERCEL_PROJECT_ID;
   if (process.env.VERCEL_ENV !== 'production' || !deploymentId || !deployedSha || !projectId) throw new ApiError(503, 'Verify publication from the production Vercel deployment.');
+  const art = await database<Array<{ state: string }>>(`landville_building_art?select=state&proposal_id=eq.${id}&limit=1`);
+  if (art[0]?.state !== 'APPROVED') throw new ApiError(409, 'Review and approve Scrapy’s unique building design before releasing this module.');
   const origin = new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost');
   if (origin.protocol !== 'https:') throw new ApiError(503, 'Configure the production HTTPS site URL.');
   const pr = await githubRead<{ merged: boolean; merge_commit_sha: string; head: { sha: string; ref: string; repo: { full_name: string } }; base: { ref: string; repo: { full_name: string } } }>(`pulls/${job.pr_number}`);

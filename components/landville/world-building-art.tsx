@@ -1,73 +1,70 @@
-import { useId } from 'react';
+import Image from 'next/image';
+import { useId, useState } from 'react';
 import type { WorldObjectRecord } from '@/lib/landville-data';
+import { buildingDesignFromBrief, buildingFinishFromBrief } from '@/lib/building-design';
 
-// Each published module keeps its live preview, framed as an actual scrap-built shop.
-export function WorldBuildingArt({ kind, seed = '' }: { kind: WorldObjectRecord['kind']; seed?: string }) {
-  const inkId = useId().replace(/:/g, '');
+// Scrapy chooses a reviewed silhouette in its plan; older builds map to stable designs.
+export function WorldBuildingArt({ kind, seed = '', title = '', description = '', approved = false }: {
+  kind: WorldObjectRecord['kind']; seed?: string; title?: string; description?: string; approved?: boolean;
+}) {
+  const id = useId().replace(/:/g, '');
+  const [imageFailed, setImageFailed] = useState(false);
+  const design = buildingDesignFromBrief(description, title, kind);
+  const finish = buildingFinishFromBrief(description);
+  const rust = { RUST: '#a36b3b', BRASS: '#bc9858', OLIVE: '#617147' }[finish.material];
+  const brass = { RUST: '#e6c582', BRASS: '#f1d896', OLIVE: '#c8ca8a' }[finish.material];
+  const olive = { RUST: '#4e6042', BRASS: '#716e4b', OLIVE: '#476b53' }[finish.material];
+  const neon = { LIME: '#d7fb63', AMBER: '#ffc66c', CYAN: '#8de9db' }[finish.accent];
+  const ink = '#121b15';
+  const shade = '#273529';
   let hash = 0;
   for (const char of seed) hash += char.charCodeAt(0);
   const variation = hash % 3;
-  const palette = {
-    venue: ['#cf9450', '#795039', '#f3cb7b'],
-    utility: ['#659d8e', '#36584d', '#b1cf98'],
-    art: ['#bb7c8b', '#674b61', '#edba9d'],
-    media: ['#8698ba', '#485d72', '#bdc9cc'],
-    meme: ['#b3be53', '#64723c', '#e4e989'],
-  }[kind];
-  return <svg className="world-building-art" viewBox="0 0 220 230" aria-hidden="true" fill="none" stroke="#171b14" strokeWidth="4" strokeLinejoin="round">
+  if (approved && !imageFailed && /^LV-[0-9]+$/.test(seed)) return <Image unoptimized width={254} height={264} className="world-building-art generated-building-art" src={`/api/world/buildings/${seed}/image`} alt="" draggable={false} onError={() => setImageFailed(true)} />;
+  return <svg className={`world-building-art design-${design.toLowerCase()}`} viewBox="0 0 260 270" aria-hidden="true" fill="none" stroke={ink} strokeWidth="5" strokeLinejoin="round" strokeLinecap="round">
     <defs>
-      <pattern id={`${inkId}-metal`} width="18" height="19" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
-        <path d="M1 2l9 1M4 6l13 1M0 12l7 1M10 15l6 1" stroke="#172017" strokeWidth="1.5" opacity=".42" />
-        <path d="M12 4l3 1M2 16l3 1" stroke={palette[2]} strokeWidth="1" opacity=".55" />
-      </pattern>
-      <clipPath id={`${inkId}-walls`}><path d="M20 44 190 41v170l-170-5Z" /></clipPath>
+      <pattern id={`${id}-hatch`} width="11" height="11" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)"><path d="M0 1h11M0 6h6" stroke={ink} strokeWidth="1.3" opacity=".48" /></pattern>
+      <linearGradient id={`${id}-metal`} x1="0" y1="0" x2=".9" y2="1"><stop stopColor="#768268" /><stop offset=".48" stopColor={olive} /><stop offset="1" stopColor={shade} /></linearGradient>
     </defs>
-    <path d="m12 206 188 15 20-22-179-14Z" fill="#1a1a12" opacity=".54" stroke="none" />
-    <path d="M20 44 190 41l21-15v168l-20 17-171-5Z" fill={palette[1]} strokeWidth="5" />
-    <path d="M20 44 43 23l168 3-21 15Z" fill={palette[0]} strokeWidth="5" />
-    <path d="M21 47 189 44v164l-167-5Z" fill={`url(#${inkId}-metal)`} stroke="none" />
-    <path d="m190 42 21-16v168l-21 17Z" fill="#1b251c" opacity=".5" stroke="none" />
-    <path d="m195 47 11-10v151l-11 11Z" fill={palette[0]} opacity=".68" stroke="none" />
-    <path d="m25 47 163-3m-151-9 157-2" stroke={palette[2]} strokeWidth="3" />
-    <path d="M29 49 29 183 M184 47l-1 130" stroke="#101710" strokeWidth="7" />
-    <path d="M36 50 36 174 M176 50l-1 131" stroke={palette[2]} strokeWidth="2.5" />
-    <g clipPath={`url(#${inkId}-walls)`} stroke="#101810" strokeLinecap="round">
-      <path d="m19 72 20-10m-18 23 15-7m150 23 23-12m-23 20 17-8M17 142l21-10m148 23 22-12M22 189l18-11m146 7 16-9" strokeWidth="3" />
-      <path d="m44 59 7-4m80 7 13-4m-96 81 15-5m83 34 10-4m-89 14 9-4" strokeWidth="1.7" />
-    </g>
-    {[64, 89, 114, 139, 164].map((x) => <path key={x} d={`m${x} 25-15 14`} stroke="#293020" strokeWidth={x % 2 ? 2 : 3} opacity=".75" />)}
-    <path d="M18 191h176v17H18Z" fill={palette[0]} strokeWidth="5" />
-    <path d="m28 193-9 12m34-11-11 12m111-12-11 12m34-11-9 12" stroke="#1b2119" strokeWidth="7" />
-    <path d="M66 197h83v12H66Z" fill="#626548" /><path d="M62 210h91v9H62Z" fill="#99936a" />
-    <path d="m25 196 19-2m21 0 26-1m44 0 18 1m17-1 20 2" stroke={palette[2]} strokeWidth="2" />
-    {kind === 'utility' ? <>
-      <path d="M46 23 51-13h42l7 36Z" fill={palette[1]} strokeWidth="5" /><path d="M53-3h36M56 7h31M59 17h27" stroke={palette[2]} strokeWidth="3" />
-      <path d="M150 21V-23m-22 7h44m-33 12h23" strokeWidth="5" /><circle cx="150" cy="-23" r="8" fill="#d4ed6b" />
-      <path d="M20 85h-25v58h25m171-72h25v72h-25" fill={palette[0]} strokeWidth="5" />
-    </> : kind === 'media' ? <>
-      <path d="M50 21 58-15 111 5 98 26Z" fill={palette[1]} strokeWidth="5" /><path d="M66 12V-14m-23-9Q42 1 87-1Z" fill={palette[2]} /><path d="M66-13 91-36" /><circle cx="91" cy="-36" r="6" fill="#d4ed6b" />
-      <path d="M38 65h140v75H38Z" fill={palette[0]} opacity=".65" /><path d="m47 126 35-43 29 26 21-22 35 39" stroke={palette[2]} strokeWidth="5" />
-    </> : kind === 'art' ? <>
-      <path d="m30 24 20-39 42 37m20 2 24-45 36 42" fill={palette[0]} strokeWidth="5" /><path d="m51-5 19 14m64-18 15 15" stroke={palette[2]} strokeWidth="3" />
-      <path d="M35 60h145v101H35Z" fill="#292922" strokeWidth="5" /><path d="m50 146 37-67 30 50 19-28 28 45Z" fill={palette[2]} strokeWidth="4" /><circle cx="138" cy="79" r="11" fill="#d8ef8c" />
-    </> : kind === 'meme' ? <>
-      <path d="m28 24 21-29 39 22 32-30 47 31 34-20 10 24Z" fill={palette[0]} strokeWidth="5" /><path d="m49 0 18 13m55-20 21 16m43-8 15 11" stroke={palette[2]} strokeWidth="4" />
-      <path d="M39 67h143v69H39Z" fill="#27301d" strokeWidth="5" /><path d="m54 120 25-30 25 20 20-23 45 35" stroke={palette[2]} strokeWidth="5" /><circle cx="142" cy="85" r="8" fill="#d5ed79" />
-    </> : <>
-      <path d="M21 23 63-22h100l47 45Z" fill={palette[0]} strokeWidth="6" /><path d="M63-12h101m-89 12h78m-66 11h55" stroke={palette[2]} strokeWidth="3" />
-      <path d="M15 81h180v26H15Z" fill={palette[2]} strokeWidth="5" /><path d="m31 83 8 19m28-19 8 19m28-19 8 19m28-19 8 19m28-19 8 19" stroke={palette[0]} strokeWidth="4" />
+    <path d="M17 241 209 253l37-20-192-19Z" fill="#111710" opacity=".43" stroke="none" />
+    <path d="M27 224 221 222l15 16-204 10Z" fill="#856943" /><path d="M38 237h188" stroke={brass} strokeWidth="2" />
+    {design === 'GALLERY' && <>
+      <path d="M49 224V77l126-22 31 20v149Z" fill={`url(#${id}-metal)`} strokeWidth="7" /><path d="m49 77 127-22 30 20-125 22Z" fill={rust} strokeWidth="7" />
+      <path d="M75 105 174 88v102L75 202Z" fill="#15241c" strokeWidth="8" /><path d="m87 170 30-58 27 40 17-28v56Z" fill="#b49170" strokeWidth="3" /><circle cx="148" cy="112" r="8" fill={neon} />
+      <path d="m52 78 4-44 96-18 19 39" fill={olive} strokeWidth="7" /><path d="m68 41 70-15m-65 27 57-12" stroke={brass} strokeWidth="3" />
+      <path d="M193 87v122m13-127v126M61 100v116" stroke={ink} strokeWidth="7" /><path d="M73 202h107m-97 9 90-3" stroke={neon} strokeWidth="3" />
+      <path d="M48 80v145h158V77Z" fill={`url(#${id}-hatch)`} stroke="none" opacity=".38" />
     </>}
-    {variation === 0 ? <>
-      <path d="M174 39V-18m-13 11h26m-20 13h15" strokeWidth="4" /><circle cx="174" cy="-19" r="5" fill="#d5f381" />
-    </> : variation === 1 ? <>
-      <path d="M22 83H-14l-9 14v24h45Z" fill={palette[0]} strokeWidth="5" /><path d="M-18 101h34m-28 10h26" stroke={palette[2]} strokeWidth="3" />
-      <path d="M158 27v-35h20v35" fill={palette[1]} strokeWidth="4" />
-    </> : <>
-      <path d="M22 68H-6v87h28m168-90h28v100h-28" fill={palette[1]} strokeWidth="5" />
-      <path d="M-2 83h17m-17 15h17m183-14h14m-14 16h14" stroke={palette[2]} strokeWidth="3" />
-      <path d="M97 24V-9h26v33" fill={palette[0]} strokeWidth="4" />
+    {design === 'SALOON' && <>
+      <path d="M22 225V105l35-45h145l35 43v122Z" fill={`url(#${id}-metal)`} strokeWidth="7" /><path d="m16 109 36-57h156l38 56-20 8-31-40H62l-29 42Z" fill={rust} strokeWidth="8" />
+      <path d="M50 123h160v66H50Z" fill="#294035" strokeWidth="6" /><path d="M46 190h168v15H46Z" fill={brass} strokeWidth="5" />
+      <path d="M71 205v20m118-20v20M61 111v79m143-78v78" stroke={ink} strokeWidth="8" /><path d="M94 223v-62h69v62" fill="#202a22" strokeWidth="6" /><path d="M124 166v56" stroke={brass} strokeWidth="3" />
+      <path d="M30 113 52 95l24 16 23-16 28 16 26-17 27 16 24-15 31 18" stroke={neon} strokeWidth="5" /><path d="M62 56h138M73 69h115" stroke="#201d17" strokeWidth="3" />
+      <path d="M23 115v108h212V106Z" fill={`url(#${id}-hatch)`} stroke="none" opacity=".4" />
     </>}
-    <path d="m199 64 7-5v51l-7 7Z" fill={palette[0]} /><path d="m200 73 4-3m-4 16 4-3m-4 16 4-3" stroke={palette[2]} strokeWidth="2" />
-    {[27,185].map(x=><g key={x} fill="#f2dab0" strokeWidth="1.5"><circle cx={x} cy="48" r="2.2" /><circle cx={x} cy="197" r="2.2" /></g>)}
+    {design === 'RELAY' && <>
+      <path d="M49 224V107l24-22 94-10 37 26v123Z" fill={`url(#${id}-metal)`} strokeWidth="7" /><path d="m49 107 24-22 94-10 37 26-121 19Z" fill={rust} strokeWidth="7" />
+      <path d="M76 121h99v76H76Z" fill="#14221a" strokeWidth="7" /><path d="m88 138 60-7m-60 19 49-5m-49 18 69-9" stroke={neon} strokeWidth="4" />
+      <path d="M185 80V20m-17 21h34m-26 16h20" strokeWidth="6" /><circle cx="185" cy="18" r="9" fill={neon} />
+      <path d="M97 82V44h48v36m-42-25h36m-32 11h28" fill={olive} strokeWidth="5" /><path d="M68 224v-22h116v22M58 108v109m141-109v109" stroke={ink} strokeWidth="7" />
+      <path d="M50 109v115h154V103Z" fill={`url(#${id}-hatch)`} stroke="none" opacity=".42" />
+    </>}
+    {design === 'WORKSHOP' && <>
+      <path d="M27 225V111l34-29 135-8 35 31v120Z" fill={`url(#${id}-metal)`} strokeWidth="7" /><path d="m18 113 39-42 145-10 40 42-19 13-29-24-130 6-26 31Z" fill={rust} strokeWidth="8" />
+      <path d="M67 135h121v90H67Z" fill="#1b2820" strokeWidth="7" /><path d="M67 156h121m-121 22h121m-121 22h121" stroke={brass} strokeWidth="4" />
+      <path d="M184 60V7h24v75" fill={shade} strokeWidth="6" /><path d="M197 8v-21m-9-4 19 1" stroke={ink} strokeWidth="5" />
+      <path d="M35 128h25v60H35m159-52h28v74h-28" fill={olive} strokeWidth="6" /><path d="m35 130 22-2m-22 21 22-2m-22 21 22-2m140-27 20-3m-19 22 20-4" stroke={neon} strokeWidth="3" />
+      <path d="M27 113v112h204V106Z" fill={`url(#${id}-hatch)`} stroke="none" opacity=".37" />
+    </>}
+    {design === 'BAZAAR' && <>
+      <path d="M30 224V119l32-22h131l35 22v105Z" fill={`url(#${id}-metal)`} strokeWidth="7" /><path d="M17 127 63 69l127-8 54 62-22 13-39-42H70l-31 46Z" fill={rust} strokeWidth="8" />
+      <path d="M35 130h188v42H35Z" fill={brass} strokeWidth="6" /><path d="m47 132 12 38 13-38 13 38 13-38 13 38 13-38 13 38 13-38 13 38 13-38 13 38 13-38" stroke={olive} strokeWidth="6" />
+      <path d="M64 185h130v39H64Z" fill="#203225" strokeWidth="6" /><path d="M79 190v34m36-34v34m37-34v34m26-34v34" stroke={neon} strokeWidth="3" />
+      <path d="M30 125v99h198V120Z" fill={`url(#${id}-hatch)`} stroke="none" opacity=".32" />
+    </>}
+    {variation === 0 && <path d="M214 96v-31m-9 10h18" stroke={neon} strokeWidth="3" />}
+    {variation === 1 && <path d="m45 213 15-8m148 7 12-7" stroke={neon} strokeWidth="3" />}
+    {variation === 2 && <path d="M30 215h19m164-1h15" stroke={neon} strokeWidth="3" />}
+    <path d="m39 230 29 3m100-1 37-1m-145-120 12-4m109-7 9 3" stroke={brass} strokeWidth="2" />
   </svg>;
 }

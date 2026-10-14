@@ -6,10 +6,11 @@ import type { BuildUpdate, ModuleLikeBudget, ProposalRecord, VoteChoice, WorldCi
 import { BASE_WEEKLY_MODULE_LIKES, calculateWeeklyModuleLikes, type VoteReceipt } from '@/lib/governance';
 import { activeProposalForWallet, activeProposalsForWallet } from '@/lib/proposal-lifecycle';
 import { useWallet } from '@/components/landville/wallet-provider';
+import type { WorldFeatureRecord } from '@/lib/world-change';
 
 type NewProposal = Pick<ProposalRecord, 'category' | 'district'> & { sourceReplyId: string };
 type LikeWeekState = { used: number; verifiedAllowance: number; weekStart: string; resetsAt: string };
-type RemoteState = { proposals: ProposalRecord[]; objects: WorldObjectRecord[]; citizens: WorldCitizenRecord[]; voted: Record<string, VoteReceipt>; likeWeek: LikeWeekState; wallet: string; isAdmin: boolean };
+type RemoteState = { proposals: ProposalRecord[]; objects: WorldObjectRecord[]; citizens: WorldCitizenRecord[]; worldFeatures: WorldFeatureRecord[]; voted: Record<string, VoteReceipt>; likeWeek: LikeWeekState; wallet: string; isAdmin: boolean };
 type Store = Omit<RemoteState, 'wallet' | 'likeWeek'> & {
   activeProposal: ProposalRecord | undefined;
   activeProposals: ProposalRecord[];
@@ -21,7 +22,7 @@ type Store = Omit<RemoteState, 'wallet' | 'likeWeek'> & {
   likeModule(id: string): Promise<void>;
   updateBuild(id: string, input: BuildUpdate): Promise<ProposalRecord>;
 };
-const empty: RemoteState = { proposals: [], objects: [], citizens: [], voted: {}, likeWeek: { used: 0, verifiedAllowance: BASE_WEEKLY_MODULE_LIKES, weekStart: '', resetsAt: '' }, wallet: '', isAdmin: false };
+const empty: RemoteState = { proposals: [], objects: [], citizens: [], worldFeatures: [], voted: {}, likeWeek: { used: 0, verifiedAllowance: BASE_WEEKLY_MODULE_LIKES, weekStart: '', resetsAt: '' }, wallet: '', isAdmin: false };
 const StoreContext = createContext<Store | null>(null);
 
 async function serverAction<T>(url: string, body: unknown, method = 'POST'): Promise<T> {
@@ -66,7 +67,7 @@ export function LandvilleProvider({ children }: { children: React.ReactNode }) {
   }, [refresh, wallet.address]);
 
   const store = useMemo<Store>(() => ({
-    proposals: state.proposals, objects: state.objects, citizens: state.citizens,
+    proposals: state.proposals, objects: state.objects, citizens: state.citizens, worldFeatures: state.worldFeatures || [],
     activeProposal: activeProposalForWallet(state.proposals, wallet.address),
     activeProposals: activeProposalsForWallet(state.proposals, wallet.address),
     voted: wallet.address && state.wallet === wallet.address ? state.voted : {},

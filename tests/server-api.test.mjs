@@ -65,6 +65,40 @@ void test('mayor banter needs worker authentication and works while personal age
   assert.equal(f.calls.length, 1);
   assert.ok(f.calls[0].body.p_body.length <= 320);
 });
+
+void test('World change publication requires a signed build admin before database access', async () => {
+  const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet, VERCEL_ENV: 'production' });
+  const route = f.load('app/api/admin/world-changes/[id]/route.ts');
+  const response = await route.POST(f.request('/api/admin/world-changes/LV-1'), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 401);
+  assert.equal(f.calls.length, 0);
+});
+void test('building art generation requires a signed build admin before any database or model call', async () => {
+  const f = fixture(() => undefined, { LANDVILLE_ADMIN_WALLETS: wallet });
+  const route = f.load('app/api/admin/building-art/[id]/route.ts');
+  const response = await route.POST(f.request('/api/admin/building-art/LV-1', { action: 'GENERATE' }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 401);
+  assert.equal(f.calls.length, 0);
+});
+void test('World building image route serves only approved art for a published module', async () => {
+  const bytes = Buffer.alloc(120);
+  bytes.write('RIFF', 0); bytes.write('WEBP', 8);
+  const base64 = bytes.toString('base64');
+  const routePath = 'app/api/world/buildings/[id]/image/route.ts';
+  const unpublished = fixture((call) => call.url.includes('landville_objects?') ? json([]) : undefined);
+  const missing = await unpublished.load(routePath).GET(unpublished.request('/api/world/buildings/LV-1/image', {}, { method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(missing.status, 404);
+  assert.ok(!unpublished.calls.some((call) => call.url.includes('landville_building_art?')));
+  const published = fixture((call) => {
+    if (call.url.includes('landville_objects?')) return json([{ proposal_id: 'LV-1' }]);
+    if (call.url.includes('landville_building_art?')) return json([{ image_base64: base64, updated_at: new Date().toISOString() }]);
+    return undefined;
+  });
+  const visible = await published.load(routePath).GET(published.request('/api/world/buildings/LV-1/image', {}, { method: 'GET' }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(visible.status, 200);
+  assert.equal(visible.headers.get('content-type'), 'image/webp');
+  assert.equal((await visible.arrayBuffer()).byteLength, bytes.length);
+});
 function proposalSourceResponse(call) {
   if (!call.url.includes('landville_messages?')) return undefined;
   if (call.url.includes(`id=eq.${proposalSourceReply.id}`)) return json([proposalSourceReply]);
@@ -548,6 +582,7 @@ function releaseFixture(change = {}) {
   const pr = { merged: true, merge_commit_sha: mergedSha, head: { sha, ref: job.branch, repo: { full_name: 'NullPigeon/VILLE' } }, base: { ref: 'main', repo: { full_name: 'NullPigeon/VILLE' } }, ...change.pr };
   return fixture((call) => {
     if (call.url.includes('landville_build_jobs?')) return json([job]);
+    if (call.url.includes('landville_building_art?')) return json(change.art || [{ state: 'APPROVED' }]);
     if (call.url.includes('/pulls/42/files')) return json(change.files || [{ filename: 'city-modules/LV-1.json', status: 'added' }]);
     if (call.url.endsWith('/pulls/42')) return json(pr);
     if (call.url.includes('/compare/')) return json(change.compare || { status: 'ahead' });
@@ -557,6 +592,12 @@ function releaseFixture(change = {}) {
     if (call.url.endsWith('/rpc/landville_publish_build_v2')) return json({ ...proposal, status: 'BUILT' });
   }, { ...releaseEnv, ...change.env }, { '@/lib/server/city-module': { readCityModule: async () => ({ module: {}, hash: change.hash || hash }) } });
 }
+void test('a module cannot release without an approved original building design', async () => {
+  const f = releaseFixture({ art: [{ state: 'DRAFT' }] });
+  const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', {}, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });
+  assert.equal(response.status, 409);
+  assert.ok(!f.calls.some((call) => call.url.endsWith('/rpc/landville_publish_build_v2')));
+});
 void test('matching PR, CI, production alias and artifact permit one verified publication', async () => {
   const f = releaseFixture();
   const response = await f.load('app/api/admin/build-jobs/[id]/release/route.ts').POST(f.request('/api/admin/build-jobs/LV-1/release', { releaseUrl: 'https://attacker.example' }, { signed: true }), { params: Promise.resolve({ id: 'LV-1' }) });

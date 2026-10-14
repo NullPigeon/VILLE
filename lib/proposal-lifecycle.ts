@@ -20,9 +20,9 @@ export function hasWinningVote(proposal: Pick<ProposalRecord, 'yes' | 'no'>) {
 // Include expired winners awaiting finalization so the UI cannot suggest skipping them.
 // PostgreSQL repeats ordering/availability checks under a transaction lock.
 export function getBuildQueue(proposals: ProposalRecord[], now = Date.now()) {
-  return proposals.filter((proposal) => proposal.status === 'BUILDING' || proposal.status === 'PASSED'
+  return proposals.filter((proposal) => proposal.category !== 'WORLD' && (proposal.status === 'BUILDING' || proposal.status === 'PASSED'
     || (proposal.status === 'LIVE' && Boolean(proposal.closesAt)
-      && Date.parse(proposal.closesAt!) <= now && hasWinningVote(proposal)))
+      && Date.parse(proposal.closesAt!) <= now && hasWinningVote(proposal))))
     .sort((a, b) => {
       if (a.status === 'BUILDING' && b.status !== 'BUILDING') return -1;
       if (b.status === 'BUILDING' && a.status !== 'BUILDING') return 1;
