@@ -52,7 +52,6 @@ import { PersonalRobot, ROBOT_SKINS, ROBOT_SKIN_LABELS, type RobotSkin } from '@
 import { WorldAgentChat } from '@/components/landville/world-agent-chat';
 import { WorldMission } from '@/components/landville/world-mission';
 import { WorldBuildingArt } from '@/components/landville/world-building-art';
-import { WorldTerrain } from '@/components/landville/world-terrain';
 import './frontier-art.css';
 import './world-actors.css';
 import './world-game-map.css';
@@ -66,12 +65,12 @@ import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/wor
 import { agentWorldMotion } from '@/lib/agent-world-motion';
 
 const CITIZEN_SLOTS = [
-  { x: 16, y: 20, mobileX: 49, mobileY: 42 },
-  { x: 81, y: 19, mobileX: 48, mobileY: 72 },
-  { x: 16, y: 76, mobileX: 49, mobileY: 101 },
-  { x: 84, y: 77, mobileX: 49, mobileY: 130 },
-  { x: 35, y: 13, mobileX: 49, mobileY: 145 },
-  { x: 64, y: 87, mobileX: 49, mobileY: 160 },
+  { x: 31, y: 37, mobileX: 49, mobileY: 42 },
+  { x: 69, y: 37, mobileX: 48, mobileY: 72 },
+  { x: 31, y: 63, mobileX: 49, mobileY: 101 },
+  { x: 69, y: 63, mobileX: 49, mobileY: 130 },
+  { x: 46, y: 33, mobileX: 49, mobileY: 145 },
+  { x: 54, y: 67, mobileX: 49, mobileY: 160 },
 ];
 
 function citizenPlacement(
@@ -85,6 +84,20 @@ function citizenPlacement(
     '--citizen-y': `${Math.min(94, slot.y + row * 3)}%`,
     '--citizen-mobile-x': `${slot.mobileX}%`,
     '--citizen-mobile-y': `${slot.mobileY + row * 14}%`,
+  };
+}
+
+type SavedHero = { skin?: string; robotSkin?: string; x?: number; y?: number; mapVersion?: number };
+
+function restoredHeroPosition(saved: SavedHero, width: number, height: number, fallback: { x: number; y: number }) {
+  const legacy = saved.mapVersion !== 2;
+  return {
+    x: typeof saved.x === 'number' && Number.isFinite(saved.x)
+      ? legacy ? width * (.35 + Math.max(0, Math.min(1, saved.x / 2000)) * .3) : Math.max(70, Math.min(width - 70, saved.x))
+      : fallback.x,
+    y: typeof saved.y === 'number' && Number.isFinite(saved.y)
+      ? legacy ? height * (.32 + Math.max(0, Math.min(1, saved.y / 2600)) * .36) : Math.max(90, Math.min(height - 80, saved.y))
+      : fallback.y,
   };
 }
 
@@ -112,6 +125,7 @@ export default function WorldPage() {
     '',
   );
   const [overviewOpen, setOverviewOpen] = useState(true);
+  const [hudOpen, setHudOpen] = useState(false);
   const [exploration, setExploration] = useState<{
     districts: string[];
     places: string[];
@@ -169,10 +183,10 @@ export default function WorldPage() {
     2,
     ...groups.map((group) => Math.ceil(group.length / 2)),
   );
-  const mapWidth = 2000;
+  const mapWidth = 5200;
   const townwideCount = groups[4].length;
   const baseMapHeight = Math.max(
-    2600,
+    2800,
     districtRows * 240 * 2 + 480,
     townwideCount * 240 + 650,
   );
@@ -201,7 +215,7 @@ export default function WorldPage() {
 
   const minimumZoom = useCallback(() => {
     const { width, height } = bounds.current;
-    return Math.max(width / mapWidth, height / mapHeight, 0.35);
+    return Math.max(0.06, Math.min(width / mapWidth, height / mapHeight));
   }, [mapHeight]);
 
   const clampCamera = useCallback((x: number, y: number, requestedZoom: number) => {
@@ -230,15 +244,10 @@ export default function WorldPage() {
     localEdit.current = false;
     const timer = window.setTimeout(() => {
       try {
-        const saved = JSON.parse(window.localStorage.getItem(`landville-hero:${wallet.address.toLowerCase()}`) || '{}') as {
-          skin?: string; robotSkin?: string; x?: number; y?: number;
-        };
+        const saved = JSON.parse(window.localStorage.getItem(`landville-hero:${wallet.address.toLowerCase()}`) || '{}') as SavedHero;
         setHeroSkin(saved.skin === 'MODULE' || HERO_SKINS.some((skin) => skin === saved.skin) ? saved.skin as HeroSkin | 'MODULE' : 'SCAVENGER');
         setRobotSkin(ROBOT_SKINS.some((skin) => skin === saved.robotSkin) ? saved.robotSkin as RobotSkin : 'RUST');
-        setHeroPosition({
-          x: typeof saved.x === 'number' && Number.isFinite(saved.x) ? Math.max(70, Math.min(1530, saved.x)) : 870,
-          y: typeof saved.y === 'number' && Number.isFinite(saved.y) ? Math.max(90, Math.min(baseMapHeight - 80, saved.y)) : baseMapHeight / 2 + 140,
-        });
+        setHeroPosition(restoredHeroPosition(saved, mapWidth, baseMapHeight, { x: mapWidth / 2, y: baseMapHeight / 2 + 140 }));
       } catch { /* Device-local appearance never blocks World. */ }
     }, 0);
     return () => window.clearTimeout(timer);
@@ -272,10 +281,9 @@ export default function WorldPage() {
             const resident = result.residents.find((entry) => entry.wallet.toLowerCase() === current);
             if (resident) {
               const spawn = residentSpawn(resident.citizenNumber);
-              let saved: { x?: number; y?: number; skin?: string; robotSkin?: string } = {};
+              let saved: SavedHero = {};
               try { saved = JSON.parse(window.localStorage.getItem(`landville-hero:${current}`) || '{}'); } catch { /* Use city spawn. */ }
-              const x = typeof saved.x === 'number' && Number.isFinite(saved.x) ? Math.max(70, Math.min(mapWidth - 70, saved.x)) : spawn.x / 10000 * mapWidth;
-              const y = typeof saved.y === 'number' && Number.isFinite(saved.y) ? Math.max(90, Math.min(mapHeight - 80, saved.y)) : spawn.y / 10000 * mapHeight;
+              const { x, y } = restoredHeroPosition(saved, mapWidth, mapHeight, { x: spawn.x / 10000 * mapWidth, y: spawn.y / 10000 * mapHeight });
               const skin = saved.skin === 'MODULE' || HERO_SKINS.some((value) => value === saved.skin) ? saved.skin as HeroSkin | 'MODULE' : 'SCAVENGER';
               const robot = ROBOT_SKINS.some((value) => value === saved.robotSkin) ? saved.robotSkin as RobotSkin : 'RUST';
               setHeroPosition({ x, y });
@@ -311,7 +319,7 @@ export default function WorldPage() {
     if (!wallet.address) return;
     localEdit.current = true;
     try {
-      window.localStorage.setItem(`landville-hero:${wallet.address.toLowerCase()}`, JSON.stringify({ skin, robotSkin: robot, x: position.x, y: position.y }));
+      window.localStorage.setItem(`landville-hero:${wallet.address.toLowerCase()}`, JSON.stringify({ skin, robotSkin: robot, x: position.x, y: position.y, mapVersion: 2 }));
     } catch { /* Keep playing without local storage. */ }
     if (presenceSave.current) window.clearTimeout(presenceSave.current);
     const owner = wallet.address.toLowerCase();
@@ -494,9 +502,11 @@ export default function WorldPage() {
         (baseMapHeight * item.y) / 100,
         bounds.current.width < 760 ? 0.8 : 1.05,
       );
+    } else if (item) {
+      remember('districts', id);
+      moveCamera(mapWidth / 2, baseMapHeight / 2, bounds.current.width < 760 ? .8 : 1.05);
     } else {
-      if (item) remember('districts', id);
-      moveCamera(mapWidth / 2, mapHeight / 2, Math.max(minimumZoom(), 0.8));
+      moveCamera(mapWidth / 2, mapHeight / 2, minimumZoom());
     }
   }
 
@@ -567,9 +577,11 @@ export default function WorldPage() {
       (baseMapHeight * item.y) / 100 +
       (Math.floor(index / 2) - (rows - 1) / 2) * 240;
     if (item.id === 'townwide') {
-      x = mapWidth / 2;
-      y = (baseMapHeight - townwideCount * 240 - 440) / 2 + index * 240;
-      if (y >= baseMapHeight / 2 - 220) y += 440;
+      const ring = [[0, -280], [0, 280], [-300, 0], [300, 0]];
+      const slot = ring[index % ring.length];
+      const tier = Math.floor(index / ring.length);
+      x = mapWidth / 2 + slot[0] * (tier + 1);
+      y = baseMapHeight / 2 + slot[1] * (tier + 1);
     }
     return {
       '--world-x': `${x}px`,
@@ -584,11 +596,11 @@ export default function WorldPage() {
   function yardPosition(index: number) {
     if (index < 6)
       return {
-        x: ([38, 62, 14, 86, 39, 61][index] / 100) * mapWidth,
-        y: ([40, 40, 66, 66, 13, 87][index] / 100) * baseMapHeight,
+        x: ([47, 53, 34, 66, 45, 55][index] / 100) * mapWidth,
+        y: ([58, 58, 50, 50, 29, 71][index] / 100) * baseMapHeight,
       };
     return {
-      x: 220 + ((index - 6) % 8) * 220,
+      x: mapWidth * .29 + ((index - 6) % 8) * 230,
       y: baseMapHeight + 95 + Math.floor((index - 6) / 8) * 190,
     };
   }
@@ -639,7 +651,7 @@ export default function WorldPage() {
     >
       <section
         ref={stage}
-        className={`world-canvas world-stage world-blank-canvas world-explorer signal-${holder ? signalTheme : 'acid'}${dragging ? ' is-dragging' : ''}`}
+        className={`world-canvas world-stage world-blank-canvas world-explorer signal-${holder ? signalTheme : 'acid'}${dragging ? ' is-dragging' : ''}${hudOpen ? ' hud-expanded' : ' hud-collapsed'}`}
         aria-label="Interactive LANDVILLE city map"
         onPointerDown={beginDrag}
         onPointerMove={moveDrag}
@@ -650,6 +662,7 @@ export default function WorldPage() {
         }}
       >
         {discovery && <output key={discovery} className="city-discovery-toast"><Compass /><span>NEW DISCOVERY<b>{discovery}</b></span><Check /></output>}
+        {!overviewOpen && <div className="world-map-quick-actions"><button onClick={() => setOverviewOpen(true)} aria-label="Open city overview"><Map /> OVERVIEW</button><button onClick={() => { setHudOpen((open) => !open); setWardrobeOpen(false); setSignalOpen(false); }} aria-expanded={hudOpen} aria-label={hudOpen ? 'Hide map panels' : 'Show map panels'}><Map /> {hudOpen ? 'HIDE PANELS' : 'SHOW PANELS'}</button></div>}
         <header className="world-city-status" inert={overviewOpen}>
           <span>
             <i /> LANDVILLE / CHAPTER 01
@@ -709,7 +722,7 @@ export default function WorldPage() {
           )}
         </div>
         <div
-          className={`world-map-scene${overviewOpen ? '' : ' is-entered'}`}
+          className={`world-map-scene${overviewOpen ? '' : ' is-entered'}${camera.zoom < .4 ? ' map-far' : ''}`}
           inert={overviewOpen}
           style={{
             width: mapWidth,
@@ -717,10 +730,9 @@ export default function WorldPage() {
             transform: `translate(${camera.x}px,${camera.y}px) scale(${camera.zoom})`,
           }}
         >
-          <div className="world-map-art" style={{ height: baseMapHeight }} aria-hidden="true">
-            <WorldTerrain width={mapWidth} height={baseMapHeight} />
+          <div className="world-map-art" style={{ height: mapHeight }} aria-hidden="true">
+            <Image src="/landville-frontier-terrain-v2.png" alt="" fill sizes="(max-width: 760px) 2200px, 5200px" quality={90} priority />
           </div>
-          {extraYardRows > 0 && <div className="world-yard-expansion" style={{ top: baseMapHeight, height: mapHeight - baseMapHeight }} aria-hidden="true" />}
           <svg
             className="world-district-land"
             viewBox="0 0 100 100"
@@ -730,21 +742,21 @@ export default function WorldPage() {
           >
             <path
               className={activeDistrict === 'dump' ? 'active dump' : 'dump'}
-              d="M 3 4 L 47 4 L 47 47 L 3 47 Z"
+              d="M 32 27 L 48 27 L 48 47 L 32 47 Z"
             />
             <path
               className={activeDistrict === 'token' ? 'active token' : 'token'}
-              d="M 53 4 L 97 4 L 97 47 L 53 47 Z"
+              d="M 52 27 L 68 27 L 68 47 L 52 47 Z"
             />
             <path
               className={activeDistrict === 'meme' ? 'active meme' : 'meme'}
-              d="M 3 53 L 47 53 L 47 96 L 3 96 Z"
+              d="M 32 53 L 48 53 L 48 73 L 32 73 Z"
             />
             <path
               className={
                 activeDistrict === 'market' ? 'active market' : 'market'
               }
-              d="M 53 53 L 97 53 L 97 96 L 53 96 Z"
+              d="M 52 53 L 68 53 L 68 73 L 52 73 Z"
             />
           </svg>
 
@@ -758,6 +770,7 @@ export default function WorldPage() {
             <span>SCRAPY SQUARE</span>
             <small>MEET THE MAYOR / BUILD OUTWARD</small>
           </button>
+          {camera.zoom < .4 && <button className="world-settlement-beacon" style={{ top: baseMapHeight / 2, transform: `translate(-50%,-50%) scale(${1 / camera.zoom})` }} onClick={() => moveCamera(mapWidth / 2, baseMapHeight / 2, .85)} aria-label="Zoom to the settled city"><b>LANDVILLE</b><small>{objects.length} PLACES · {yards.length} HOMES</small><Compass /></button>}
 
           {WORLD_DISTRICTS.map((item, index) => (
             <button
@@ -806,7 +819,7 @@ export default function WorldPage() {
               data-kind={object.kind}
             >
               <span className="world-object-foundation" aria-hidden="true" />
-              <WorldBuildingArt kind={object.kind} />
+              <WorldBuildingArt kind={object.kind} seed={object.id} />
               <span className="world-object-neon" aria-hidden="true">{object.title}</span>
               {!exploration.places.includes(object.id) && <span className="world-explore-beacon" aria-hidden="true">EXPLORE <Compass /></span>}
               <div className="world-object-preview" aria-hidden="true">
@@ -1030,8 +1043,8 @@ export default function WorldPage() {
             <Minus />
           </button>
           <button
-            onClick={() => setOverviewOpen(true)}
-            aria-label="Show whole city"
+            onClick={() => moveCamera(mapWidth / 2, mapHeight / 2, minimumZoom())}
+            aria-label="Zoom out to whole map"
           >
             <Map />
           </button>
@@ -1050,7 +1063,7 @@ export default function WorldPage() {
         </div>
         {district && (
           <aside className={`world-district-visit district-${district.id}`} style={{ '--district-color': district.color } as CSSProperties} aria-live="polite" inert={overviewOpen}>
-            <div className="world-district-art" aria-hidden="true"><WorldTerrain width={600} height={180} /><span>{district.number} / {district.name}</span></div>
+            <div className="world-district-art" aria-hidden="true"><Image src="/landville-frontier-terrain-v2.png" alt="" fill sizes="300px" /><span>{district.number} / {district.name}</span></div>
             <small>DISTRICT {district.number} / YOU ARE HERE</small>
             <h2>{district.name}</h2>
             <p>{district.description}</p>
@@ -1065,11 +1078,11 @@ export default function WorldPage() {
           </aside>
         )}
         {overviewOpen && <section className="world-overview" aria-label="Explore LANDVILLE districts">
-          <WorldTerrain width={mapWidth} height={baseMapHeight} />
+          <Image src="/landville-world-overview.png" fill priority sizes="100vw" alt="" />
           <div className="world-overview-shade" />
-          <div className="world-overview-head"><small>LANDVILLE / WORLD MAP</small><h1>YOUR CITY.<br /><em>YOUR NEXT STOP.</em></h1><p>{objects.length} published places · {yards.length} citizen homes. Choose a district and see what has actually been built.</p><button onClick={() => { setOverviewOpen(false); setActiveDistrict(''); moveCamera(mapWidth / 2, baseMapHeight / 2, Math.max(minimumZoom(), .85)); }}><Map /> EXPLORE THE CITY <Compass /></button></div>
-          <div className="world-overview-districts" aria-label="Choose a district">{WORLD_DISTRICTS.map((item, index) => <button key={item.id} className={`world-overview-district district-${item.id}`} style={{ '--district-color': item.color } as CSSProperties} onClick={() => exploreDistrict(item.id)}><span>{item.number} / DISTRICT</span><b>{item.name}</b><em>{groups[index][0]?.title ?? 'Room for your first place'}</em><small>{groups[index].length} PUBLISHED PLACES <Compass /></small></button>)}</div>
-          <div className="world-overview-foot"><span>REAL PLACES. REAL RESIDENTS. ROOM FOR WHAT COMES NEXT.</span><span>CHOOSE A DISTRICT ↗</span></div>
+          <div className="world-overview-head"><small>LANDVILLE / WORLD MAP</small><h1>YOUR CITY.<br /><em>YOUR NEXT STOP.</em></h1><p>Pick a district to explore its places, people and ideas.</p><button onClick={() => { setOverviewOpen(false); setActiveDistrict(''); moveCamera(mapWidth / 2, baseMapHeight / 2, bounds.current.width < 760 ? .72 : .85); }}><Map /> EXPLORE THE CITY <Compass /></button></div>
+          <div className="world-overview-districts" aria-label="Choose a district">{WORLD_DISTRICTS.map((item) => <button key={item.id} className={`world-overview-district district-${item.id}`} style={{ '--district-color': item.color } as CSSProperties} onClick={() => exploreDistrict(item.id)}><span>{item.number} / DISTRICT</span><b>{item.name}</b><small>{groups[WORLD_DISTRICTS.indexOf(item)].length} PLACES <Compass /></small></button>)}</div>
+          <div className="world-overview-foot"><span>FIVE DISTRICTS. COUNTLESS BAD IDEAS WORTH BUILDING.</span><span>CHOOSE A DISTRICT ↗</span></div>
         </section>}
         <button
           className={`world-signal-trigger${holder ? ' verified' : ''}`}

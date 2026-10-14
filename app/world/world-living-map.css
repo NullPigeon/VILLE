@@ -1,9 +1,10 @@
-/* One terrain for the playable map and its atlas. Structures and residents are data layers. */
-.world-terrain { display:block; width:100%; height:100%; }
-.city-product .world-map-scene { background:#686a43; }
-.city-product .world-map-scene .world-map-art { filter:contrast(1.04) saturate(1.04); }
-.city-product .world-map-scene .world-map-art::after { background:linear-gradient(90deg,#101c1140,transparent 18% 82%,#101c1140),linear-gradient(0deg,#101c1140,transparent 15% 86%,#101c1140); }
-.world-yard-expansion {position:absolute;left:0;width:100%;z-index:0;background:repeating-linear-gradient(112deg,transparent 0 27px,#222d2155 28px 30px,transparent 31px 70px),radial-gradient(circle at 26% 44%,#d2b47872,transparent 40%),#6d7045;border-top:12px solid #192218;box-shadow:inset 0 5px 0 #e8ce8a66;pointer-events:none}
+/* A large painted wilderness surrounds the small, data-driven settlement. */
+.city-product .world-stage.world-blank-canvas { background:#302c21 url('/landville-frontier-terrain-v2.png') center / cover no-repeat; }
+.city-product .world-map-scene { background:#4f5942; }
+.city-product .world-map-scene .world-map-art { filter:contrast(1.13) saturate(1.12); }
+.city-product .world-map-scene .world-map-art img { object-fit:cover;object-position:center; }
+.city-product .world-map-scene .world-map-art::after { background:radial-gradient(ellipse at 50% 48%,#c7ff001b,transparent 42%),linear-gradient(90deg,#101c1133,transparent 13% 87%,#101c1133),linear-gradient(0deg,#101c1133,transparent 10% 90%,#101c1133); }
+.city-product .world-map-scene .world-road-map { display:none; }
 .city-product .world-map-scene .world-district-land path { stroke:#f6dfa186; stroke-width:2.5; stroke-dasharray:11 15; }
 .city-product .world-map-scene .world-district-land path.active { stroke:#e6ff9a; stroke-width:5; stroke-dasharray:14 10; }
 .city-product .world-map-scene .world-object-card { isolation:isolate; }
@@ -23,25 +24,36 @@
 .city-product .world-map-scene .world-object-card[data-kind=utility] .world-object-neon {border-left-color:#89e8cb;color:#e0fff1;text-shadow:0 0 9px #89e8cb;box-shadow:4px 5px 0 #0b150e,0 0 17px #89e8cb70;}
 .city-product .world-map-scene .world-object-card:hover .world-object-neon,.city-product .world-map-scene .world-object-card.selected .world-object-neon {background:#223e2d;transform:translateY(-4px) rotate(0deg);}
 
-/* The atlas shows the same unbuilt terrain instead of a painted crowd of buildings. */
-.world-overview { background:#273521; }
-.world-overview>.world-terrain { position:absolute;inset:0;width:100%;height:100%;opacity:.9;filter:contrast(1.1) saturate(.9); }
-.world-overview-shade { background:linear-gradient(90deg,#0b1710f7 0,#102016ed 28%,#1020168a 46%,transparent 74%),linear-gradient(0deg,#0a170dc9,transparent 27%),linear-gradient(180deg,#0a170d99,transparent 26%); }
-.world-overview-district { width:clamp(164px,16vw,240px);min-height:102px; }
-.world-overview-district em { display:block;max-width:100%;min-height:18px;margin:2px 0 9px;color:#e4ddbd;font:600 11px/1.25 Arial,sans-serif;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.world-overview-district.district-dump {left:51%;top:14%}
-.world-overview-district.district-token {left:77%;top:14%}
-.world-overview-district.district-townwide {left:64%;top:42%}
-.world-overview-district.district-meme {left:51%;top:69%}
-.world-overview-district.district-market {left:77%;top:69%}
-.city-product .world-district-art { background:#303f2a; }
-.city-product .world-district-art>.world-terrain {display:block;width:100%;height:100%;filter:contrast(1.15) saturate(.95)}
+/* World controls fold away for an uninterrupted map view. */
+.world-map-quick-actions {position:absolute;z-index:32;top:18px;left:50%;transform:translateX(-50%);display:flex;gap:7px}
+.world-map-quick-actions button {display:flex;align-items:center;justify-content:center;gap:8px;min-height:39px;padding:8px 14px;border:3px solid #101b13;border-bottom:6px solid #101b13;background:#d6f187;color:#1c2d1b;box-shadow:5px 6px 0 #08120b;font:900 10px/1 Arial,sans-serif;letter-spacing:.08em;cursor:pointer;white-space:nowrap}
+.world-map-quick-actions button:hover,.world-map-quick-actions button:focus-visible {background:#ecffa7;translate:0 -2px}
+.world-map-quick-actions svg {width:15px;height:15px}
+.city-product .world-stage.hud-collapsed .world-city-status,
+.city-product .world-stage.hud-collapsed .world-district-travel,
+.city-product .world-stage.hud-collapsed .world-like-meter,
+.city-product .world-stage.hud-collapsed .world-exploration-hud,
+.city-product .world-stage.hud-collapsed .world-district-visit,
+.city-product .world-stage.hud-collapsed .world-wardrobe,
+.city-product .world-stage.hud-collapsed .world-signal-trigger,
+.city-product .world-stage.hud-collapsed .world-signal-panel {display:none}
+.world-map-scene .world-settlement-beacon {position:absolute;z-index:20;left:50%;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;width:190px;padding:10px 13px;text-align:left;border:3px solid #101a11;border-bottom:7px solid #101a11;background:#1a2c1de8;color:#eeefce;box-shadow:5px 7px 0 #071008,0 0 27px #c7ff0077;cursor:pointer}
+.world-settlement-beacon b {font:900 23px/.9 Impact,"Arial Narrow",Arial,sans-serif;letter-spacing:.06em;color:#d6f883}
+.world-settlement-beacon small {grid-column:1;font:900 8px/1 monospace;letter-spacing:.08em}
+.world-settlement-beacon svg {grid-column:2;grid-row:1/3;width:22px;height:22px;color:#d6f883}
+.world-map-scene.map-far .world-game-actor {width:28px;height:28px;display:block;transform:translate(-50%,-50%) scale(2);border:4px solid #112319;border-radius:50%;background:#d7f783;box-shadow:0 0 0 2px #ead99c,0 0 17px #c7ff00}
+.world-map-scene.map-far .world-game-actor.robot {width:28px;background:#8adbc6}
+.world-map-scene.map-far .world-game-actor.hero {background:#fff1ae}
+.world-map-scene.map-far .world-game-actor .world-actor-figure,.world-map-scene.map-far .world-game-actor .world-actor-name,.world-map-scene.map-far .world-game-actor .world-agent-speech,.world-map-scene.map-far .world-citizen-card {display:none}
+.city-product .world-map-scene .world-vacant-lot.vacant-west {left:34%;top:47%}
+.city-product .world-map-scene .world-vacant-lot.vacant-east {right:34%;top:55%}
+.city-product .world-district-art {background:#293b2e}
+.city-product .world-district-art img {object-fit:cover;object-position:center;filter:contrast(1.13) saturate(1.1)}
 .city-product .world-district-art>span {position:absolute;left:15px;bottom:11px;max-width:90%;padding:5px 9px;border:2px solid #101a12;background:#122019ec;color:#e3f6b2;font:900 12px/1 Impact,"Arial Narrow",Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;box-shadow:3px 4px 0 #0a140d}
 
 @media(max-width:760px){
-  .world-overview>.world-terrain {position:fixed;width:100%;height:100%;opacity:.68}
-  .world-overview-district,.world-overview-district.district-dump,.world-overview-district.district-token,.world-overview-district.district-townwide,.world-overview-district.district-meme,.world-overview-district.district-market {position:relative;left:auto;top:auto;width:auto;min-height:95px}
-  .world-overview-district em {font-size:10px}
+  .world-map-quick-actions {top:10px;gap:4px}
+  .world-map-quick-actions button {min-height:35px;padding:7px 9px;font-size:9px}
   .city-product .world-map-scene .world-object-neon {max-width:125px;font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){.city-product .world-map-scene .world-object-neon{transition:none}}

@@ -2,8 +2,11 @@ import { useId } from 'react';
 import type { WorldObjectRecord } from '@/lib/landville-data';
 
 // Each published module keeps its live preview, framed as an actual scrap-built shop.
-export function WorldBuildingArt({ kind }: { kind: WorldObjectRecord['kind'] }) {
+export function WorldBuildingArt({ kind, seed = '' }: { kind: WorldObjectRecord['kind']; seed?: string }) {
   const inkId = useId().replace(/:/g, '');
+  let hash = 0;
+  for (const char of seed) hash += char.charCodeAt(0);
+  const variation = hash % 3;
   const palette = {
     venue: ['#cf9450', '#795039', '#f3cb7b'],
     utility: ['#659d8e', '#36584d', '#b1cf98'],
@@ -53,6 +56,16 @@ export function WorldBuildingArt({ kind }: { kind: WorldObjectRecord['kind'] }) 
     </> : <>
       <path d="M21 23 63-22h100l47 45Z" fill={palette[0]} strokeWidth="6" /><path d="M63-12h101m-89 12h78m-66 11h55" stroke={palette[2]} strokeWidth="3" />
       <path d="M15 81h180v26H15Z" fill={palette[2]} strokeWidth="5" /><path d="m31 83 8 19m28-19 8 19m28-19 8 19m28-19 8 19m28-19 8 19" stroke={palette[0]} strokeWidth="4" />
+    </>}
+    {variation === 0 ? <>
+      <path d="M174 39V-18m-13 11h26m-20 13h15" strokeWidth="4" /><circle cx="174" cy="-19" r="5" fill="#d5f381" />
+    </> : variation === 1 ? <>
+      <path d="M22 83H-14l-9 14v24h45Z" fill={palette[0]} strokeWidth="5" /><path d="M-18 101h34m-28 10h26" stroke={palette[2]} strokeWidth="3" />
+      <path d="M158 27v-35h20v35" fill={palette[1]} strokeWidth="4" />
+    </> : <>
+      <path d="M22 68H-6v87h28m168-90h28v100h-28" fill={palette[1]} strokeWidth="5" />
+      <path d="M-2 83h17m-17 15h17m183-14h14m-14 16h14" stroke={palette[2]} strokeWidth="3" />
+      <path d="M97 24V-9h26v33" fill={palette[0]} strokeWidth="4" />
     </>}
     <path d="m199 64 7-5v51l-7 7Z" fill={palette[0]} /><path d="m200 73 4-3m-4 16 4-3m-4 16 4-3" stroke={palette[2]} strokeWidth="2" />
     {[27,185].map(x=><g key={x} fill="#f2dab0" strokeWidth="1.5"><circle cx={x} cy="48" r="2.2" /><circle cx={x} cy="197" r="2.2" /></g>)}
