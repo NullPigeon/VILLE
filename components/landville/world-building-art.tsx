@@ -37,9 +37,23 @@ export function WorldBuildingArt({ kind }: { kind: WorldObjectRecord['kind'] }) 
     <path d="m28 193-9 12m34-11-11 12m111-12-11 12m34-11-9 12" stroke="#1b2119" strokeWidth="7" />
     <path d="M66 197h83v12H66Z" fill="#626548" /><path d="M62 210h91v9H62Z" fill="#99936a" />
     <path d="m25 196 19-2m21 0 26-1m44 0 18 1m17-1 20 2" stroke={palette[2]} strokeWidth="2" />
-    {kind === 'utility' ? <><path d="M51 23V-1h35v24" fill={palette[1]} /><path d="M56 4h25M56 11h25" stroke={palette[2]} /><path d="M145 22V-8m-15 5h29M137 7h17" /><circle cx="145" cy="-8" r="4" fill="#d4ed6b" /></>
-      : kind === 'media' ? <><path d="M66 26V-7m-19-9Q45 11 90 8Z" fill={palette[2]} /><path d="m63-5 23-21" /><circle cx="86" cy="-26" r="4" fill="#d4ed6b" /></>
-      : <><path d="M57 24v-13l108-4v17" fill={palette[1]} /><path d="m65 16 92-3" stroke={palette[2]} /><path d="M37 24V-3h9v27" fill="#555443" /></>}
+    {kind === 'utility' ? <>
+      <path d="M46 23 51-13h42l7 36Z" fill={palette[1]} strokeWidth="5" /><path d="M53-3h36M56 7h31M59 17h27" stroke={palette[2]} strokeWidth="3" />
+      <path d="M150 21V-23m-22 7h44m-33 12h23" strokeWidth="5" /><circle cx="150" cy="-23" r="8" fill="#d4ed6b" />
+      <path d="M20 85h-25v58h25m171-72h25v72h-25" fill={palette[0]} strokeWidth="5" />
+    </> : kind === 'media' ? <>
+      <path d="M50 21 58-15 111 5 98 26Z" fill={palette[1]} strokeWidth="5" /><path d="M66 12V-14m-23-9Q42 1 87-1Z" fill={palette[2]} /><path d="M66-13 91-36" /><circle cx="91" cy="-36" r="6" fill="#d4ed6b" />
+      <path d="M38 65h140v75H38Z" fill={palette[0]} opacity=".65" /><path d="m47 126 35-43 29 26 21-22 35 39" stroke={palette[2]} strokeWidth="5" />
+    </> : kind === 'art' ? <>
+      <path d="m30 24 20-39 42 37m20 2 24-45 36 42" fill={palette[0]} strokeWidth="5" /><path d="m51-5 19 14m64-18 15 15" stroke={palette[2]} strokeWidth="3" />
+      <path d="M35 60h145v101H35Z" fill="#292922" strokeWidth="5" /><path d="m50 146 37-67 30 50 19-28 28 45Z" fill={palette[2]} strokeWidth="4" /><circle cx="138" cy="79" r="11" fill="#d8ef8c" />
+    </> : kind === 'meme' ? <>
+      <path d="m28 24 21-29 39 22 32-30 47 31 34-20 10 24Z" fill={palette[0]} strokeWidth="5" /><path d="m49 0 18 13m55-20 21 16m43-8 15 11" stroke={palette[2]} strokeWidth="4" />
+      <path d="M39 67h143v69H39Z" fill="#27301d" strokeWidth="5" /><path d="m54 120 25-30 25 20 20-23 45 35" stroke={palette[2]} strokeWidth="5" /><circle cx="142" cy="85" r="8" fill="#d5ed79" />
+    </> : <>
+      <path d="M21 23 63-22h100l47 45Z" fill={palette[0]} strokeWidth="6" /><path d="M63-12h101m-89 12h78m-66 11h55" stroke={palette[2]} strokeWidth="3" />
+      <path d="M15 81h180v26H15Z" fill={palette[2]} strokeWidth="5" /><path d="m31 83 8 19m28-19 8 19m28-19 8 19m28-19 8 19m28-19 8 19" stroke={palette[0]} strokeWidth="4" />
+    </>}
     <path d="m199 64 7-5v51l-7 7Z" fill={palette[0]} /><path d="m200 73 4-3m-4 16 4-3m-4 16 4-3" stroke={palette[2]} strokeWidth="2" />
     {[27,185].map(x=><g key={x} fill="#f2dab0" strokeWidth="1.5"><circle cx={x} cy="48" r="2.2" /><circle cx={x} cy="197" r="2.2" /></g>)}
   </svg>;

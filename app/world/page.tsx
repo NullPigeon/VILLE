@@ -40,10 +40,6 @@ import { ProductShell } from '@/components/landville/product-shell';
 import { useLandville } from '@/components/landville/provider';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
-import {
-  WorldCityScenery,
-  WorldSquareGround,
-} from '@/components/landville/world-city-scenery';
 import type { PublicYard } from '@/lib/personal-agent';
 import {
   WORLD_DISTRICTS,
@@ -51,31 +47,31 @@ import {
   type WorldDistrictId,
 } from '@/lib/world-districts';
 import { readJsonResponse } from '@/lib/http-response';
-import { WorldLife } from '@/components/landville/world-life';
 import { GameHero, HERO_SKINS, HERO_SKIN_LABELS, type HeroSkin } from '@/components/landville/game-hero';
 import { PersonalRobot, ROBOT_SKINS, ROBOT_SKIN_LABELS, type RobotSkin } from '@/components/landville/personal-robot';
 import { WorldAgentChat } from '@/components/landville/world-agent-chat';
 import { WorldMission } from '@/components/landville/world-mission';
-import { WorldFrontierArt } from '@/components/landville/world-frontier-art';
 import { WorldBuildingArt } from '@/components/landville/world-building-art';
+import { WorldTerrain } from '@/components/landville/world-terrain';
 import './frontier-art.css';
 import './world-actors.css';
 import './world-game-map.css';
 import './world-ink.css';
 import './world-overview.css';
 import './world-painted-map.css';
+import './world-living-map.css';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/world-presence';
 import { agentWorldMotion } from '@/lib/agent-world-motion';
 
 const CITIZEN_SLOTS = [
-  { x: 49, y: 59, mobileX: 49, mobileY: 42 },
-  { x: 42, y: 46, mobileX: 48, mobileY: 72 },
-  { x: 59, y: 48, mobileX: 49, mobileY: 101 },
-  { x: 53, y: 74, mobileX: 49, mobileY: 130 },
-  { x: 20, y: 63, mobileX: 49, mobileY: 145 },
-  { x: 81, y: 56, mobileX: 49, mobileY: 160 },
+  { x: 16, y: 20, mobileX: 49, mobileY: 42 },
+  { x: 81, y: 19, mobileX: 48, mobileY: 72 },
+  { x: 16, y: 76, mobileX: 49, mobileY: 101 },
+  { x: 84, y: 77, mobileX: 49, mobileY: 130 },
+  { x: 35, y: 13, mobileX: 49, mobileY: 145 },
+  { x: 64, y: 87, mobileX: 49, mobileY: 160 },
 ];
 
 function citizenPlacement(
@@ -86,7 +82,7 @@ function citizenPlacement(
 
   return {
     '--citizen-x': `${slot.x}%`,
-    '--citizen-y': `${slot.y + row * 4}%`,
+    '--citizen-y': `${Math.min(94, slot.y + row * 3)}%`,
     '--citizen-mobile-x': `${slot.mobileX}%`,
     '--citizen-mobile-y': `${slot.mobileY + row * 14}%`,
   };
@@ -173,15 +169,15 @@ export default function WorldPage() {
     2,
     ...groups.map((group) => Math.ceil(group.length / 2)),
   );
-  const mapWidth = 1600;
+  const mapWidth = 2000;
   const townwideCount = groups[4].length;
   const baseMapHeight = Math.max(
-    2300,
-    districtRows * 190 * 2 + 360,
-    townwideCount * 190 + 500,
+    2600,
+    districtRows * 240 * 2 + 480,
+    townwideCount * 240 + 650,
   );
   const extraYardRows = Math.ceil(Math.max(0, yards.length - 6) / 8);
-  const mapHeight = baseMapHeight + extraYardRows * 135;
+  const mapHeight = baseMapHeight + extraYardRows * 190;
   const holder = Boolean(
     wallet.linkedWallet &&
     wallet.snapshot?.source === 'chain' &&
@@ -203,16 +199,22 @@ export default function WorldPage() {
   const positionsByWallet = new globalThis.Map(positions.map((position) => [position.wallet.toLowerCase(), position]));
   const residentWallets = new Set(residents.map((resident) => resident.wallet.toLowerCase()));
 
-  const clampCamera = useCallback((x: number, y: number, zoom: number) => {
+  const minimumZoom = useCallback(() => {
     const { width, height } = bounds.current;
+    return Math.max(width / mapWidth, height / mapHeight, 0.35);
+  }, [mapHeight]);
+
+  const clampCamera = useCallback((x: number, y: number, requestedZoom: number) => {
+    const { width, height } = bounds.current;
+    const zoom = Math.max(minimumZoom(), requestedZoom);
     const scaledWidth = mapWidth * zoom;
     const scaledHeight = mapHeight * zoom;
     return {
-      x: scaledWidth <= width ? (width - scaledWidth) / 2 : Math.max(width - scaledWidth - 36, Math.min(36, x)),
-      y: scaledHeight <= height ? (height - scaledHeight) / 2 : Math.max(height - scaledHeight - 36, Math.min(36, y)),
+      x: scaledWidth <= width ? (width - scaledWidth) / 2 : Math.max(width - scaledWidth, Math.min(0, x)),
+      y: scaledHeight <= height ? (height - scaledHeight) / 2 : Math.max(height - scaledHeight, Math.min(0, y)),
       zoom,
     };
-  }, [mapHeight]);
+  }, [mapHeight, minimumZoom]);
 
   const moveCamera = (x: number, y: number, zoom: number) => {
     const { width, height } = bounds.current;
@@ -407,13 +409,13 @@ export default function WorldPage() {
           const focusY = (previousBounds.height / 2 - previous.y) / previous.zoom;
           return clampCamera(width / 2 - focusX * previous.zoom, height / 2 - focusY * previous.zoom, previous.zoom);
         }
-        const zoom = width < 760 ? 0.72 : Math.max(0.62, Math.min(0.86, width / mapWidth * 0.85));
+        const zoom = Math.max(minimumZoom(), width < 760 ? 0.72 : 0.84);
         return clampCamera(width / 2 - mapWidth / 2 * zoom, height / 2 - baseMapHeight / 2 * zoom, zoom);
       });
     });
     observer.observe(stage.current);
     return () => observer.disconnect();
-  }, [baseMapHeight, clampCamera]);
+  }, [baseMapHeight, clampCamera, minimumZoom]);
 
   useEffect(() => {
     const surface = stage.current;
@@ -427,7 +429,7 @@ export default function WorldPage() {
       const pointerY = event.clientY - rect.top;
       setCamera((previous) => {
         const delta = event.deltaY * (event.deltaMode === 1 ? 16 : 1);
-        const zoom = Math.max(0.08, Math.min(1.85, previous.zoom * Math.exp(-delta * 0.0012)));
+        const zoom = Math.max(minimumZoom(), Math.min(1.85, previous.zoom * Math.exp(-delta * 0.0012)));
         const worldX = (pointerX - previous.x) / previous.zoom;
         const worldY = (pointerY - previous.y) / previous.zoom;
         return clampCamera(pointerX - worldX * zoom, pointerY - worldY * zoom, zoom);
@@ -435,7 +437,7 @@ export default function WorldPage() {
     };
     surface.addEventListener('wheel', onWheel, { passive: false });
     return () => surface.removeEventListener('wheel', onWheel);
-  }, [clampCamera]);
+  }, [clampCamera, minimumZoom]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -494,13 +496,12 @@ export default function WorldPage() {
       );
     } else {
       if (item) remember('districts', id);
-      const zoom = Math.max(0.08, Math.min(bounds.current.width / mapWidth, bounds.current.height / mapHeight) * 0.96);
-      moveCamera(mapWidth / 2, mapHeight / 2, zoom);
+      moveCamera(mapWidth / 2, mapHeight / 2, Math.max(minimumZoom(), 0.8));
     }
   }
 
   function zoomMap(delta: number) {
-    const zoom = Math.max(0.08, Math.min(1.85, camera.zoom + delta));
+    const zoom = Math.max(minimumZoom(), Math.min(1.85, camera.zoom + delta));
     moveCamera(
       (bounds.current.width / 2 - camera.x) / camera.zoom,
       (bounds.current.height / 2 - camera.y) / camera.zoom,
@@ -561,14 +562,14 @@ export default function WorldPage() {
     const rows = Math.ceil(groups[groupIndex].length / 2);
     let x =
       (mapWidth * item.x) / 100 +
-      (groups[groupIndex].length === 1 ? 0 : index % 2 === 0 ? -112 : 112);
+      (groups[groupIndex].length === 1 ? 0 : index % 2 === 0 ? -165 : 165);
     let y =
       (baseMapHeight * item.y) / 100 +
-      (Math.floor(index / 2) - (rows - 1) / 2) * 190;
+      (Math.floor(index / 2) - (rows - 1) / 2) * 240;
     if (item.id === 'townwide') {
       x = mapWidth / 2;
-      y = (baseMapHeight - townwideCount * 190 - 340) / 2 + index * 190;
-      if (y >= baseMapHeight / 2 - 170) y += 340;
+      y = (baseMapHeight - townwideCount * 240 - 440) / 2 + index * 240;
+      if (y >= baseMapHeight / 2 - 220) y += 440;
     }
     return {
       '--world-x': `${x}px`,
@@ -583,12 +584,12 @@ export default function WorldPage() {
   function yardPosition(index: number) {
     if (index < 6)
       return {
-        x: ([43, 57, 20, 80, 37, 63][index] / 100) * mapWidth,
-        y: ([43, 43, 64, 64, 16, 84][index] / 100) * baseMapHeight,
+        x: ([38, 62, 14, 86, 39, 61][index] / 100) * mapWidth,
+        y: ([40, 40, 66, 66, 13, 87][index] / 100) * baseMapHeight,
       };
     return {
-      x: 200 + ((index - 6) % 8) * 170,
-      y: baseMapHeight + 65 + Math.floor((index - 6) / 8) * 135,
+      x: 220 + ((index - 6) % 8) * 220,
+      y: baseMapHeight + 95 + Math.floor((index - 6) / 8) * 190,
     };
   }
 
@@ -717,8 +718,9 @@ export default function WorldPage() {
           }}
         >
           <div className="world-map-art" style={{ height: baseMapHeight }} aria-hidden="true">
-            <Image src="/landville-playable-map.png" alt="" fill sizes="(max-width: 760px) 1200px, 1600px" quality={80} loading="eager" />
+            <WorldTerrain width={mapWidth} height={baseMapHeight} />
           </div>
+          {extraYardRows > 0 && <div className="world-yard-expansion" style={{ top: baseMapHeight, height: mapHeight - baseMapHeight }} aria-hidden="true" />}
           <svg
             className="world-district-land"
             viewBox="0 0 100 100"
@@ -745,41 +747,6 @@ export default function WorldPage() {
               d="M 53 53 L 97 53 L 97 96 L 53 96 Z"
             />
           </svg>
-          <WorldCityScenery height={baseMapHeight} />
-          <WorldFrontierArt height={baseMapHeight} />
-          <svg
-            className="world-road-map"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            style={{ height: baseMapHeight }}
-            aria-hidden="true"
-          >
-            <g className="world-road-curbs">
-              <path d="M 2 51 C 20 45 34 49 50 50 S 79 56 98 44" />
-              <path d="M 50 1 C 47 20 55 34 50 50 S 45 78 54 99" />
-              <path d="M 8 7 C 25 25 37 40 50 50 S 73 70 93 93" />
-              <path d="M 92 7 C 76 24 62 40 50 50 S 29 72 8 92" />
-            </g>
-            <g className="world-road-beds">
-              <path d="M 2 51 C 20 45 34 49 50 50 S 79 56 98 44" />
-              <path d="M 50 1 C 47 20 55 34 50 50 S 45 78 54 99" />
-              <path d="M 8 7 C 25 25 37 40 50 50 S 73 70 93 93" />
-              <path d="M 92 7 C 76 24 62 40 50 50 S 29 72 8 92" />
-            </g>
-            <g className="world-road-marks">
-              <path d="M 2 51 C 20 45 34 49 50 50 S 79 56 98 44" />
-              <path d="M 50 1 C 47 20 55 34 50 50 S 45 78 54 99" />
-              <path d="M 8 7 C 25 25 37 40 50 50 S 73 70 93 93" />
-              <path d="M 92 7 C 76 24 62 40 50 50 S 29 72 8 92" />
-            </g>
-            <g className="world-road-signals">
-              <path d="M 2 51 C 20 45 34 49 50 50 S 79 56 98 44" />
-              <path d="M 50 1 C 47 20 55 34 50 50 S 45 78 54 99" />
-            </g>
-          </svg>
-
-          <WorldSquareGround height={baseMapHeight} />
-          <StreetProps height={baseMapHeight} />
 
           <button
             onClick={() => openCityChat({ room: 'TOWN' })}
@@ -825,7 +792,6 @@ export default function WorldPage() {
             <b>+</b>
             <small>YOUR IDEA HERE</small>
           </button>
-          <WorldLife height={baseMapHeight} />
 
           {objects.map((object) => (
             <article
@@ -841,6 +807,7 @@ export default function WorldPage() {
             >
               <span className="world-object-foundation" aria-hidden="true" />
               <WorldBuildingArt kind={object.kind} />
+              <span className="world-object-neon" aria-hidden="true">{object.title}</span>
               {!exploration.places.includes(object.id) && <span className="world-explore-beacon" aria-hidden="true">EXPLORE <Compass /></span>}
               <div className="world-object-preview" aria-hidden="true">
                 <Building2 />
@@ -971,9 +938,6 @@ export default function WorldPage() {
               : <GameHero skin={heroSkin === 'MODULE' ? 'SCAVENGER' : heroSkin} />}</span>
             <span className="world-actor-name">YOU · {heroSkin === 'MODULE' && ownPublishedCharacter ? ownPublishedCharacter.creator : HERO_SKIN_LABELS[heroSkin === 'MODULE' ? 'SCAVENGER' : heroSkin]}</span>
           </div>}
-          {!wallet.address && <div className="world-game-actor demo-scout" style={{ left: mapWidth / 2 + 130, top: baseMapHeight / 2 + 160 }} aria-hidden="true">
-            <span className="world-actor-figure"><GameHero skin="ROADRUNNER" /></span><span className="world-actor-name">CITY SCOUT</span>
-          </div>}
         </div>
 
         {wallet.address && <div className="world-wardrobe" inert={overviewOpen}>
@@ -1086,7 +1050,7 @@ export default function WorldPage() {
         </div>
         {district && (
           <aside className={`world-district-visit district-${district.id}`} style={{ '--district-color': district.color } as CSSProperties} aria-live="polite" inert={overviewOpen}>
-            <div className="world-district-art" aria-hidden="true"><Image src="/landville-playable-map.png" alt="" fill sizes="300px" quality={75} /></div>
+            <div className="world-district-art" aria-hidden="true"><WorldTerrain width={600} height={180} /><span>{district.number} / {district.name}</span></div>
             <small>DISTRICT {district.number} / YOU ARE HERE</small>
             <h2>{district.name}</h2>
             <p>{district.description}</p>
@@ -1101,11 +1065,11 @@ export default function WorldPage() {
           </aside>
         )}
         {overviewOpen && <section className="world-overview" aria-label="Explore LANDVILLE districts">
-          <Image src="/landville-world-overview.png" fill priority sizes="100vw" alt="" />
+          <WorldTerrain width={mapWidth} height={baseMapHeight} />
           <div className="world-overview-shade" />
-          <div className="world-overview-head"><small>LANDVILLE / WORLD MAP</small><h1>YOUR CITY.<br /><em>YOUR NEXT STOP.</em></h1><p>Pick a district to explore its places, people and ideas.</p><button onClick={() => { setOverviewOpen(false); setActiveDistrict(''); moveCamera(mapWidth / 2, baseMapHeight / 2, bounds.current.width < 760 ? .72 : .85); }}><Map /> EXPLORE THE CITY <Compass /></button></div>
-          <div className="world-overview-districts" aria-label="Choose a district">{WORLD_DISTRICTS.map((item) => <button key={item.id} className={`world-overview-district district-${item.id}`} style={{ '--district-color': item.color } as CSSProperties} onClick={() => exploreDistrict(item.id)}><span>{item.number} / DISTRICT</span><b>{item.name}</b><small>{groups[WORLD_DISTRICTS.indexOf(item)].length} PLACES <Compass /></small></button>)}</div>
-          <div className="world-overview-foot"><span>FIVE DISTRICTS. COUNTLESS BAD IDEAS WORTH BUILDING.</span><span>CHOOSE A DISTRICT ↗</span></div>
+          <div className="world-overview-head"><small>LANDVILLE / WORLD MAP</small><h1>YOUR CITY.<br /><em>YOUR NEXT STOP.</em></h1><p>{objects.length} published places · {yards.length} citizen homes. Choose a district and see what has actually been built.</p><button onClick={() => { setOverviewOpen(false); setActiveDistrict(''); moveCamera(mapWidth / 2, baseMapHeight / 2, Math.max(minimumZoom(), .85)); }}><Map /> EXPLORE THE CITY <Compass /></button></div>
+          <div className="world-overview-districts" aria-label="Choose a district">{WORLD_DISTRICTS.map((item, index) => <button key={item.id} className={`world-overview-district district-${item.id}`} style={{ '--district-color': item.color } as CSSProperties} onClick={() => exploreDistrict(item.id)}><span>{item.number} / DISTRICT</span><b>{item.name}</b><em>{groups[index][0]?.title ?? 'Room for your first place'}</em><small>{groups[index].length} PUBLISHED PLACES <Compass /></small></button>)}</div>
+          <div className="world-overview-foot"><span>REAL PLACES. REAL RESIDENTS. ROOM FOR WHAT COMES NEXT.</span><span>CHOOSE A DISTRICT ↗</span></div>
         </section>}
         <button
           className={`world-signal-trigger${holder ? ' verified' : ''}`}
@@ -1378,52 +1342,5 @@ export default function WorldPage() {
         </div>
       </section>
     </ProductShell>
-  );
-}
-
-function StreetProps({ height }: { height: number }) {
-  return (
-    <div className="world-street-props" style={{ height }} aria-hidden="true">
-      {[
-        [19, 48],
-        [37, 48],
-        [61, 52],
-        [81, 52],
-        [48, 18],
-        [51, 35],
-        [48, 66],
-        [53, 84],
-      ].map(([x, y], index) => (
-        <svg
-          key={index}
-          className="world-street-lamp"
-          style={{ left: `${x}%`, top: `${y}%` }}
-          viewBox="0 0 30 65"
-        >
-          <path
-            d="M 6 63 H 25 M 16 61 V 14 L 22 7 H 5"
-            stroke="#77794a"
-            strokeWidth="3"
-            fill="none"
-          />
-          <path d="M 4 6 H 13 V 11 H 4 Z" className="lamp-glow" />
-          <path d="M 12 61 H 20 V 64 H 12 Z" fill="#353d25" />
-        </svg>
-      ))}
-      {[
-        [13, 14],
-        [35, 89],
-        [84, 17],
-        [86, 86],
-        [10, 61],
-        [89, 63],
-      ].map(([x, y], index) => (
-        <i
-          key={index}
-          className="world-scrap-stack"
-          style={{ left: `${x}%`, top: `${y}%` }}
-        />
-      ))}
-    </div>
   );
 }
