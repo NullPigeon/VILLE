@@ -8,8 +8,8 @@ export const WORLD_DISTRICTS = [
     name: 'The Dump',
     description:
       'Experiments, strange machines, and good ideas rescued from the scrap heap.',
-    x: 27,
-    y: 27,
+    x: 40,
+    y: 37,
     color: '#eea566',
   },
   {
@@ -19,8 +19,8 @@ export const WORLD_DISTRICTS = [
     name: 'Token Alley',
     description:
       'The token district. Citizen-built tools and experiences with reviewed platform capabilities.',
-    x: 73,
-    y: 27,
+    x: 60,
+    y: 37,
     color: '#83d6c0',
   },
   {
@@ -30,8 +30,8 @@ export const WORLD_DISTRICTS = [
     name: 'Market',
     description:
       'A street of citizen creations. Open a place and see what its maker brought to the city.',
-    x: 73,
-    y: 73,
+    x: 60,
+    y: 63,
     color: '#c7ff00',
   },
   {
@@ -41,8 +41,8 @@ export const WORLD_DISTRICTS = [
     name: 'Meme Pit',
     description:
       'Art, jokes, and wonderfully strange ideas. This city takes its nonsense seriously.',
-    x: 27,
-    y: 73,
+    x: 40,
+    y: 63,
     color: '#cf91d9',
   },
   {
