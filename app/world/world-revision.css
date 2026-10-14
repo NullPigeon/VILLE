@@ -1,0 +1,37 @@
+/* The terrain is an underlay. Only data-backed city objects sit above it. */
+.city-product .world-stage.world-blank-canvas{background:#8e6a3e url('/landville-inked-desert-terrain.png') center/cover no-repeat}
+.city-product .world-stage,.city-product .world-map-scene,.city-product .world-map-scene *{-webkit-user-select:none;user-select:none}
+.city-product .world-map-scene img{-webkit-user-drag:none;user-drag:none}
+.city-product .world-map-scene .world-map-art{filter:none;animation:none}
+.city-product .world-map-scene .world-map-art img{object-fit:cover;object-position:center}
+.city-product .world-map-scene .world-map-art::after{background:linear-gradient(90deg,#22180e30,transparent 14% 86%,#22180e30),radial-gradient(ellipse at center,transparent 55%,#1d180b33)}
+.city-product .world-map-scene .world-district-land{display:none}
+.city-product .world-map-scene .world-road-signals{display:none}
+.city-product .world-map-scene .world-object-card{width:254px;height:258px;padding:0;border:0!important;background:transparent!important;box-shadow:none!important;isolation:visible;filter:drop-shadow(7px 11px 1px #18140ba8)}
+.city-product .world-map-scene .world-object-card::before,.city-product .world-map-scene .world-object-card::after{display:none}
+.city-product .world-map-scene .world-object-card>.world-building-art{position:absolute;z-index:2;left:0;top:-16px;width:254px;height:264px;filter:drop-shadow(4px 5px 0 #16170f) contrast(1.13) saturate(1.07)}
+.city-product .world-map-scene .world-object-card>.generated-building-art{object-fit:contain;object-position:center bottom;image-rendering:auto;filter:drop-shadow(4px 6px 0 #17170f) contrast(1.09) saturate(1.04)}
+.city-product .world-map-scene .world-object-card .world-object-foundation{z-index:0;bottom:0;width:275px;height:110px;transform:translateX(-50%) rotate(-3deg);background:repeating-linear-gradient(25deg,#462b1733 0 3px,transparent 4px 23px),#af8650;border:6px solid #413023;box-shadow:8px 12px 0 #2e221755}
+.city-product .world-map-scene .world-object-card .world-object-label{display:none}
+.city-product .world-map-scene .world-object-card>button{z-index:6;inset:-15px -170px -14px 0;width:calc(100% + 170px);height:calc(100% + 29px)}
+.city-product .world-map-scene .world-object-card:hover,.city-product .world-map-scene .world-object-card.selected{z-index:19;filter:drop-shadow(6px 9px 0 #15180f) drop-shadow(0 0 16px #d1f978)}
+.city-product .world-map-scene .world-object-neon{position:absolute;z-index:4;left:210px;top:128px;display:grid;place-items:center;min-width:148px;max-width:175px;min-height:64px;padding:11px 13px 14px;transform:rotate(3deg);border:5px solid #3a281d;border-bottom-width:9px;background:repeating-linear-gradient(4deg,#a86e38 0 7px,#86572f 8px 12px,#b77c43 13px 18px);color:#e1ff94;box-shadow:5px 7px 0 #17190f, inset 0 0 0 3px #cc9c5c,0 0 12px #b9f46052;text-align:center;text-shadow:0 0 3px #d2ff6c,0 0 9px #c7ff00,2px 2px 0 #15230e;font:900 15px/1.05 Impact,'Arial Narrow',sans-serif;letter-spacing:.065em;overflow-wrap:anywhere}
+.city-product .world-map-scene .world-object-neon::before,.city-product .world-map-scene .world-object-neon::after{content:'';position:absolute;top:-12px;width:5px;height:13px;background:#24231b;box-shadow:0 0 0 2px #907048}
+.city-product .world-map-scene .world-object-neon::before{left:20px}.city-product .world-map-scene .world-object-neon::after{right:20px}
+.city-product .world-map-scene .world-object-card:hover .world-object-neon,.city-product .world-map-scene .world-object-card.selected .world-object-neon{background:repeating-linear-gradient(4deg,#ae7540 0 7px,#85552e 8px 12px,#be8849 13px 18px);transform:translateY(-3px) rotate(2deg)}
+.city-product .world-map-scene .world-explore-beacon{top:-36px;left:50%;z-index:7;animation:none}
+.city-product .world-map-scene .world-yard-house{width:184px;filter:drop-shadow(5px 8px 0 #171810a8)}
+.city-product .world-map-scene .world-yard-house>svg:first-of-type{width:173px;height:140px;filter:drop-shadow(3px 4px 0 #151a13) contrast(1.24) saturate(1.12)}
+.city-product .world-map-scene .world-yard-house>.world-yard-foundation{width:192px;height:125px;background:repeating-linear-gradient(117deg,#d1a66933 0 3px,transparent 4px 24px),#927247;border:5px solid #3b3023}
+.city-product .world-map-scene .world-yard-house>span:last-child{font-size:11px;background:#342d1fe8;color:#ebf8ba;border:3px solid #191e13;border-left:5px solid #cbf269}
+.city-product .world-map-scene .world-game-actor.resident{width:92px;filter:drop-shadow(4px 6px 0 #10140da0)}
+.city-product .world-map-scene .world-game-actor.resident .game-hero{width:78px;height:116px;filter:drop-shadow(3px 4px 0 #12180f) contrast(1.12)}
+.city-product .world-map-scene .world-game-actor.resident .world-actor-name{font-size:9px;min-width:90px;text-align:center}
+.city-product .world-map-scene.map-mid .world-game-actor.resident,.city-product .world-map-scene.map-mid .world-game-actor.robot.neighbor{width:40px;height:40px;display:block;transform:translate(-50%,-50%);border:4px solid #172117;border-radius:50%;background:radial-gradient(circle at 37% 32%,#e8d797 0 12%,#7b9258 30%,#313b29 74%);box-shadow:0 0 0 2px #e7cb81,4px 6px 0 #15180f,0 0 16px #cfed7b80}
+.city-product .world-map-scene.map-mid .world-game-actor.robot.neighbor{background:radial-gradient(circle at 37% 32%,#c1f99a 0 12%,#567c58 30%,#263f32 74%)}
+.city-product .world-map-scene.map-mid .world-game-actor.resident .world-actor-figure,.city-product .world-map-scene.map-mid .world-game-actor.robot.neighbor .world-actor-figure,.city-product .world-map-scene.map-mid .world-game-actor.robot.neighbor .world-agent-speech{display:none}
+.city-product .world-map-scene.map-mid .world-game-actor.resident .world-actor-name,.city-product .world-map-scene.map-mid .world-game-actor.robot.neighbor .world-actor-name{display:none;position:absolute;left:50%;top:42px;transform:translateX(-50%);min-width:max-content}
+.city-product .world-map-scene.map-mid .world-game-actor.resident:hover .world-actor-name,.city-product .world-map-scene.map-mid .world-game-actor.resident:focus-visible .world-actor-name,.city-product .world-map-scene.map-mid .world-game-actor.robot.neighbor:hover .world-actor-name{display:block}
+.city-product .world-map-scene .world-vacant-lot{opacity:.72;filter:drop-shadow(3px 4px 0 #151710)}
+@media(max-width:760px){.city-product .world-map-scene .world-object-neon{font-size:14px}}
+@media(prefers-reduced-motion:reduce){.city-product .world-map-scene .world-object-card>.world-building-art{transition:none}}

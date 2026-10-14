@@ -10,6 +10,7 @@ import { ChatProposalDraft } from '@/components/landville/chat-proposal-draft';
 import { scrapyProposalDraft } from '@/lib/proposal-draft';
 import { WORLD_DISTRICTS } from '@/lib/world-districts';
 import type { ChatRoom } from '@/lib/chat-data';
+import type { WorldFeatureKind } from '@/lib/world-change';
 import { ScrapyBot } from '@/components/landville/scrapy-bot';
 
 export type ChatSeed = { room?: ChatRoom; district?: string; idea?: string };
@@ -17,6 +18,7 @@ const starters = [
   { label: 'A tiny game', idea: 'A small arcade where citizens can play one quick game together.' },
   { label: 'A useful tool', idea: 'A public tool that helps citizens find the right city service.' },
   { label: 'An art space', idea: 'A gallery where citizens can share and explore community artwork.' },
+  { label: 'Change the World', idea: 'Add a new illustrated neon sign, signal mast, solar rig, or garden to this district of the World.' },
 ];
 
 export function CityChatRoom({ room, compact = false, seed, onSeedConsumed }: { room: ChatRoom; compact?: boolean; seed?: ChatSeed; onSeedConsumed?: () => void }) {
@@ -25,7 +27,7 @@ export function CityChatRoom({ room, compact = false, seed, onSeedConsumed }: { 
   const build = room === 'BUILD';
   const [input, setInput] = useState('');
   const [district, setDistrict] = useState('THE DUMP');
-  const [draft, setDraft] = useState<{ id: string; title: string; summary: string; wallet: string; district: string } | null>(null);
+  const [draft, setDraft] = useState<{ id: string; title: string; summary: string; worldFeatureKind?: WorldFeatureKind | null; wallet: string; district: string } | null>(null);
   const feed = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const follow = useRef(true);
@@ -84,7 +86,7 @@ export function CityChatRoom({ room, compact = false, seed, onSeedConsumed }: { 
   const returnTo = `/chat?${new URLSearchParams({ room, ...(build ? { district, idea: input } : {}) })}`;
   return <section className={`city-chat-room ${build ? 'build-room' : 'town-room'}${compact ? ' compact' : ''}`} aria-label={build ? 'Build with Scrapy' : 'Town Square'}>
     <header className="city-room-header"><span className="city-room-icon">{build ? <ScrapyBot portrait /> : <Users />}</span><div><h2>{build ? 'Build with Scrapy' : 'Town Square'}</h2><p>{build ? 'Turn your idea into a place.' : 'Citizens, agents & the mayor.'}</p></div><span className="city-public-label">PUBLIC</span></header>
-    {draft && draft.wallet === wallet.address ? <div className="city-plan-review"><button className="city-back-link" onClick={() => setDraft(null)}><ChevronLeft /> Back to conversation</button><ChatProposalDraft key={draft.id} sourceReplyId={draft.id} titleText={draft.title} summaryText={draft.summary} initialDistrict={draft.district} onClose={() => setDraft(null)} /></div> : <>
+    {draft && draft.wallet === wallet.address ? <div className="city-plan-review"><button className="city-back-link" onClick={() => setDraft(null)}><ChevronLeft /> Back to conversation</button><ChatProposalDraft key={draft.id} sourceReplyId={draft.id} titleText={draft.title} summaryText={draft.summary} initialDistrict={draft.district} worldFeatureKind={draft.worldFeatureKind} onClose={() => setDraft(null)} /></div> : <>
       {build && <div className="city-room-tip"><Lightbulb /><span>Start with what people will do inside your building.</span></div>}
       {/* Keyboard users need to scroll history without reaching the composer. */}
       {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}

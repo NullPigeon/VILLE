@@ -9,6 +9,7 @@ export type WorldObjectRecord = {
   creatorWallet?: string;
   modulePath?: string;
   releaseRef?: string;
+    artApproved?: boolean;
   description: string;
   yesPercent: number;
   builtAt: string;

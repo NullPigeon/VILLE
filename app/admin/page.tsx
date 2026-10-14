@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { ReadinessPanel } from '@/components/landville/readiness-panel';
 import { ProjectBannerAdmin } from '@/components/landville/project-banner-admin';
+import { BuildingArtReview } from '@/components/landville/building-art-review';
 import { useLandville } from '@/components/landville/provider';
 import { getBuildQueue } from '@/lib/proposal-lifecycle';
 import type { BuildJob } from '@/lib/build-contract';
@@ -22,6 +23,7 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [jobError, setJobError] = useState('');
+  const [artProposal, setArtProposal] = useState<ProposalRecord | null>(null);
   const loadJobs = useCallback(async () => {
     if (!isAdmin) return;
     try {
@@ -40,7 +42,7 @@ export default function AdminPage() {
   const ordered = getBuildQueue(proposals);
   const ids = new Set(ordered.map((proposal) => proposal.id));
   const live = proposals.filter((proposal) => proposal.status === 'LIVE' && !ids.has(proposal.id));
-  const released = proposals.filter((proposal) => proposal.status === 'BUILT' && jobs.some((job) => job.proposal_id === proposal.id));
+  const released = proposals.filter((proposal) => proposal.status === 'BUILT' && proposal.category !== 'WORLD' && !ids.has(proposal.id));
   const queue = [...ordered, ...live, ...released];
   function choose(proposal: ProposalRecord, action: Selection['action']) {
     const job = jobs.find((item) => item.proposal_id === proposal.id);
@@ -81,10 +83,12 @@ export default function AdminPage() {
           {(job?.state === 'FAILED' || job?.state === 'REVIEW') && (proposal.status === 'BUILDING' || proposal.status === 'BUILT') && <button disabled={busy || job.attempt >= 4} onClick={() => choose(proposal, 'RETRY')}>{job.state === 'REVIEW' ? 'REBUILD UNRELEASED REVISION' : 'RETRY BUILD'}</button>}
           {job?.state === 'REVIEW' && <a href={`/admin/build-preview/${proposal.id}`} target="_blank" rel="noreferrer">PREVIEW REVISION</a>}
           {job?.state === 'REVIEW' && <button disabled={busy} onClick={() => choose(proposal, 'RELEASE')}>VERIFY PRODUCTION RELEASE</button>}
+          {['PASSED', 'BUILDING', 'BUILT'].includes(proposal.status) && <button disabled={busy} onClick={() => setArtProposal(proposal)}>REVIEW BUILDING ART</button>}
           {proposal.status === 'BUILT' && job?.state === 'RELEASED' && <button disabled={busy || job.attempt >= 4} onClick={() => choose(proposal, 'REBUILD')}>REBUILD RELEASE</button>}
           {proposal.status !== 'BUILT' && <button className="reject" disabled={busy} onClick={() => choose(proposal, 'REJECT')}>REJECT</button>}
         </div></td></tr>;
       })}</tbody></table>{!queue.length && <p className="empty-state">No pending proposals.</p>}</div></section>
+      {artProposal && <><BuildingArtReview key={artProposal.id} id={artProposal.id} title={artProposal.title} /><button className="lv-button" onClick={() => setArtProposal(null)}>CLOSE DESIGN REVIEW</button></>}
       {selected && <section className="lv-panel"><form className="proposal-form" onSubmit={submit}><h2>{selected.action} · {selected.proposal.id}</h2>
         {selected.action === 'PREPARE' ? <><p>Approved goal: {selected.proposal.summary}</p><label>ACCEPTANCE CHECKS — ONE PER LINE<textarea required value={checks} maxLength={3100} onChange={(event) => setChecks(event.target.value)} placeholder="Clicking Start begins the game.&#10;Reset clears the current score." /></label><label>IMPLEMENTATION CONSTRAINTS<textarea value={constraints} maxLength={2000} onChange={(event) => setConstraints(event.target.value)} /></label><p>Confirm that this is an isolated, transient module and the checks do not change the voted scope.</p></> :
         selected.action === 'RELEASE' ? <p>Confirm you tested every acceptance check and approved the code. The server will verify the exact PR, CI result, active Vercel production deployment and artifact hash before publication.</p> :

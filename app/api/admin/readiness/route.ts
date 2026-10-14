@@ -41,6 +41,9 @@ export async function GET(request: NextRequest) {
       if (!databaseConfigured()) return false;
       return database(`${table}?select=${column}&limit=0`).then(() => true).catch(() => false);
     }));
+    const buildingArtStorage = databaseConfigured()
+      ? await database('landville_building_art?select=proposal_id&limit=0').then(() => true).catch(() => false)
+      : false;
     return NextResponse.json({
       storage,
       sessionConfigured: walletSessionConfigured(),
@@ -51,6 +54,7 @@ export async function GET(request: NextRequest) {
         model: process.env.LANDVILLE_MODULE_IMAGE_MODEL || 'gpt-image-2.5-flare',
         keyPresent: Boolean(process.env.OPENAI_API_KEY?.trim()),
       },
+      buildingArt: { model: process.env.LANDVILLE_BUILDING_ART_MODEL || 'gpt-image-2.5-sunburst', keyPresent: Boolean(process.env.OPENAI_API_KEY?.trim()), storageReady: buildingArtStorage },
       walletTransactions: {
         enabled: process.env.LANDVILLE_WALLET_TRANSACTIONS_ENABLED === 'true',
         adapterConfigured: Boolean(/^0x[0-9a-fA-F]{40}$/.test(process.env.LANDVILLE_TRANSACTION_ROUTER_ADDRESS || '')),

@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
     const id = source.requestId;
     const title = source.title;
     const summary = source.summary;
-    const category = oneOf(body.category, ['UTILITY','GAME','ART','MEME','TOKEN','OTHER']);
+    const category = oneOf(body.category, ['UTILITY','GAME','ART','MEME','TOKEN','OTHER','WORLD']);
+    if ((category === 'WORLD') !== Boolean(source.worldFeatureKind)) throw new ApiError(400, 'Use Scrapy’s reviewed World change plan for scenery proposals.');
     const district = oneOf(body.district, ['THE DUMP','TOKEN ALLEY','MARKET','MEME PIT','TOWNWIDE']);
     // An uncertain HTTP result can be retried without creating a second proposal.
     const existing = await database<ProposalRow[]>(`landville_proposals?creator_wallet=eq.${wallet}&request_id=eq.${id}&limit=1`);
