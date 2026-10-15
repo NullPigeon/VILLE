@@ -66,6 +66,7 @@ import { ScrapyBot } from '@/components/landville/scrapy-bot';
 import { openCityChat } from '@/components/landville/mayor-presence';
 import { residentSpawn, type WorldPresence, type WorldResident } from '@/lib/world-presence';
 import { agentWorldMotion } from '@/lib/agent-world-motion';
+import { buildingPosition, walkingPosition, worldCamera, worldMinimumZoom, type MapFootprint } from '@/lib/world-map-layout';
 
 const CITIZEN_SLOTS = [
   { x: 31, y: 37, mobileX: 49, mobileY: 42 },
@@ -232,20 +233,13 @@ export default function WorldPage() {
 
   const minimumZoom = useCallback(() => {
     const { width, height } = bounds.current;
-    return Math.max(0.06, Math.min(width / mapWidth, height / mapHeight));
+    return worldMinimumZoom(width, height, mapWidth, mapHeight);
   }, [mapHeight]);
 
   const clampCamera = useCallback((x: number, y: number, requestedZoom: number) => {
     const { width, height } = bounds.current;
-    const zoom = Math.max(minimumZoom(), requestedZoom);
-    const scaledWidth = mapWidth * zoom;
-    const scaledHeight = mapHeight * zoom;
-    return {
-      x: scaledWidth <= width ? (width - scaledWidth) / 2 : Math.max(width - scaledWidth, Math.min(0, x)),
-      y: scaledHeight <= height ? (height - scaledHeight) / 2 : Math.max(height - scaledHeight, Math.min(0, y)),
-      zoom,
-    };
-  }, [mapHeight, minimumZoom]);
+    return worldCamera(x, y, requestedZoom, width, height, mapWidth, mapHeight);
+  }, [mapHeight]);
 
   const moveCamera = (x: number, y: number, zoom: number) => {
     const { width, height } = bounds.current;
@@ -596,29 +590,20 @@ export default function WorldPage() {
     setDragging(false);
   }
 
+  function objectPosition(id: string) {
+    const groupIndex = groups.findIndex(group => group.some(object => object.id === id));
+    const index = groups[groupIndex].findIndex(object => object.id === id);
+    return buildingPosition(index, groups[groupIndex].length, WORLD_DISTRICTS[groupIndex], mapWidth, baseMapHeight);
+  }
+
   function mapObjectPlacement(id: string): CSSProperties {
-    const groupIndex = groups.findIndex((group) =>
-      group.some((object) => object.id === id),
-    );
-    const item = WORLD_DISTRICTS[groupIndex];
-    const index = groups[groupIndex].findIndex((object) => object.id === id);
-    const row = Math.floor(index / 3);
-    const rowCount = Math.min(3, groups[groupIndex].length - row * 3);
-    let x = (mapWidth * item.x) / 100 + (index % 3 - (rowCount - 1) / 2) * 470;
-    let y = (baseMapHeight * item.y) / 100 + (row - (Math.ceil(groups[groupIndex].length / 3) - 1) / 2) * 430;
-    if (item.id === 'townwide') {
-      const ring = [[0, -280], [0, 280], [-300, 0], [300, 0]];
-      const slot = ring[index % ring.length];
-      const tier = Math.floor(index / ring.length);
-      x = mapWidth / 2 + slot[0] * (tier + 1);
-      y = baseMapHeight / 2 + slot[1] * (tier + 1);
-    }
+    const { x, y } = objectPosition(id);
     return {
       '--world-x': `${x}px`,
       '--world-y': `${y}px`,
       '--world-scale': '1',
       '--world-hover-scale': '1.07',
-      '--world-tilt': `${index % 2 ? 1 : -1}deg`,
+      '--world-tilt': '0deg',
       '--world-depth': '5',
     } as CSSProperties;
   }
@@ -626,14 +611,27 @@ export default function WorldPage() {
   function yardPosition(index: number) {
     if (index < 6)
       return {
-        x: ([47, 53, 34, 66, 45, 55][index] / 100) * mapWidth,
-        y: ([58, 58, 50, 50, 29, 71][index] / 100) * baseMapHeight,
+        x: ([32, 68, 28, 72, 47, 53][index] / 100) * mapWidth,
+        y: ([56, 56, 45, 45, 24, 76][index] / 100) * baseMapHeight,
       };
     return {
       x: mapWidth * .29 + ((index - 6) % 8) * 230,
       y: baseMapHeight + 95 + Math.floor((index - 6) / 8) * 190,
     };
   }
+
+  const occupied: MapFootprint[] = [
+    ...objects.map(object => {
+      const { x, y } = objectPosition(object.id);
+      return { left: x - 150, right: x + 300, top: y - 150, bottom: y + 170 };
+    }),
+    ...yards.map((_, index) => {
+      const { x, y } = yardPosition(index);
+      return { left: x - 115, right: x + 115, top: y - 125, bottom: y + 125 };
+    }),
+    { left: mapWidth / 2 - 130, right: mapWidth / 2 + 130, top: baseMapHeight / 2 - 110, bottom: baseMapHeight / 2 + 110 },
+  ];
+  const displayHero = walkingPosition(heroPosition, occupied, mapWidth, mapHeight);
 
   async function refreshSignal() {
     setSignalBusy(true);
@@ -761,7 +759,7 @@ export default function WorldPage() {
           }}
         >
           <div className="world-map-art" style={{ height: mapHeight }} aria-hidden="true">
-            <Image src="/landville-inked-desert-terrain.png" alt="" fill sizes="(max-width: 760px) 2200px, 5200px" quality={90} priority draggable={false} />
+            <Image src="/world-art/desert.png" alt="" fill sizes="(max-width: 760px) 2200px, 5200px" quality={90} priority draggable={false} />
           </div>
           <button
             onClick={() => openCityChat({ room: 'TOWN' })}
@@ -786,9 +784,7 @@ export default function WorldPage() {
                     item.id === 'townwide'
                       ? baseMapHeight / 2 - 115
                       : (baseMapHeight * item.y) / 100 -
-                        (Math.max(1, Math.ceil(groups[index].length / 2)) - 1) *
-                          95 -
-                        140,
+                        (Math.max(1, Math.ceil(groups[index].length / 2)) - 1) * 225 - 195,
                   '--district-color': item.color,
                 } as CSSProperties
               }
@@ -925,7 +921,9 @@ export default function WorldPage() {
               <span className="world-actor-name">{yard.name}{own ? ' · YOUR AGENT' : ''}</span>
             </>;
             const className = `world-game-actor robot${own ? ' own' : ' neighbor'}${motion.speech ? ' speaking' : ''}`;
-            const style = { left: motion.x, top: motion.y };
+            const clear = walkingPosition(motion, occupied, mapWidth, mapHeight);
+            occupied.push({ left: clear.x - 28, right: clear.x + 28, top: clear.y - 64, bottom: clear.y + 5 });
+            const style = { left: clear.x, top: clear.y };
             return own
               ? <button key={`robot-${yard.ownerWallet}`} className={className} style={style} onClick={() => { setWardrobeOpen(false); setAgentChatOpen(true); }} aria-label={`Talk to your agent ${yard.name}`}>{actor}</button>
               : <Link key={`robot-${yard.ownerWallet}`} href={`/yard/${yard.ownerWallet}`} className={className} style={style} aria-label={`Visit ${yard.name} at ${yard.houseName}`}>{actor}</Link>;
@@ -933,11 +931,16 @@ export default function WorldPage() {
           {residents.filter((resident) => resident.wallet.toLowerCase() !== wallet.address.toLowerCase()).map((resident) => {
             const position = positionsByWallet.get(resident.wallet.toLowerCase());
             const spawn = residentSpawn(resident.citizenNumber);
+            const clear = walkingPosition({
+              x: (position?.x ?? spawn.x) / 10000 * mapWidth,
+              y: (position?.y ?? spawn.y) / 10000 * mapHeight,
+            }, occupied, mapWidth, mapHeight);
+            occupied.push({ left: clear.x - 28, right: clear.x + 28, top: clear.y - 80, bottom: clear.y + 5 });
             const published = position?.heroSkin === 'MODULE' ? citizens.find((citizen) => citizen.wallet.toLowerCase() === resident.wallet.toLowerCase()) : undefined;
             const skin = position?.heroSkin && position.heroSkin !== 'MODULE' ? position.heroSkin : 'SCAVENGER';
             return <Link key={`resident-${resident.wallet}`} className="world-game-actor resident"
               href={`/citizens/${resident.wallet}`}
-              style={{ left: (position?.x ?? spawn.x) / 10000 * mapWidth, top: (position?.y ?? spawn.y) / 10000 * mapHeight }}
+              style={{ left: clear.x, top: clear.y }}
               aria-label={`Visit ${resident.username ? `@${resident.username}` : `Citizen #${resident.citizenNumber}`}`}>
               <span className="world-actor-figure">{published
                 ? <Image className="world-hero-module-art" src={published.imagePath} alt="" width={76} height={100} unoptimized />
@@ -945,8 +948,8 @@ export default function WorldPage() {
               <span className="world-actor-name">{resident.username ? `@${resident.username}` : `CITIZEN #${resident.citizenNumber}`}</span>
             </Link>;
           })}
-          {wallet.address && <div className={`world-game-actor hero${heroWalking ? ' walking' : ''}`}
-            style={{ left: heroPosition.x, top: heroPosition.y }} aria-label="Your hero in the city">
+          {wallet.address && <div className={`world-game-actor player-hero${heroWalking ? ' walking' : ''}`}
+            style={{ left: displayHero.x, top: displayHero.y }} aria-label="Your hero in the city">
             <span className="world-actor-figure">{heroSkin === 'MODULE' && ownPublishedCharacter
               ? <Image className="world-hero-module-art" src={ownPublishedCharacter.imagePath} alt="" width={76} height={100} unoptimized />
               : <GameHero skin={heroSkin === 'MODULE' ? 'SCAVENGER' : heroSkin} />}</span>
@@ -1064,7 +1067,7 @@ export default function WorldPage() {
         </div>
         {district && (
           <aside className={`world-district-visit district-${district.id}`} style={{ '--district-color': district.color } as CSSProperties} aria-live="polite" inert={overviewOpen}>
-            <div className="world-district-art" aria-hidden="true"><Image src="/landville-frontier-terrain-v2.png" alt="" fill sizes="300px" /><span>{district.number} / {district.name}</span></div>
+            <div className="world-district-art" aria-hidden="true"><Image src="/world-art/desert.png" alt="" fill sizes="300px" /><span>{district.number} / {district.name}</span></div>
             <small>DISTRICT {district.number} / YOU ARE HERE</small>
             <h2>{district.name}</h2>
             <p>{district.description}</p>

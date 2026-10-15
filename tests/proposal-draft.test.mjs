@@ -21,6 +21,7 @@ void test('Scrapy building designs use an approved silhouette and legacy buildin
   assert.equal(buildingDesignFromBrief('VISUAL: old metal.', 'Clubhouse', 'utility'), 'SALOON');
   assert.equal(buildingDesignFromBrief('VISUAL: old metal.', 'Vlad Tenev Portrait', 'utility'), 'GALLERY');
   assert.equal(buildingDesignFromBrief('VISUAL: old metal.', 'Town Hall Panic Board', 'utility'), 'RELAY');
+  assert.equal(buildingDesignFromBrief('', 'Avatar Forge Window', 'art'), 'WORKSHOP');
   assert.deepEqual(buildingFinishFromBrief('BUILDING MATERIAL: OLIVE\nNEON ACCENT: CYAN'), { material: 'OLIVE', accent: 'CYAN' });
 });
 

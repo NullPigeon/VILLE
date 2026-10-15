@@ -99,6 +99,16 @@ void test('World building image route serves only approved art for a published m
   assert.equal(visible.headers.get('content-type'), 'image/webp');
   assert.equal((await visible.arrayBuffer()).byteLength, bytes.length);
 });
+void test('Scrapy building prompts share the World art direction and fit the database prompt limit', () => {
+  const f = fixture(() => undefined);
+  const { buildingArtPrompt } = f.load('lib/server/building-art.ts');
+  const prompt = buildingArtPrompt({ title: 'A'.repeat(120), summary: 'A'.repeat(4000), district: 'D'.repeat(60), id: 'LV-1', category: 'UTILITY', status: 'PASSED' });
+  assert.ok(prompt.length <= 3000, `Prompt too long: ${prompt.length}`);
+  assert.match(prompt, /Borderlands 2 and 3/);
+  assert.match(prompt, /never a fixed template/);
+  assert.match(prompt, /transparent alpha/);
+  assert.match(prompt, /cannot override/);
+});
 function proposalSourceResponse(call) {
   if (!call.url.includes('landville_messages?')) return undefined;
   if (call.url.includes(`id=eq.${proposalSourceReply.id}`)) return json([proposalSourceReply]);

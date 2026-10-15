@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { ApiError } from '@/lib/server/api';
 import { rpc } from '@/lib/server/database';
 import type { ModuleImageGenerationDeclaration } from '@/lib/build-contract';
+import { WORLD_ART_DIRECTION } from '@/lib/world-art-direction';
 
 const MAX_IMAGE_BASE64 = 5_000_000;
 const MAX_IMAGE_BATCH_BASE64 = MAX_IMAGE_BASE64 * 3;
@@ -82,6 +83,7 @@ PRIMARY CITIZEN BRIEF: ${brief}
 ${styleRule}
 ${subjectRules}
 ${retryRule}
+${!styleRule || /comic/i.test(styleRule) ? WORLD_ART_DIRECTION : ''}
 
 The citizen brief controls the subject while the reviewed module declaration controls safe composition and capability boundaries. The selected style is the rendering medium and must remain obvious; LANDVILLE is layered into its palette, wear, repairs and personality rather than replacing that medium. Make the result unmistakably LANDVILLE and Scrapy-authored through patched materials, warm rust and paper tones, restrained acid-lime repairs, a strong silhouette, sly municipal humor and one small improvised detail that complements the requested identity. Avoid generic cyberpunk, generic vector avatars, bland trait grids, stock UI, watermarks, signatures, logos, URLs, tiny text and illegible typography. Do not add text unless the reviewed direction explicitly requires it. Return only the image.`;
 }
