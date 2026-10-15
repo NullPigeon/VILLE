@@ -7,10 +7,12 @@ export function buildingDesignFromBrief(brief: string, title: string, kind: stri
   const match = brief.match(/(?:^|\n)BUILDING DESIGN:\s*(GALLERY|SALOON|RELAY|WORKSHOP|BAZAAR)\s*(?:\n|$)/i);
   if (match) return match[1].toUpperCase() as BuildingDesign;
   const name = title.toLowerCase();
-  if (/portrait|gallery|art|museum/.test(name) || kind === 'art') return 'GALLERY';
-  if (/club|lounge|cafe|bar|social/.test(name) || kind === 'venue') return 'SALOON';
   if (/forge|repair|machine|garage|workshop/.test(name)) return 'WORKSHOP';
+  if (/portrait|gallery|\bart\b|museum/.test(name)) return 'GALLERY';
+  if (/club|lounge|cafe|\bbar\b|social/.test(name)) return 'SALOON';
   if (/market|shop|trade|stall/.test(name) || kind === 'meme') return 'BAZAAR';
+  if (kind === 'art') return 'GALLERY';
+  if (kind === 'venue') return 'SALOON';
   return 'RELAY';
 }
 

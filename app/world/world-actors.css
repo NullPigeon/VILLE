@@ -1,5 +1,5 @@
 .world-map-scene .world-game-actor{position:absolute;z-index:13;display:grid;justify-items:center;gap:0;width:128px;transform:translate(-50%,-79%);text-decoration:none;transition:left 2.4s linear,top 2.4s linear;filter:drop-shadow(5px 7px 0 #292a1d72)}
-.world-map-scene .world-game-actor.hero{pointer-events:none;z-index:14}
+.world-map-scene .world-game-actor.player-hero{pointer-events:none;z-index:14}
 .world-map-scene .world-game-actor.resident{z-index:14;cursor:pointer}
 .world-map-scene .world-game-actor.resident:hover,.world-map-scene .world-game-actor.resident:focus-visible{z-index:17;filter:drop-shadow(2px 3px 0 #1d2718) drop-shadow(0 0 15px #d6fa83)}
 .world-map-scene .world-game-actor.resident .world-actor-name{background:#d8c79d;color:#26331e;border-bottom-color:#6d8a3c}
@@ -11,12 +11,12 @@
 .world-map-scene .world-game-actor.robot:hover{z-index:16;filter:drop-shadow(2px 3px 0 #1d2718) drop-shadow(0 0 13px #c7ff00)}
 .world-map-scene .world-game-actor.robot.speaking{z-index:18}
 .world-actor-figure{display:grid;place-items:end center;width:100%;height:142px;transform-origin:50% 90%;animation:world-actor-idle 2.6s ease-in-out infinite}
-.world-game-actor.hero.walking .world-actor-figure{animation:world-actor-walk .36s ease-in-out infinite alternate}
+.world-game-actor.player-hero.walking .world-actor-figure{animation:world-actor-walk .36s ease-in-out infinite alternate}
 .world-game-actor.robot .world-actor-figure{height:122px;animation-duration:2.1s}
 .world-game-actor .game-hero{width:96px;height:140px;overflow:visible;filter:drop-shadow(2px 2px 0 #101810)}
 .world-game-actor .personal-robot{width:86px;height:118px;overflow:visible;filter:drop-shadow(2px 2px 0 #101810)}
 .world-actor-name{display:block;max-width:155px;padding:4px 8px;background:#1c251bf0;border:2px solid #22281b;border-bottom:4px solid #4d6c34;box-shadow:2px 3px #5a4b2b9c;color:#d9f28f;text-align:center;font:900 10px/1.15 Arial,sans-serif;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:skew(-5deg)}
-.world-game-actor.hero .world-actor-name{background:#e8d19a;color:#25321b;border-bottom-color:#b75b32}
+.world-game-actor.player-hero .world-actor-name{background:#e8d19a;color:#25321b;border-bottom-color:#b75b32}
 .world-hero-module-art{width:96px;height:136px;object-fit:contain;filter:drop-shadow(3px 4px 0 #21291b);transform:rotate(-2deg)}
 .world-game-actor.robot.neighbor .world-actor-name{font-size:8px;background:#263327ef}
 .world-wardrobe{position:absolute;z-index:26;right:20px;top:130px;max-width:calc(100% - 30px)}
@@ -51,5 +51,5 @@
 @keyframes world-actor-walk{from{transform:translateY(0) rotate(-3deg)}to{transform:translateY(-8px) rotate(3deg)}}
 @keyframes world-scout-loop{0%,100%{transform:translate(-50%,-79%)}25%{transform:translate(45px,-112%)}50%{transform:translate(84px,-79%)}75%{transform:translate(-80px,-53%)}}
 @media(max-width:760px){.world-wardrobe{top:140px;right:10px}.world-wardrobe-trigger{font-size:9px;padding:8px}.world-wardrobe-panel{top:42px;max-height:calc(100dvh - 205px)}.world-agent-chat{right:10px;top:auto;bottom:130px;height:min(430px,calc(100dvh - 255px))}.world-map-scene .world-game-actor.robot.neighbor{width:76px}.world-map-scene .world-game-actor.robot.neighbor .personal-robot{width:61px}}
-@media(prefers-reduced-motion:reduce){.world-actor-figure,.world-game-actor.hero.walking .world-actor-figure,.world-map-scene .world-game-actor.demo-scout{animation:none}.world-map-scene .world-game-actor{transition:none}}
+@media(prefers-reduced-motion:reduce){.world-actor-figure,.world-game-actor.player-hero.walking .world-actor-figure,.world-map-scene .world-game-actor.demo-scout{animation:none}.world-map-scene .world-game-actor{transition:none}}
 @media(prefers-reduced-motion:reduce){.world-agent-speech{animation:none}}
