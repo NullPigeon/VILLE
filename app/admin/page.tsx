@@ -1,6 +1,7 @@
 'use client';
 /* oxlint-disable react/react-compiler -- protected remote job hydration */
 import Link from 'next/link';
+import { Newspaper } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ProductShell } from '@/components/landville/product-shell';
 import { ReadinessPanel } from '@/components/landville/readiness-panel';
@@ -70,6 +71,7 @@ export default function AdminPage() {
   }
   return <ProductShell title="BUILD CONTROL" eyebrow="REVIEW → BUILD → PR → VERIFIED RELEASE">
     {!isAdmin ? <section className="lv-panel chat-sidebar-body"><h2>ADMIN ACCESS REQUIRED</h2><p>{status === 'loading' ? 'Checking access…' : 'Sign in with an authorized operator wallet.'}</p><Link className="lv-button" href="/citizens">MY PROFILE / SIGN IN</Link></section> : <>
+      <section className="lv-panel"><header className="lv-panel-head"><h2>THE DISPATCH</h2><span>EDITORIAL DESK</span></header><p>Write city updates with images and video, keep drafts private, and publish stories to the public blog.</p><Link className="lv-button primary" href="/admin/blog"><Newspaper size={17} /> OPEN BLOG EDITOR</Link></section>
       <ReadinessPanel />
       <ProjectBannerAdmin />
       <p className="admin-warning">Votes close after 2 hours. YES must exceed NO. Review a sandbox-compatible specification, then the enabled worker builds one module at a time. Review its PR, wait for City checks, test the acceptance checklist and merge manually. Only a verified production release adds the object to the World.</p>

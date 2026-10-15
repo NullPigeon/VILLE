@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowUpRight, BookOpen, Bot, Building2, CircleDollarSign, ClipboardList, Grid2X2, HelpCircle, Menu, MessageCircle, Pause, Play, ShoppingBag, Trophy, User, Vote, Wrench, X } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Bot, Building2, CircleDollarSign, ClipboardList, Grid2X2, HelpCircle, Menu, MessageCircle, Newspaper, Pause, Play, ShoppingBag, Trophy, User, Vote, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useWallet } from '@/components/landville/wallet-provider';
 import { useLandville } from '@/components/landville/provider';
@@ -17,6 +17,7 @@ const nav = [
   { href: '/chat', label: 'Chat & Build', icon: MessageCircle },
   { href: '/proposals', label: 'Proposals', icon: Vote },
   { href: '/useful-citizens', label: 'Useful Citizens', icon: Trophy },
+  { href: '/blog', label: 'Dispatch', icon: Newspaper },
   { href: '/citizens', label: 'My profile', icon: User },
   { href: '/docs', label: 'Docs', icon: BookOpen },
 ];
@@ -65,7 +66,7 @@ export function ProductShell({ title, eyebrow, actions, children, immersive = fa
     <aside id="city-side-menu" className={open ? 'product-rail rail-open' : 'product-rail'} aria-label="City navigation" inert={collapsed && !open}>
       <div className="rail-brand"><Link href="/"><span>LV</span>LANDVILLE</Link><button onClick={() => setOpen(false)} aria-label="Close navigation"><X /></button></div>
       <span className="city-rail-label">YOUR LITTLE CORNER OF CHAOS</span>
-      <nav>{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href === '/citizens' ? profileHref : href} className={current?.href === href ? 'active' : ''} aria-current={current?.href === href ? 'page' : undefined} onClick={() => setOpen(false)}><Icon /><span>{href === '/citizens' && !wallet.address ? 'Join the city' : label}</span></Link>)}{town.isAdmin && <Link href="/admin" onClick={() => setOpen(false)}><Wrench /><span>Build control</span></Link>}</nav>
+      <nav>{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href === '/citizens' ? profileHref : href} className={current?.href === href ? 'active' : ''} aria-current={current?.href === href ? 'page' : undefined} onClick={() => setOpen(false)}><Icon /><span>{href === '/citizens' && !wallet.address ? 'Join the city' : label}</span></Link>)}{town.isAdmin && <><Link href="/admin" onClick={() => setOpen(false)}><Wrench /><span>Build control</span></Link><Link href="/admin/blog" onClick={() => setOpen(false)}><Newspaper /><span>Dispatch editor</span></Link></>}</nav>
       <Link className="city-rail-mayor" href="/chat?room=BUILD"><ScrapyBot /><span>Got a weird idea?<b>Let’s build it. <ArrowUpRight /></b></span></Link>
       <Link className="city-rail-account" href={profileHref}><User /><span><b>{wallet.address ? citizenLabel(wallet.profile) : 'Make yourself at home'}</b><small>{wallet.address ? 'Your profile & robot' : 'Email or wallet · free to join'}</small></span><ArrowUpRight /></Link>
       <Link className="city-rail-token" href="/docs/scrapy-token"><CircleDollarSign /><span>{wallet.snapshot ? `${wallet.snapshot.tokenBalanceFormatted} SCRAPY` : 'About SCRAPY'}</span></Link>
