@@ -1,5 +1,5 @@
 import 'server-only';
-import { createHash } from 'node:crypto';
+import { createHash, createPrivateKey } from 'node:crypto';
 import { createPublicClient, defineChain, erc20Abi, http, isAddress } from 'viem';
 import { ApiError } from '@/lib/server/api';
 import { database, citizenForPrivyUser } from '@/lib/server/database';
@@ -16,10 +16,14 @@ type RobotWallet = { owner_wallet: string; privy_user_id: string; privy_wallet_i
   allow_landville: boolean; allow_citizens: boolean; allow_merchants: boolean };
 
 export function robotWalletConfigured() {
-  return process.env.LANDVILLE_ROBOT_WALLETS_ENABLED === 'true' &&
-    Boolean(process.env.NEXT_PUBLIC_PRIVY_APP_ID && process.env.PRIVY_APP_SECRET &&
-      process.env.LANDVILLE_ROBOT_WALLET_SIGNER_ID && process.env.LANDVILLE_ROBOT_WALLET_POLICY_ID &&
-      process.env.LANDVILLE_ROBOT_WALLET_AUTHORIZATION_PRIVATE_KEY);
+  const signingKey = process.env.LANDVILLE_ROBOT_WALLET_AUTHORIZATION_PRIVATE_KEY?.trim();
+  if (process.env.LANDVILLE_ROBOT_WALLETS_ENABLED !== 'true' || !process.env.NEXT_PUBLIC_PRIVY_APP_ID ||
+    !process.env.PRIVY_APP_SECRET || !process.env.LANDVILLE_ROBOT_WALLET_SIGNER_ID ||
+    !process.env.LANDVILLE_ROBOT_WALLET_POLICY_ID || !signingKey) return false;
+  try {
+    const key = createPrivateKey({ key: Buffer.from(signingKey, 'base64'), format: 'der', type: 'pkcs8' });
+    return key.asymmetricKeyType === 'ec' && key.asymmetricKeyDetails?.namedCurve === 'prime256v1';
+  } catch { return false; }
 }
 
 export async function robotWalletForOwner(owner: string) {
