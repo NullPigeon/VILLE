@@ -6,7 +6,7 @@ import { ApiError } from '@/lib/server/api';
 
 let client: PrivyClient | null = null;
 
-function privyClient() {
+export function privyClient() {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID?.trim();
   const appSecret = process.env.PRIVY_APP_SECRET?.trim();
   if (!appId || !appSecret) throw new ApiError(503, 'Privy sign-in is not configured.');

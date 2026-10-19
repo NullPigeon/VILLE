@@ -90,6 +90,37 @@ void test('World Job missions require the signed owner and an existing personal 
   assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com')));
 });
 
+void test('robot wallet provisioning requires the citizen session and matching Privy identity', async () => {
+  const f = fixture((call) => {
+    if (call.url.includes('landville_robot_wallets?')) return json([]);
+    if (call.url.includes('landville_citizens?') && call.url.includes('privy_user_id=')) return json([{ wallet: other }]);
+    return undefined;
+  }, { LANDVILLE_ROBOT_WALLETS_ENABLED: 'true' }, {
+    '@/lib/server/privy': { verifyPrivyIdentity: async () => ({ id: 'privy-user-test', linkedWallets: [], email: null }) },
+  });
+  const route = f.load('app/api/agents/robot-wallet/route.ts');
+  assert.equal((await route.GET(f.request('/api/agents/robot-wallet', {}, { method: 'GET' }))).status, 401);
+  assert.equal((await route.POST(f.request('/api/agents/robot-wallet'))).status, 401);
+  const denied = await route.POST(f.request('/api/agents/robot-wallet', {}, { signed: true }));
+  assert.equal(denied.status, 403);
+  assert.ok(!f.calls.some((call) => call.method === 'POST' && call.url.includes('landville_robot_wallets')));
+});
+
+void test('personal robot wallet creation stays off without operator wallet configuration', async () => {
+  const f = fixture((call) => {
+    if (call.url.includes('landville_citizens?') && call.url.includes('privy_user_id=')) return json([{ wallet }]);
+    if (call.url.includes('landville_personal_agents?')) return json([robotRow]);
+    if (call.url.includes('landville_robot_wallets?')) return json([]);
+    return undefined;
+  }, { LANDVILLE_ROBOT_WALLETS_ENABLED: 'false' }, {
+    '@/lib/server/privy': { verifyPrivyIdentity: async () => ({ id: 'privy-user-test', linkedWallets: [], email: null }) },
+  });
+  const route = f.load('app/api/agents/robot-wallet/route.ts');
+  const response = await route.POST(f.request('/api/agents/robot-wallet', {}, { signed: true }));
+  assert.equal(response.status, 503);
+  assert.ok(!f.calls.some((call) => call.method === 'POST' && call.url.includes('landville_robot_wallets')));
+});
+
 void test('mission worker rejects unsigned calls and encounters stay dark until enabled', async () => {
   const f = fixture(() => undefined, { LANDVILLE_AGENT_MISSIONS_ENABLED: 'true', LANDVILLE_WORKER_SECRET: 'w'.repeat(40) });
   const worker = f.load('app/api/internal/agent-missions/route.ts');
