@@ -7,6 +7,7 @@ import { ProductShell } from '@/components/landville/product-shell';
 import { AgentHouseArt } from '@/components/landville/agent-house-art';
 import { YardCityMiner } from '@/components/landville/city-miner';
 import { YardShiftDesk } from '@/components/landville/yard-shift-desk';
+import { AgentMissionDesk } from '@/components/landville/agent-mission-desk';
 import { PersonalRobot } from '@/components/landville/personal-robot';
 import { CITY_PROFESSIONS, YARD_FEATURE_LABELS } from '@/lib/personal-agent';
 import { useWallet } from '@/components/landville/wallet-provider';
@@ -178,6 +179,7 @@ export function YardScene({ owner }: { owner: string }) {
         </section>
         {own && <div className="yard-miner-slot"><YardCityMiner /></div>}
         {own && <YardShiftDesk profession={yard.profession} feature={yard.yardFeature} onLevelChange={setHouseLevel} />}
+        {own && <AgentMissionDesk robotName={yard.name} />}
         <section className="yard-lower">
           <div className="yard-intro"><small>ONE CITIZEN · ONE ROBOT · ONE HOME</small><h2>{yard.name} lives here.</h2><p>{own ? 'Your own corner of town. Chat with your robot, check in for points, or take a building idea to Scrapy.' : `${yard.ownerLabel}’s home and personal AI companion.`}</p><p>City role: <strong>{CITY_PROFESSIONS.find((item) => item.id === yard.profession)?.name}</strong>. A role describes your agent; it does not automatically assign work.</p><div className="city-yard-actions">{own && <Link className="lv-button" href={`/citizens/${owner}#your-agent`}>Customize your robot</Link>}<Link className="lv-button primary" href="/chat?room=BUILD">Build with Scrapy</Link><Link className="lv-button" href="/chat?room=TOWN">Join Town Square</Link></div></div>
           <div className="yard-chat"><header><Bot /><div><h2>{own ? `TALK TO ${yard.name.toUpperCase()}` : 'PRIVATE YARD CHAT'}</h2><small>{own ? 'ONLY YOU CAN READ THIS CONVERSATION' : 'ONLY THE OWNER CAN READ OR WRITE HERE'}</small></div>{own && <Link className="yard-tools-link" href="/agent-market">FIND TOOLS <ArrowUpRight /></Link>}</header>

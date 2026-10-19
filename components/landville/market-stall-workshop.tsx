@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Bot, Trash2 } from 'lucide-react';
+import { ArrowUpRight, Bot, Pencil, Trash2, X } from 'lucide-react';
 import { AGENT_SERVICE_STARTERS, type AgentServiceStarter } from '@/lib/agent-service-starters';
 import { readJsonResponse } from '@/lib/http-response';
 import { CITY_PROFESSIONS, type CityProfession, type PersonalAgent } from '@/lib/personal-agent';
@@ -18,6 +18,7 @@ export function MarketStallWorkshop({ services, agentExists, holder, onTest, onP
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -100,14 +101,42 @@ export function MarketStallWorkshop({ services, agentExists, holder, onTest, onP
   async function save() {
     setBusy(true); setError(''); setNotice('');
     try {
-      const response = await fetch('/api/agent-market/stalls', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baseServiceId, title: title.trim(), description: description.trim(), instructions: instructions.trim() }) });
+      const editing = editingDraftId ? drafts.find((draft) => draft.id === editingDraftId) : null;
+      if (editingDraftId && !editing) throw new Error('This draft changed. Reload and try again.');
+      const response = await fetch('/api/agent-market/stalls', { method: editing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(editing ? { id: editing.id, revision: editing.updatedAt } : {}),
+          baseServiceId, title: title.trim(), description: description.trim(), instructions: instructions.trim() }) });
       const result = await readJsonResponse<{ draft: MarketStallDraft }>(response, 'Save service draft');
-      setDrafts((current) => [...current, result.draft].sort((a, b) => a.slot - b.slot));
-      setTitle(''); setDescription(''); setInstructions('');
-      setNotice('Service recipe saved privately. Test it, then publish when checkout and payouts are ready.');
+      setDrafts((current) => [...current.filter((draft) => draft.id !== result.draft.id), result.draft].sort((a, b) => a.slot - b.slot));
+      setTitle(''); setDescription(''); setInstructions(''); setEditingDraftId(null);
+      setNotice(editing ? 'Draft updated. Test the new recipe before publishing.' : 'Service recipe saved privately. Test it, then publish when checkout and payouts are ready.');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save service.'); }
     finally { setBusy(false); }
+  }
+
+  function edit(draft: MarketStallDraft) {
+    setEditingDraftId(draft.id);
+    setBaseServiceId(draft.baseServiceId);
+    setTitle(draft.title);
+    setDescription(draft.description);
+    setInstructions(draft.instructions);
+    setError(''); setNotice('Edit this private draft, then test the revised recipe.');
+    document.getElementById('am-stall-recipe')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEdit() {
+    setEditingDraftId(null); setTitle(''); setDescription(''); setInstructions('');
+    setNotice('Editing cancelled.');
+  }
+
+  function makeVariant(draft: MarketStallDraft) {
+    setEditingDraftId(null);
+    setBaseServiceId(draft.baseServiceId);
+    setTitle(`${draft.title} v2`.slice(0, 80));
+    setDescription(draft.description);
+    setInstructions(draft.instructions);
+    setError(''); setNotice('A new private version preserves the original listing and its receipts. Edit it before saving.');
+    document.getElementById('am-stall-recipe')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   async function remove(id: string) {
@@ -129,14 +158,14 @@ export function MarketStallWorkshop({ services, agentExists, holder, onTest, onP
         <div className="am-stall-starter-list">{AGENT_SERVICE_STARTERS.filter((starter) => starter.profession === starterProfession).map((starter) => <article key={starter.id}><small>{CITY_PROFESSIONS.find((role) => role.id === starter.profession)?.name}</small><h4>{starter.title}</h4><p>{starter.description}</p><button type="button" disabled={!eligible.some((service) => starter.preferredKinds.includes(service.kind as 'model' | 'long-form' | 'research-brief'))} onClick={() => applyStarter(starter)}>USE THIS STARTER <ArrowUpRight /></button></article>)}</div>
         <p className="am-stall-starter-note">Your chosen role is a specialty, not a job assignment. Once your service is live, you or your linked agent can offer it on the <Link href="/world/jobs">World job board <ArrowUpRight /></Link>.</p>
       </div>
-      <div className="am-stall-layout"><div className="am-stall-form" id="am-stall-recipe"><label>FOUNDATION MODEL<select value={baseServiceId} onChange={(event) => setBaseServiceId(event.target.value)}>{eligible.map((service) => <option key={service.id} value={service.id}>{service.name}{service.holderOnly ? ' · HOLDER' : ''}</option>)}</select></label>
+      <div className="am-stall-layout"><div className="am-stall-form" id="am-stall-recipe">{editingDraftId && <p>EDITING PRIVATE DRAFT · Changes stay private until you test and publish.</p>}<label>FOUNDATION MODEL<select value={baseServiceId} onChange={(event) => setBaseServiceId(event.target.value)}>{eligible.map((service) => <option key={service.id} value={service.id}>{service.name}{service.holderOnly ? ' · HOLDER' : ''}</option>)}</select></label>
         <label>SERVICE NAME<input maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Pitch Doctor" /></label>
         <label>WHAT IT DOES<input maxLength={280} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Turns a rough pitch into a sharp one-page brief" /></label>
         <label>ROBOT&apos;S RECIPE<textarea maxLength={1000} value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Describe the steps and style your agent should follow..." /></label>
-        <button type="button" onClick={() => void save()} disabled={busy || drafts.length >= (holder ? 10 : 3) || !eligible.some((service) => service.id === baseServiceId) || title.trim().length < 3 || description.trim().length < 10 || instructions.trim().length < 10}>{busy ? 'SAVING...' : 'SAVE PRIVATE DRAFT'} <ArrowUpRight /></button></div>
+        <button type="button" onClick={() => void save()} disabled={busy || (!editingDraftId && drafts.length >= (holder ? 10 : 3)) || !eligible.some((service) => service.id === baseServiceId) || title.trim().length < 3 || description.trim().length < 10 || instructions.trim().length < 10}>{busy ? 'SAVING...' : editingDraftId ? 'SAVE CHANGES' : 'SAVE PRIVATE DRAFT'} <ArrowUpRight /></button>{editingDraftId && <button type="button" disabled={busy} onClick={cancelEdit}><X aria-hidden="true" /> CANCEL EDIT</button>}</div>
         <div className="am-stall-list"><small>YOUR RECIPES / {drafts.length} SAVED</small>{drafts.length ? drafts.map((draft) => <article key={draft.id}><div><span>STALL {String(draft.slot).padStart(2, '0')} / {draft.status === 'published' ? 'LIVE IN MARKET' : 'PRIVATE DRAFT'}</span><button type="button" aria-label={`Remove ${draft.title}`} disabled={busy || draft.status === 'published'} onClick={() => void remove(draft.id)}><Trash2 /></button></div><h3>{draft.title}</h3><p>{draft.description}</p><small>BUILT ON {services.find((service) => service.id === draft.baseServiceId)?.name || draft.baseServiceId}</small>
           {draft.status === 'published' ? <p className="am-stall-price">Price: {(Number(services.find((service) => service.id === draft.baseServiceId)?.priceUsd || '0') + draft.markupMicro / 1_000_000).toFixed(6)} USDG / call</p> : <label className="am-stall-markup">YOUR MARKUP / USDG<input type="number" min="0.01" max="1" step="0.01" value={markups[draft.id] || '0.05'} onChange={(event) => setMarkups((current) => ({ ...current, [draft.id]: event.target.value }))} /></label>}
-          <div className="am-stall-actions"><button className="am-stall-test" type="button" onClick={() => onTest(draft)}>TEST WITH A JOB <ArrowUpRight /></button><button className="am-stall-publish" type="button" disabled={busy} onClick={() => void setPublished(draft, draft.status !== 'published')}>{draft.status === 'published' ? 'UNPUBLISH' : 'PUBLISH SERVICE'}</button></div></article>) : <p>Your robot&apos;s first specialty starts here.</p>}</div></div>
+          <div className="am-stall-actions">{draft.status === 'draft' && <button className="am-stall-edit" type="button" disabled={busy} onClick={() => edit(draft)}><Pencil aria-hidden="true" /> EDIT DRAFT</button>}<button className="am-stall-edit" type="button" disabled={busy || drafts.length >= (holder ? 10 : 3)} onClick={() => makeVariant(draft)}>NEW VERSION</button><button className="am-stall-test" type="button" onClick={() => onTest(draft)}>TEST WITH A JOB <ArrowUpRight /></button><button className="am-stall-publish" type="button" disabled={busy} onClick={() => void setPublished(draft, draft.status !== 'published')}>{draft.status === 'published' ? 'UNPUBLISH' : 'PUBLISH SERVICE'}</button></div></article>) : <p>Your robot&apos;s first specialty starts here.</p>}</div></div>
       {balance && <div className="am-stall-balance"><div><strong>{(balance.availableMicro / 1_000_000).toFixed(3)} USDG</strong><span>READY TO WITHDRAW · {(balance.earnedMicro / 1_000_000).toFixed(3)} USDG EARNED</span></div><button type="button" disabled={busy || !balance.payoutsReady || balance.availableMicro < 10_000} onClick={() => void withdraw()}>WITHDRAW TO MY WALLET <ArrowUpRight /></button></div>}
       {error && <p className="am-error" role="alert">{error}</p>}{notice && <output className="am-success">{notice}</output>}
     </>}

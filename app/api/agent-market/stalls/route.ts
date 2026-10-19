@@ -117,6 +117,42 @@ export async function POST(request: NextRequest) {
   } catch (error) { return apiFailure(error); }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    requireMutation(request);
+    const owner = requireWallet(request);
+    const body = await jsonBody(request);
+    if (Object.keys(body).some((key) => !['id', 'revision', 'baseServiceId', 'title', 'description', 'instructions'].includes(key)) ||
+      typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.id) ||
+      typeof body.revision !== 'string' || !Number.isFinite(Date.parse(body.revision))) {
+      throw new ApiError(400, 'Choose a saved service draft to edit.');
+    }
+    const baseServiceId = field(body, 'baseServiceId', 1, 64);
+    const base = marketService(baseServiceId);
+    if (!base || !['model', 'long-form', 'research-brief'].includes(base.kind)) throw new ApiError(400, 'Choose a supported foundation service.');
+    const title = field(body, 'title', 3, 80);
+    const description = field(body, 'description', 10, 280);
+    const instructions = field(body, 'instructions', 10, 1000);
+    await readAgentMarketSkills(owner);
+    if (base.holderOnly && !await hasMarketHolderAccess(owner)) throw new ApiError(403, 'Hold at least 1 million SCRAPY to use this foundation.');
+    await enforceRate(owner, 'market-stall-draft', 5);
+    const draft = (await ownDrafts(owner)).find((row) => row.id === body.id);
+    if (!draft) throw new ApiError(404, 'Service draft not found.');
+    if (draft.status !== 'draft') throw new ApiError(409, 'Unpublish this service before editing its recipe.');
+    if (draft.updated_at !== body.revision) throw new ApiError(409, 'This draft changed. Refresh it before editing.');
+    const sales = await database<Array<{ authorization_hash: string }>>(
+      `landville_market_sales?select=authorization_hash&stall_id=eq.${draft.id}&limit=1`);
+    if (sales.length) throw new ApiError(409, 'This service has sales history. Create a new draft so prior receipts keep their original recipe.');
+    const rows = await database<DraftRow[]>(
+      `landville_market_stall_drafts?id=eq.${draft.id}&owner_wallet=eq.${owner}&status=eq.draft&updated_at=eq.${encodeURIComponent(body.revision)}`,
+      { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({
+        base_service_id: baseServiceId, title, description, instructions, updated_at: new Date().toISOString(),
+      }) });
+    if (!rows.length) throw new ApiError(409, 'This draft changed. Refresh it before editing.');
+    return NextResponse.json({ draft: publicDraft(rows[0]) }, { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch (error) { return apiFailure(error); }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     requireMutation(request);

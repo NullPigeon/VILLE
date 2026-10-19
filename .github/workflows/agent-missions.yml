@@ -1,0 +1,33 @@
+name: World Job robot missions
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: landville-agent-missions
+  cancel-in-progress: false
+jobs:
+  missions:
+    if: vars.LANDVILLE_AGENT_MISSIONS_ENABLED == 'true' && vars.LANDVILLE_SITE_URL != '' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Resume due robot missions
+        env:
+          LANDVILLE_SITE_URL: ${{ vars.LANDVILLE_SITE_URL }}
+          LANDVILLE_WORKER_SECRET: ${{ secrets.LANDVILLE_WORKER_SECRET }}
+        run: |
+          if [ -z "$LANDVILLE_SITE_URL" ] || [ -z "$LANDVILLE_WORKER_SECRET" ]; then
+            echo "Mission worker is missing its site URL or worker secret."
+            exit 1
+          fi
+          for attempt in 1 2 3 4; do
+            response=$(curl --fail-with-body --silent --show-error --max-time 50 \
+              --request POST --header "Authorization: Bearer $LANDVILLE_WORKER_SECRET" \
+              "$LANDVILLE_SITE_URL/api/internal/agent-missions")
+            echo "$response"
+            if echo "$response" | grep -q '"reason":"no_due_mission"'; then break; fi
+            if echo "$response" | grep -q '"reason":"disabled"'; then break; fi
+          done

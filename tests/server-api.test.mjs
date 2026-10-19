@@ -26,6 +26,163 @@ const proposal = { id: 'LV-1', request_id: proposalRequestId, creator_wallet: wa
 const tokenStatus = { address: '0xf7CdBd39720Ea583ec56e3a9ff57E805e93e7BBe', symbol: 'SCRAPY', name: 'LANDVILLE', decimals: 18, chainId: 4663, totalSupply: '1000000000000000000000000000', totalSupplyFormatted: '1,000,000,000', blockNumber: '1234', verifiedAt: new Date().toISOString() };
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 
+void test('service recipe edits require the owner, an unchanged private draft and no sale history', async () => {
+  const id = randomUUID();
+  const revision = new Date().toISOString();
+  const row = { id, owner_wallet: wallet, slot: 1, base_service_id: 'long-form', title: 'Draft service',
+    description: 'Writes a useful report.', instructions: 'Write a useful report with clear sources.',
+    status: 'draft', markup_micro: 0, published_at: null, created_at: revision, updated_at: revision };
+  const input = { id, revision, baseServiceId: 'long-form', title: 'Revised report',
+    description: 'Writes a better report.', instructions: 'Write a careful report with cited sources.' };
+  let sold = false;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_personal_agents?')) return json([{ market_skills: [] }]);
+    if (call.url.includes('landville_market_stall_drafts?') && call.method === 'GET') return json(call.url.includes(`owner_wallet=eq.${other}`) ? [] : [row]);
+    if (call.url.includes('landville_market_sales?')) return json(sold ? [{ authorization_hash: 'paid' }] : []);
+    if (call.url.includes('landville_market_stall_drafts?') && call.method === 'PATCH') return json([{
+      ...row, ...call.body,
+    }]);
+    return undefined;
+  });
+  const route = f.load('app/api/agent-market/stalls/route.ts');
+  assert.equal((await route.PUT(f.request('/api/agent-market/stalls', input, { method: 'PUT' }))).status, 401);
+  assert.equal((await route.PUT(f.request('/api/agent-market/stalls', input, { signed: true, wallet: other, method: 'PUT' }))).status, 404);
+  assert.equal((await route.PUT(f.request('/api/agent-market/stalls', { ...input, revision: new Date(0).toISOString() }, { signed: true, method: 'PUT' }))).status, 409);
+  sold = true;
+  assert.equal((await route.PUT(f.request('/api/agent-market/stalls', input, { signed: true, method: 'PUT' }))).status, 409);
+  sold = false;
+  const saved = await route.PUT(f.request('/api/agent-market/stalls', input, { signed: true, method: 'PUT' }));
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json()).draft.title, input.title);
+  assert.ok(f.calls.some((call) => call.method === 'PATCH' && call.url.includes(`updated_at=eq.${encodeURIComponent(revision)}`)));
+});
+
+void test('robot mission shows a buyer-paid outcome only for its own selected offer', async () => {
+  const job = randomUUID(), stall = randomUUID(), winningOffer = randomUUID();
+  const mission = { id: randomUUID(), owner_wallet: wallet, status: 'offer_submitted', goal: 'Find work',
+    job_id: job, stall_id: stall, reason: 'A match', events: [], plan: [], step_index: 4,
+    attempts: 1, created_at: new Date().toISOString() };
+  let winner = winningOffer;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_agent_missions?')) return json([mission]);
+    if (call.url.includes('landville_agent_jobs?')) return json([{ id: job, title: 'Repair the tower', brief: 'Repair the signal tower.',
+      status: 'completed', winning_offer_id: winner, transaction_hash: `0x${'c'.repeat(64)}`,
+      paid_micro: 150000, rating: 5, completed_at: new Date().toISOString() }]);
+    if (call.url.includes('landville_market_stall_drafts?')) return json([{ id: stall, title: 'Repair report', status: 'published' }]);
+    if (call.url.includes('landville_agent_job_offers?')) return json([{ id: winningOffer, job_id: job, stall_id: stall }]);
+    return undefined;
+  }, { LANDVILLE_AGENT_MISSIONS_ENABLED: 'true' });
+  const route = f.load('app/api/agents/missions/route.ts');
+  const won = await route.GET(f.request('/api/agents/missions', {}, { signed: true, method: 'GET' }));
+  assert.equal((await won.json()).missions[0].outcome.state, 'delivered');
+  winner = randomUUID();
+  const lost = await route.GET(f.request('/api/agents/missions', {}, { signed: true, method: 'GET' }));
+  assert.equal((await lost.json()).missions[0].outcome.state, 'not_selected');
+});
+
+void test('World Job missions require the signed owner and an existing personal robot', async () => {
+  const f = fixture(() => undefined, { LANDVILLE_AGENT_MISSIONS_ENABLED: 'true' });
+  const route = f.load('app/api/agents/missions/route.ts');
+  assert.equal((await route.GET(f.request('/api/agents/missions', {}, { method: 'GET' }))).status, 401);
+  assert.equal((await route.POST(f.request('/api/agents/missions', { action: 'start' }))).status, 401);
+  assert.equal((await route.POST(f.request('/api/agents/missions', { action: 'start' }, { signed: true }))).status, 404);
+  assert.ok(!f.calls.some((call) => call.method === 'POST' && call.url.endsWith('/landville_agent_missions')));
+  assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com')));
+});
+
+void test('mission worker rejects unsigned calls and encounters stay dark until enabled', async () => {
+  const f = fixture(() => undefined, { LANDVILLE_AGENT_MISSIONS_ENABLED: 'true', LANDVILLE_WORKER_SECRET: 'w'.repeat(40) });
+  const worker = f.load('app/api/internal/agent-missions/route.ts');
+  const denied = await worker.POST(f.request('/api/internal/agent-missions', {}, { method: 'POST' }));
+  assert.equal(denied.status, 401);
+  assert.ok(!f.calls.some((call) => call.url.includes('landville_claim_agent_mission')));
+  const off = fixture(() => undefined, { LANDVILLE_AGENT_MISSIONS_ENABLED: 'false' });
+  const encounters = off.load('app/api/world/encounters/route.ts');
+  const response = await encounters.GET();
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).encounters, []);
+  assert.equal(off.calls.length, 0);
+});
+
+void test('World encounter board shows only real matched robots and the buyer-selected winner', async () => {
+  const jobId = randomUUID();
+  const f = fixture((call) => {
+    if (call.url.includes('landville_agent_encounters?')) return json([{ id: randomUUID(), job_id: jobId,
+      owner_a: wallet, owner_b: other, occurred_at: new Date().toISOString() }]);
+    if (call.url.includes('landville_personal_agents?')) return json([
+      { owner_wallet: wallet, name: 'Bolt' }, { owner_wallet: other, name: 'Wheelie' },
+    ]);
+    if (call.url.includes('landville_agent_jobs?')) return json([{ id: jobId, title: 'Repair the signal mast',
+      status: 'completed', seller_wallet: other }]);
+    return undefined;
+  }, { LANDVILLE_AGENT_MISSIONS_ENABLED: 'true' });
+  const result = await f.load('app/api/world/encounters/route.ts').GET();
+  assert.equal(result.status, 200);
+  const body = await result.json();
+  assert.equal(body.encounters.length, 1);
+  assert.deepEqual(body.encounters[0].robots.map((robot) => robot.name), ['Bolt', 'Wheelie']);
+  assert.equal(body.encounters[0].winnerOwner, other);
+  assert.equal(body.encounters[0].jobTitle, 'Repair the signal mast');
+});
+
+void test('mission worker recovers an approved offer without posting a duplicate', async () => {
+  const secret = 'w'.repeat(40);
+  const missionId = randomUUID();
+  const job = randomUUID();
+  const stall = randomUUID();
+  let stepped = false;
+  const mission = { id: missionId, owner_wallet: wallet, status: 'publishing', job_id: job,
+    stall_id: stall, reason: 'Eligible service', lease_id: randomUUID(), lease_until: new Date(Date.now() + 60000).toISOString() };
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_claim_agent_mission')) return json(null);
+    if (call.url.endsWith('/rpc/landville_claim_agent_publish')) return json(mission);
+    if (call.url.includes('landville_agent_missions?')) return json([{ ...mission, status: stepped ? 'offer_submitted' : 'publishing' }]);
+    if (call.url.includes('landville_agent_job_offers?')) return json([{ id: randomUUID(), job_id: job,
+      seller_wallet: wallet, stall_id: stall }]);
+    if (call.url.endsWith('/rpc/landville_step_agent_mission')) { stepped = true; return json(true); }
+    return undefined;
+  }, { LANDVILLE_AGENT_MISSIONS_ENABLED: 'true', LANDVILLE_WORKER_SECRET: secret });
+  const route = f.load('app/api/internal/agent-missions/route.ts');
+  const response = await route.POST(f.request('/api/internal/agent-missions', {}, {
+    headers: { Authorization: `Bearer ${secret}` },
+  }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).reason, 'offer_submitted');
+  assert.ok(f.calls.some((call) => call.url.endsWith('/rpc/landville_claim_agent_publish')));
+  assert.ok(!f.calls.some((call) => call.method === 'POST' && call.url.includes('landville_agent_job_offers?')));
+});
+
+void test('robot stops before an AI request when its daily decision reservation is denied', async () => {
+  const mission = { id: randomUUID(), owner_wallet: wallet, status: 'planning',
+    lease_id: randomUUID(), lease_until: new Date(Date.now() + 60000).toISOString(),
+    job_id: null, stall_id: null, reason: null };
+  const f = fixture((call) => {
+    if (call.url.endsWith('/rpc/landville_claim_agent_mission')) return json(mission);
+    if (call.url.includes('landville_agent_jobs?')) return json([{ id: randomUUID(), client_wallet: other,
+      title: 'Repair a mast', brief: 'Fix a broken signal mast.' }]);
+    if (call.url.includes('landville_market_stall_drafts?')) return json([{ id: randomUUID(),
+      base_service_id: 'repair', title: 'Repair service', description: 'Fix signal masts.', status: 'published' }]);
+    if (call.url.includes('landville_agent_job_offers?')) return json([]);
+    if (call.url.endsWith('/rpc/landville_note_agent_mission')) return json(true);
+    if (call.url.endsWith('/rpc/landville_reserve_agent_mission_ai')) return json(false);
+    if (call.url.endsWith('/rpc/landville_step_agent_mission')) return json(true);
+    if (call.url.includes('landville_agent_missions?')) return json([mission]);
+    return undefined;
+  }, { OPENAI_API_KEY: 'test-key', OPENAI_MODEL: 'test-model',
+    LANDVILLE_AGENT_MISSION_INPUT_USD_PER_MILLION: '1',
+    LANDVILLE_AGENT_MISSION_OUTPUT_USD_PER_MILLION: '2',
+    LANDVILLE_AGENT_MISSION_DAILY_USD: '0.10' }, {
+    '@/lib/server/market-x402': { marketPaymentsConfigured: () => true },
+    '@/lib/server/market-economy': { sellerPayoutReady: () => true },
+    '@/lib/market-services': { marketService: () => ({ holderOnly: false }) },
+    '@/lib/server/market-catalog': { marketServiceConfigured: () => true },
+    '@/lib/server/agent-market': { hasMarketHolderAccess: async () => false },
+  });
+  await f.load('lib/server/agent-missions.ts').processNextMission();
+  assert.ok(f.calls.some((call) => call.url.endsWith('/rpc/landville_reserve_agent_mission_ai')));
+  assert.ok(!f.calls.some((call) => call.url.includes('api.openai.com')));
+});
+
 void test('public chat rooms filter history and reject mismatched destinations', async () => {
   const f = fixture(() => undefined);
   const route = f.load('app/api/chat/route.ts');

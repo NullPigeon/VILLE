@@ -1,0 +1,30 @@
+.agent-mission-desk{margin:24px auto;max-width:1120px;padding:24px;background:#1a251b;border:2px solid #78904a;box-shadow:8px 8px 0 #0b100c;color:#f6edcf}
+.agent-mission-desk header{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:12px}
+.agent-mission-desk header h2{display:flex;align-items:center;gap:10px;margin:4px 0;font-size:clamp(1.4rem,3vw,2rem)}
+.agent-mission-desk header h2 svg{width:28px}
+.agent-mission-desk header a{color:#d4f477;display:flex;align-items:center;gap:5px;font-weight:800}
+.agent-mission-desk header a svg{width:16px}
+.agent-mission-desk p{max-width:78ch;line-height:1.55}
+.agent-mission-budget{font-size:.9rem;color:#d4f477}
+.agent-mission-list{display:grid;gap:14px;margin-top:18px}
+.agent-mission-list article{padding:18px;border:1px solid #5b6d43;background:#253128}
+.agent-mission-list article small,.agent-mission-desk header small{color:#d4f477;font-weight:800;letter-spacing:.08em}
+.agent-mission-list article h3{margin:8px 0 4px}
+.agent-mission-progress{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0;font-size:.72rem;font-weight:900;letter-spacing:.08em}
+.agent-mission-progress span{padding:5px 9px;border:1px solid #73815d;color:#aeb89c}
+.agent-mission-progress span.done{background:#d4f477;color:#172117;border-color:#d4f477}
+.agent-mission-list article p{margin:8px 0}
+.agent-mission-service{font-weight:800;color:#d4f477}
+.agent-mission-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.agent-mission-actions button,.agent-mission-list article>button{display:inline-flex;align-items:center;gap:6px;border:2px solid #0b100c;padding:10px 14px;background:#d4f477;color:#172117;font-weight:900;box-shadow:4px 4px 0 #0b100c;cursor:pointer}
+.agent-mission-actions button:last-child,.agent-mission-list article>button{background:#e7d9ad}
+.agent-mission-actions button:disabled,.agent-mission-list article>button:disabled{opacity:.5;cursor:not-allowed}
+.agent-mission-actions svg{width:16px;height:16px}
+.agent-mission-list details{margin-top:14px;border-top:1px solid #5b6d43;padding-top:12px}
+.agent-mission-list summary{cursor:pointer;font-weight:800;color:#e7d9ad}
+.agent-mission-list ol{padding-left:24px;line-height:1.6}
+.agent-mission-list time{color:#d4f477}
+.agent-mission-result{margin:14px 0;padding:13px 16px;border:2px solid #d4f477;background:#172318;box-shadow:4px 4px 0 #0b100c}
+.agent-mission-result strong{color:#d4f477;letter-spacing:.08em}
+.agent-mission-result small{display:block;overflow-wrap:anywhere;color:#e7d9ad!important;letter-spacing:0!important}
+@media(max-width:640px){.agent-mission-desk{padding:16px}.agent-mission-desk header{align-items:flex-start;flex-direction:column}}
