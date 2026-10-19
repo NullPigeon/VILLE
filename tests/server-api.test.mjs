@@ -1808,6 +1808,21 @@ void test('private Market recipe tests require the owner and exact saved revisio
   await assert.rejects(readOwnedMarketDraft(other, id, revision), { status: 404 });
 });
 
+void test('a robot wallet receipt is readable only through its citizen owner', async () => {
+  const transaction = `0x${'a'.repeat(64)}`;
+  const f = fixture((call) => {
+    if (call.url.includes('landville_citizens?')) return json(call.url.includes(`wallet=eq.${wallet}`)
+      ? [{ wallet, linked_wallet: other }] : [{ wallet: other, linked_wallet: other }]);
+    if (call.url.includes('landville_robot_wallets?')) return json(call.url.includes(`owner_wallet=eq.${wallet}`) ? [{ address: wallet }] : []);
+    if (call.url.includes('landville_market_orders?')) return json(call.url.includes(`payer=in.(${other},${wallet})`) && call.url.includes(transaction)
+      ? [{ service_id: 'long-form', output: 'Robot bought this report.' }] : []);
+    return undefined;
+  });
+  const { citizenMarketResult } = f.load('@/lib/server/market-orders');
+  assert.equal((await citizenMarketResult(wallet, transaction)).output, 'Robot bought this report.');
+  await assert.rejects(citizenMarketResult(other, transaction), { status: 404 });
+});
+
 void test('a connected holder agent gets a 402 quote, never a free paid result', async () => {
   const token = `lvag_${'f'.repeat(64)}`;
   const hash = createHash('sha256').update(token).digest('hex');

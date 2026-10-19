@@ -9,6 +9,7 @@ The owner chose a separate, fundable USDG wallet for each personal robot. This i
 - Service-only mapping of citizen, Privy wallet ID and address. No wallet private key is stored in LANDVILLE.
 - Read-only USDG balance on Robinhood Chain, with an unavailable state when RPC cannot be read.
 - Separate spend journal. A database row lock serializes per-robot budget reservations. Unknown settlements continue to count against the UTC daily limit.
+- The private robot chat can read an already-settled Market result paid by its owner's robot wallet, using the exact transaction hash and owner-to-wallet mapping.
 
 ## Payment gate
 

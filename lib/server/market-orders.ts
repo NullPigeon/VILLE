@@ -33,10 +33,14 @@ export async function marketOrder(hash: string) {
 export async function citizenMarketResult(owner: string, transaction: string) {
   if (!/^0x[0-9a-fA-F]{64}$/.test(transaction)) throw new ApiError(400, 'Choose a completed Market job.');
   const citizen = await citizenAccount(owner);
-  const payer = citizen?.linked_wallet;
-  if (!payer || !isAddress(payer)) throw new ApiError(404, 'Market result not found for this wallet.');
+  const robot = await database<Array<{ address: string }>>(
+    `landville_robot_wallets?select=address&owner_wallet=eq.${owner}&limit=1`,
+  ).catch(() => []);
+  const payers = [...new Set([citizen?.linked_wallet, robot[0]?.address]
+    .filter((payer): payer is string => Boolean(payer && isAddress(payer))).map((payer) => payer.toLowerCase()))];
+  if (!payers.length) throw new ApiError(404, 'Market result not found for this wallet.');
   const rows = await database<Array<{ service_id: string; output: string | null }>>(
-    `landville_market_orders?select=service_id,output&status=eq.settled&transaction_hash=ilike.${transaction}&payer=ilike.${payer}&limit=1`,
+    `landville_market_orders?select=service_id,output&status=eq.settled&transaction_hash=ilike.${transaction}&payer=in.(${payers.join(',')})&limit=1`,
   );
   const order = rows[0];
   if (!order?.output) throw new ApiError(404, 'Market result not found for this wallet.');
