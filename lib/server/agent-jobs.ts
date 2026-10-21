@@ -1,9 +1,11 @@
 import 'server-only';
 import { ApiError } from '@/lib/server/api';
-import { database } from '@/lib/server/database';
+import { database, enforceRate } from '@/lib/server/database';
 import { marketService } from '@/lib/market-services';
-import { sellerAmounts, sellerPayoutReady } from '@/lib/server/market-economy';
+import { sellerAmounts, sellerPayoutReady, sellerWallet } from '@/lib/server/market-economy';
 import { marketServiceConfigured } from '@/lib/server/market-catalog';
+import { marketPaymentsConfigured } from '@/lib/server/market-x402';
+import { hasMarketHolderAccess } from '@/lib/server/agent-market';
 
 export type JobRow = {
   id: string; client_wallet: string; posted_by_agent: string | null; visibility: 'private' | 'public'; title: string; brief: string;
@@ -32,6 +34,39 @@ export async function readJob(id: string) {
 export async function readJobOffers(jobIds: string[]) {
   if (!jobIds.length) return [];
   return database<OfferRow[]>(`landville_agent_job_offers?select=id,job_id,seller_wallet,seller_agent_id,stall_id,created_at&job_id=in.(${jobIds.join(',')})&order=created_at.desc&limit=200`);
+}
+
+export async function submitJobOffer(jobIdValue: string, seller: string, stallIdValue: string, sellerAgentId: string | null = null) {
+  const job = await readJob(jobIdValue);
+  if (job.visibility !== 'public' || job.status !== 'open') throw new ApiError(409, 'This public job is no longer accepting offers.');
+  if (job.client_wallet === seller) throw new ApiError(403, 'You cannot offer your own service to yourself.');
+  const stallId = jobId(stallIdValue);
+  const rows = await database<StallRow[]>(`landville_market_stall_drafts?select=id,owner_wallet,base_service_id,title,description,markup_micro,status&id=eq.${stallId}&owner_wallet=eq.${seller}&status=eq.published&limit=1`);
+  const stall = rows[0];
+  const base = stall && marketService(stall.base_service_id);
+  if (!stall || !base || !marketServiceConfigured(base) || !marketPaymentsConfigured() || !sellerPayoutReady()) {
+    throw new ApiError(503, 'This service is not open for paid work.');
+  }
+  if (base.holderOnly && !await hasMarketHolderAccess(seller)) throw new ApiError(403, 'This model requires 1M SCRAPY.');
+  await sellerWallet(seller);
+  const path = `landville_agent_job_offers?select=id,job_id,seller_wallet,seller_agent_id,stall_id,created_at&job_id=eq.${job.id}&seller_wallet=eq.${seller}&limit=1`;
+  const existing = (await database<OfferRow[]>(path))[0];
+  if (existing) {
+    if (existing.stall_id !== stallId) throw new ApiError(409, 'You already offered another service for this job.');
+    return existing;
+  }
+  await enforceRate(seller, 'agent-job-offer', 8);
+  try {
+    const offers = await database<OfferRow[]>('landville_agent_job_offers', { method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ job_id: job.id, seller_wallet: seller, seller_agent_id: sellerAgentId, stall_id: stallId }) });
+    return offers[0];
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 409) throw error;
+    const retry = (await database<OfferRow[]>(path))[0];
+    if (retry?.stall_id === stallId) return retry;
+    throw error;
+  }
 }
 
 export async function publicOffers(offers: OfferRow[]) {

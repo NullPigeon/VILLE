@@ -92,6 +92,8 @@ function citizenPlacement(
 }
 
 type SavedHero = { skin?: string; robotSkin?: string; x?: number; y?: number; mapVersion?: number };
+type WorldEncounter = { id: string; occurredAt: string; jobId: string; jobTitle: string;
+  jobStatus: string; winnerOwner: string | null; robots: Array<{ owner: string; name: string }> };
 
 function restoredHeroPosition(saved: SavedHero, width: number, height: number, fallback: { x: number; y: number }) {
   const legacy = saved.mapVersion !== 2;
@@ -122,6 +124,7 @@ export default function WorldPage() {
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeError, setLikeError] = useState('');
   const [yards, setYards] = useState<PublicYard[]>([]);
+  const [encounters, setEncounters] = useState<WorldEncounter[]>([]);
   const [yardStatus, setYardStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   );
@@ -269,6 +272,20 @@ export default function WorldPage() {
     const first = window.setTimeout(tick, 0);
     const timer = window.setInterval(tick, 1000);
     return () => { window.clearTimeout(first); window.clearInterval(timer); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadEncounters() {
+      try {
+        const response = await fetch('/api/world/encounters', { cache: 'no-store' });
+        const result = await readJsonResponse<{ encounters: WorldEncounter[] }>(response, 'Load robot encounters');
+        if (active) setEncounters(result.encounters);
+      } catch { if (active) setEncounters([]); }
+    }
+    void loadEncounters();
+    const timer = window.setInterval(() => { void loadEncounters(); }, 30_000);
+    return () => { active = false; window.clearInterval(timer); };
   }, []);
 
   useEffect(() => {
@@ -773,6 +790,18 @@ export default function WorldPage() {
           </button>
           {camera.zoom < .4 && <button className="world-settlement-beacon" style={{ top: baseMapHeight / 2, transform: `translate(-50%,-50%) scale(${1 / camera.zoom})` }} onClick={() => moveCamera(mapWidth / 2, baseMapHeight / 2, .85)} aria-label="Zoom to the settled city"><b>LANDVILLE</b><small>{objects.length} PLACES · {yards.length} HOMES</small><Compass /></button>}
 
+          {encounters.slice(0, 1).map((encounter) => {
+            const winner = encounter.robots.find((robot) => robot.owner === encounter.winnerOwner);
+            return <Link key={encounter.id} href="/world/jobs" className="world-scrap-race"
+              style={{ left: mapWidth * .64 + 345, top: baseMapHeight * .66 + 15 }}
+              aria-label={`Scrap Race for ${encounter.jobTitle}: ${encounter.robots.map((robot) => robot.name).join(' and ')}`}>
+              <small>MARKET / LIVE ROBOT ENCOUNTER</small><strong>SCRAP RACE</strong>
+              <span>{encounter.robots.map((robot) => robot.name).join('  VS  ')}</span>
+              <em>{encounter.jobTitle}</em>
+              <b>{winner ? `${winner.name} won the job` : encounter.jobStatus === 'open' ? 'Open job · owner approval decides each offer' : 'Job closed · see board'}</b>
+            </Link>;
+          })}
+
           {WORLD_DISTRICTS.map((item, index) => (
             <button
               key={item.id}
@@ -914,14 +943,19 @@ export default function WorldPage() {
               mapWidth, mapHeight, cityHeight: baseMapHeight, roamMode: yard.worldRoamMode,
               personality: yard.personality, speechEnabled: yard.worldSpeechEnabled,
               phrases: yard.worldPhrases, now: worldClock });
+            const encounter = encounters[0];
+            const contender = encounter?.robots.findIndex((robot) => robot.owner.toLowerCase() === yard.ownerWallet.toLowerCase()) ?? -1;
+            const onRace = contender >= 0 && encounter?.jobStatus === 'open';
+            const currentMotion = onRace ? { x: mapWidth * .64 + 345 + (contender === 0 ? -115 : 115),
+              y: baseMapHeight * .66 + 135, speech: '' } : motion;
             const sharedRobotSkin = positionsByWallet.get(yard.ownerWallet.toLowerCase())?.robotSkin;
             const actor = <>
-              {motion.speech && <span className="world-agent-speech" aria-live="off">{motion.speech}</span>}
+              {currentMotion.speech && <span className="world-agent-speech" aria-live="off">{currentMotion.speech}</span>}
               <span className="world-actor-figure"><PersonalRobot presentation={yard.presentation} skin={own ? robotSkin : sharedRobotSkin || ROBOT_SKINS[index % ROBOT_SKINS.length]} /></span>
-              <span className="world-actor-name">{yard.name}{own ? ' · YOUR AGENT' : ''}</span>
+              <span className="world-actor-name">{yard.name}{onRace ? ' · SCRAP RACE' : own ? ' · YOUR AGENT' : ''}</span>
             </>;
-            const className = `world-game-actor robot${own ? ' own' : ' neighbor'}${motion.speech ? ' speaking' : ''}`;
-            const clear = walkingPosition(motion, occupied, mapWidth, mapHeight);
+            const className = `world-game-actor robot${own ? ' own' : ' neighbor'}${onRace ? ' racing' : ''}${currentMotion.speech ? ' speaking' : ''}`;
+            const clear = walkingPosition(currentMotion, occupied, mapWidth, mapHeight);
             occupied.push({ left: clear.x - 28, right: clear.x + 28, top: clear.y - 64, bottom: clear.y + 5 });
             const style = { left: clear.x, top: clear.y };
             return own
